@@ -1,5 +1,6 @@
 import { AppLayout } from '@/components/layout/app-layout';
 import { GamesPage } from '@/pages/games';
+import { GameNewPage } from '@/pages/game-new';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom';
@@ -12,6 +13,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/games" replace /> },
       { path: 'games', element: <GamesPage /> },
+      { path: 'games/new', element: <GameNewPage /> },
       { path: 'settings', element: <Placeholder title="Settings" /> },
       { path: 'support', element: <Placeholder title="Support" /> },
     ],

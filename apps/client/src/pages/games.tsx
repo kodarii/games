@@ -9,6 +9,7 @@ import { StatusBadge, type StatusVariant } from '@/components/status-badge';
 import { Toolbar, ToolbarSpacer } from '@/components/toolbar';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Link } from 'react-router-dom';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { Game, GameStatus, GamesResponse } from '@/types';
 import {
@@ -209,9 +210,11 @@ export function GamesPage() {
         <IconButton variant="elevated" aria-label="Settings">
           <Icon.gear size={14} />
         </IconButton>
-        <Button variant="primary" size="sm" className="ml-3">
-          <Icon.plus size={14} />
-          Add game
+        <Button variant="primary" size="sm" className="ml-3" asChild>
+          <Link to="/games/new">
+            <Icon.plus size={14} />
+            Add game
+          </Link>
         </Button>
       </Toolbar>
 
