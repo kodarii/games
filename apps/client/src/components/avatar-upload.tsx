@@ -1,10 +1,12 @@
 import { useRef } from 'react';
-import { avatarColor, initials } from '@/lib/avatar';
+import { Avatar, type AvatarShape } from './avatar';
 import { cn } from '@/lib/utils';
 
 export function AvatarUpload({
   src,
   name,
+  shape = 'circle',
+  size = 56,
   onFileSelect,
   buttonLabel = 'Upload photo',
   hint = 'JPG, PNG up to 2MB',
@@ -13,6 +15,8 @@ export function AvatarUpload({
 }: {
   src?: string | null;
   name?: string;
+  shape?: AvatarShape;
+  size?: number;
   onFileSelect: (file: File) => void;
   buttonLabel?: string;
   hint?: string;
@@ -20,18 +24,10 @@ export function AvatarUpload({
   className?: string;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const trimmed = name?.trim() ?? '';
-  const bg = trimmed ? avatarColor(trimmed) : '#c8c8c8';
-  const glyph = trimmed ? initials(trimmed) : '?';
 
   return (
     <div className={cn('flex items-center gap-4', className)}>
-      <div
-        className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full text-[18px] font-bold text-white"
-        style={{ background: bg }}
-      >
-        {src ? <img src={src} alt="" className="h-full w-full object-cover" /> : <span>{glyph}</span>}
-      </div>
+      <Avatar shape={shape} size={size} src={src} name={name} />
       <div className="flex flex-col gap-[5px]">
         <button
           type="button"

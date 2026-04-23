@@ -123,6 +123,7 @@ export function GameForm({
         <FormCard>
           <FormSection title="Game Details" description="Basic information about the game.">
             <AvatarUpload
+              shape="rect"
               src={coverUrl}
               name={form.title}
               onFileSelect={(f) => setCoverUrl(URL.createObjectURL(f))}

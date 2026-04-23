@@ -7,10 +7,10 @@ import { Pagination } from '@/components/pagination';
 import { SearchInput } from '@/components/search-input';
 import { StatusBadge, type StatusVariant } from '@/components/status-badge';
 import { Toolbar, ToolbarSpacer } from '@/components/toolbar';
+import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Link } from 'react-router-dom';
-import { avatarColor, initials } from '@/lib/avatar';
 import type { Game, GameStatus, GamesResponse } from '@/types';
 import {
   type PaginationState,
@@ -70,12 +70,7 @@ const columns = [
     header: 'Title',
     cell: ({ row }) => (
       <div className="flex items-center gap-[11px]">
-        <div
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold text-white"
-          style={{ background: avatarColor(row.original.title) }}
-        >
-          {initials(row.original.title)}
-        </div>
+        <Avatar shape="rect" size={40} name={row.original.title} />
         <div>
           <Link
             to={`/games/${row.original.id}/edit`}
