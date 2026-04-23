@@ -1,5 +1,6 @@
 import { Avatar } from '@/components/avatar';
 import { Breadcrumb } from '@/components/breadcrumb';
+import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
 import { FormCard, FormSection } from '@/components/form-card';
 import { FormField, FormFieldRow } from '@/components/form-field';
 import { FormCancelButton, FormFooter, FormSubmitButton } from '@/components/form-footer';
@@ -10,18 +11,17 @@ import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { statusFor } from '@/lib/game-status';
 import { useDeleteGameMutation, useGameQuery } from '@/lib/queries';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 export function GameViewPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { data: game, error } = useGameQuery(id);
   const deleteMutation = useDeleteGameMutation();
 
   const handleDelete = async () => {
-    if (!window.confirm(`Delete "${game?.title}"? This cannot be undone.`)) {
-      return;
-    }
     try {
       await deleteMutation.mutateAsync(Number(id));
       navigate('/games');
@@ -100,7 +100,7 @@ export function GameViewPage() {
       <FormFooter>
         <button
           type="button"
-          onClick={handleDelete}
+          onClick={() => setDeleteDialogOpen(true)}
           disabled={deleteMutation.isPending}
           className="mr-auto rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
         >
@@ -109,6 +109,14 @@ export function GameViewPage() {
         <FormCancelButton onClick={() => navigate('/games')} />
         <FormSubmitButton onClick={() => navigate(`/games/${game.id}/edit`)}>Edit</FormSubmitButton>
       </FormFooter>
+
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        gameTitle={game.title}
+        isDeleting={deleteMutation.isPending}
+        onConfirm={handleDelete}
+      />
     </>
   );
 }
