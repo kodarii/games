@@ -20,7 +20,8 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useGamesQuery } from '@/lib/queries';
 
 const columnHelper = createColumnHelper<Game>();
 
@@ -137,33 +138,19 @@ export function GamesPage() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [search, setSearch] = useState('');
-  const [data, setData] = useState<GamesResponse>(EMPTY);
 
-  useEffect(() => {
-    const params = new URLSearchParams({
-      page: String(pagination.pageIndex + 1),
-      perPage: String(pagination.pageSize),
-      search,
-    });
-    const sort = sorting[0];
-    if (sort) {
-      params.set('sort', sort.id);
-      params.set('dir', sort.desc ? 'desc' : 'asc');
-    }
-    let cancelled = false;
-    fetch(`/api/games?${params}`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`games request failed: ${r.status}`);
-        return r.json() as Promise<GamesResponse>;
-      })
-      .then((d) => {
-        if (!cancelled) setData(d);
-      })
-      .catch((err) => console.error(err));
-    return () => {
-      cancelled = true;
-    };
-  }, [pagination, sorting, search]);
+  const params = new URLSearchParams({
+    page: String(pagination.pageIndex + 1),
+    perPage: String(pagination.pageSize),
+    search,
+  });
+  const sort = sorting[0];
+  if (sort) {
+    params.set('sort', sort.id);
+    params.set('dir', sort.desc ? 'desc' : 'asc');
+  }
+
+  const { data = EMPTY } = useGamesQuery(params);
 
   const table = useReactTable<Game>({
     data: data.items,
