@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import type { ReactNode } from 'react';
 
 export function FormField({
   label,
@@ -43,8 +43,7 @@ export function FormFieldRow({
   children: ReactNode;
   className?: string;
 }) {
-  const grid =
-    cols === 1 ? 'grid-cols-1' : cols === 2 ? 'grid-cols-2' : 'grid-cols-3';
+  const grid = cols === 1 ? 'grid-cols-1' : cols === 2 ? 'grid-cols-2' : 'grid-cols-3';
   return (
     <div className={cn('mb-[14px] grid gap-[14px] last:mb-0', grid, className)}>{children}</div>
   );

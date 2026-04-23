@@ -1,6 +1,6 @@
 import { GameForm } from '@/components/game-form';
-import { useParams } from 'react-router-dom';
 import { useGameQuery } from '@/lib/queries';
+import { useParams } from 'react-router-dom';
 
 export function GameEditPage() {
   const { id } = useParams<{ id: string }>();

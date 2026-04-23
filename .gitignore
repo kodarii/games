@@ -7,3 +7,10 @@ build
 .env
 .env.local
 .vite
+apps/api/data/*.db
+apps/api/data/*.db-*
+apps/api/src/data/*.db
+apps/api/src/data/*.db-*
+*.db
+*.db-wal
+*.db-shm

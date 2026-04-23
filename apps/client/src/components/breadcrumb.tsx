@@ -1,7 +1,7 @@
-import { Link } from 'react-router-dom';
-import { Fragment } from 'react';
-import { Icon } from './icons';
 import { cn } from '@/lib/utils';
+import { Fragment } from 'react';
+import { Link } from 'react-router-dom';
+import { Icon } from './icons';
 
 export type BreadcrumbItem = {
   label: string;

@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+import { seedGamesIfEmpty } from './infrastructure/db/seed';
 import { games } from './routes/games';
 
 const app = new Hono();
@@ -12,6 +13,8 @@ app.get('/', (c) => c.json({ name: 'apex-api', status: 'ok' }));
 app.get('/api/health', (c) => c.json({ status: 'ok' }));
 
 app.route('/api/games', games);
+
+await seedGamesIfEmpty();
 
 const port = Number(process.env.PORT ?? 3001);
 

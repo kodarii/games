@@ -2,18 +2,16 @@ import { AvatarUpload } from '@/components/avatar-upload';
 import { Breadcrumb } from '@/components/breadcrumb';
 import { FormCard, FormSection } from '@/components/form-card';
 import { FormField, FormFieldRow } from '@/components/form-field';
-import {
-  FormCancelButton,
-  FormFooter,
-  FormSubmitButton,
-} from '@/components/form-footer';
-import { Icon } from '@/components/icons';
+import { FormCancelButton, FormFooter, FormSubmitButton } from '@/components/form-footer';
 import { IconButton } from '@/components/icon-button';
+import { Icon } from '@/components/icons';
 import { PageHeader } from '@/components/page-header';
 import { PillSelect } from '@/components/pill-select';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import type { CreateGameInput, UpdateGameInput } from '@/lib/api';
+import { useCreateGameMutation, useUpdateGameMutation } from '@/lib/queries';
 import type { Game, GamePlatform, GameStatus } from '@/types';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -81,6 +79,8 @@ export function GameForm({
     initialGame ? gameToFormState(initialGame) : EMPTY,
   );
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const createMutation = useCreateGameMutation();
+  const updateMutation = useUpdateGameMutation();
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -88,7 +88,28 @@ export function GameForm({
   const canSubmit = Boolean(form.title.trim() && form.developer.trim() && form.platform);
 
   const onSubmit = () => {
-    if (canSubmit) navigate('/games');
+    const payload = {
+      title: form.title.trim(),
+      developer: form.developer.trim(),
+      genre: form.genre.trim() || '',
+      releaseYear: Number(form.releaseYear) || new Date().getFullYear(),
+      platform: form.platform as GamePlatform,
+      edition: form.edition.trim() || undefined,
+      hoursPlayed: Number(form.hoursPlayed) || 0,
+      status: form.status,
+    };
+
+    if (isEdit && initialGame) {
+      updateMutation.mutate(
+        { id: initialGame.id, input: payload satisfies UpdateGameInput },
+        { onSuccess: (g) => navigate(`/games/${g.id}`) },
+      );
+      return;
+    }
+
+    createMutation.mutate(payload satisfies CreateGameInput, {
+      onSuccess: () => navigate('/games'),
+    });
   };
 
   const headerIcon = isEdit ? <Icon.gamepad size={22} /> : <Icon.plus size={22} />;
@@ -98,6 +119,7 @@ export function GameForm({
     : 'Fill in the details to add a game to your collection.';
   const breadcrumbLast = isEdit ? (initialGame?.title ?? 'Edit Game') : 'Add New Game';
   const submitLabel = isEdit ? 'Save Changes' : 'Add Game';
+  const errorMessage = createMutation.error?.message || updateMutation.error?.message || null;
 
   return (
     <>
@@ -112,12 +134,7 @@ export function GameForm({
         }
       />
 
-      <Breadcrumb
-        items={[
-          { label: 'Games', to: '/games' },
-          { label: breadcrumbLast },
-        ]}
-      />
+      <Breadcrumb items={[{ label: 'Games', to: '/games' }, { label: breadcrumbLast }]} />
 
       <div className="scroll-thin flex-1 overflow-y-auto bg-white px-6 pb-6">
         <FormCard>
@@ -222,11 +239,15 @@ export function GameForm({
 
       <FormFooter>
         <FormCancelButton onClick={() => navigate('/games')} />
-        <FormSubmitButton disabled={!canSubmit} onClick={onSubmit}>
+        <FormSubmitButton
+          disabled={!canSubmit || createMutation.isPending || updateMutation.isPending}
+          onClick={onSubmit}
+        >
           {!isEdit && <Icon.plus size={14} />}
           {submitLabel}
         </FormSubmitButton>
       </FormFooter>
+      {errorMessage && <div className="px-6 pb-4 text-sm text-red-600">{errorMessage}</div>}
     </>
   );
 }

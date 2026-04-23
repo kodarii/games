@@ -33,11 +33,7 @@ export function Avatar({
       )}
       style={{ width, height, background: bg, fontSize }}
     >
-      {src ? (
-        <img src={src} alt="" className="h-full w-full object-cover" />
-      ) : (
-        <span>{glyph}</span>
-      )}
+      {src ? <img src={src} alt="" className="h-full w-full object-cover" /> : <span>{glyph}</span>}
     </div>
   );
 }

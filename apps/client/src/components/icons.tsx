@@ -238,12 +238,7 @@ export const Icon = {
     </>,
   ),
   plus: svg(
-    <path
-      d="M8 3.5v9M3.5 8h9"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-    />,
+    <path d="M8 3.5v9M3.5 8h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />,
   ),
   pgfirst: svg(
     <path

@@ -22,19 +22,21 @@ export function PillSelect<T extends string>({
       {options.map((opt) => {
         const selected = value === opt.value;
         return (
-          <button
+          <label
             key={opt.value}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            onClick={() => onChange(opt.value)}
             className={cn(
-              'flex select-none items-center gap-[6px] rounded-full border px-3 py-[6px] text-[12px] transition-all',
+              'flex select-none items-center gap-[6px] rounded-full border px-3 py-[6px] text-[12px] transition-all cursor-pointer',
               selected
                 ? 'border-apex-accent bg-[#EEF2FF] font-medium text-[#3b5bdb]'
                 : 'border-apex-line-2 text-apex-ink-4 hover:border-apex-faint',
             )}
           >
+            <input
+              type="radio"
+              checked={selected}
+              onChange={() => onChange(opt.value)}
+              className="sr-only"
+            />
             {opt.color && (
               <span
                 className="h-[7px] w-[7px] rounded-full"
@@ -43,7 +45,7 @@ export function PillSelect<T extends string>({
               />
             )}
             {opt.label ?? opt.value}
-          </button>
+          </label>
         );
       })}
     </div>

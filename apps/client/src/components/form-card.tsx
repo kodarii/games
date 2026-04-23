@@ -1,13 +1,10 @@
-import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import type { ReactNode } from 'react';
 
 export function FormCard({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div
-      className={cn(
-        'overflow-hidden rounded-[12px] border border-apex-line-1 bg-white',
-        className,
-      )}
+      className={cn('overflow-hidden rounded-[12px] border border-apex-line-1 bg-white', className)}
     >
       {children}
     </div>

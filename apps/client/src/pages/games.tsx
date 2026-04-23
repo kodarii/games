@@ -1,3 +1,4 @@
+import { Avatar } from '@/components/avatar';
 import { DataTable } from '@/components/data-table';
 import { FilterButton } from '@/components/filter-button';
 import { IconButton } from '@/components/icon-button';
@@ -5,13 +6,13 @@ import { Icon } from '@/components/icons';
 import { PageHeader } from '@/components/page-header';
 import { Pagination } from '@/components/pagination';
 import { SearchInput } from '@/components/search-input';
-import { StatusBadge, type StatusVariant } from '@/components/status-badge';
+import { StatusBadge } from '@/components/status-badge';
 import { Toolbar, ToolbarSpacer } from '@/components/toolbar';
-import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Link } from 'react-router-dom';
-import type { Game, GameStatus, GamesResponse } from '@/types';
+import { statusFor } from '@/lib/game-status';
+import { useGamesQuery } from '@/lib/queries';
+import type { Game, GamesResponse } from '@/types';
 import {
   type PaginationState,
   type RowSelectionState,
@@ -21,24 +22,9 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { useState } from 'react';
-import { useGamesQuery } from '@/lib/queries';
+import { Link } from 'react-router-dom';
 
 const columnHelper = createColumnHelper<Game>();
-
-function statusFor(s: GameStatus): { variant: StatusVariant; label: string } {
-  switch (s) {
-    case 'Playing':
-      return { variant: 'progress', label: 'Playing' };
-    case 'Wishlist':
-      return { variant: 'info', label: 'Wishlist' };
-    case 'Backlog':
-      return { variant: 'pending', label: 'Backlog' };
-    case 'Completed':
-      return { variant: 'done', label: 'Completed' };
-    case 'Dropped':
-      return { variant: 'inactive', label: 'Dropped' };
-  }
-}
 
 const columns = [
   columnHelper.display({
@@ -74,7 +60,7 @@ const columns = [
         <Avatar shape="rect" size={40} name={row.original.title} />
         <div>
           <Link
-            to={`/games/${row.original.id}/edit`}
+            to={`/games/${row.original.id}`}
             className="text-[13.5px] font-semibold leading-[1.35] text-apex-ink transition-colors hover:text-apex-accent"
           >
             {row.original.title}

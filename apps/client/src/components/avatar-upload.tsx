@@ -1,6 +1,6 @@
+import { cn } from '@/lib/utils';
 import { useRef } from 'react';
 import { Avatar, type AvatarShape } from './avatar';
-import { cn } from '@/lib/utils';
 
 export function AvatarUpload({
   src,
