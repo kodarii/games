@@ -9,13 +9,26 @@ import { Icon } from '@/components/icons';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { statusFor } from '@/lib/game-status';
-import { useGameQuery } from '@/lib/queries';
+import { useDeleteGameMutation, useGameQuery } from '@/lib/queries';
 import { useNavigate, useParams } from 'react-router-dom';
 
 export function GameViewPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: game, error } = useGameQuery(id);
+  const deleteMutation = useDeleteGameMutation();
+
+  const handleDelete = async () => {
+    if (!window.confirm(`Delete "${game?.title}"? This cannot be undone.`)) {
+      return;
+    }
+    try {
+      await deleteMutation.mutateAsync(Number(id));
+      navigate('/games');
+    } catch (e) {
+      alert(`Failed to delete: ${e}`);
+    }
+  };
 
   if (error) {
     return (
@@ -85,6 +98,14 @@ export function GameViewPage() {
       </div>
 
       <FormFooter>
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={deleteMutation.isPending}
+          className="mr-auto rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+        >
+          {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+        </button>
         <FormCancelButton onClick={() => navigate('/games')} />
         <FormSubmitButton onClick={() => navigate(`/games/${game.id}/edit`)}>Edit</FormSubmitButton>
       </FormFooter>

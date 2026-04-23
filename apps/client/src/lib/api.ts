@@ -54,3 +54,14 @@ export async function updateGame(id: number, input: UpdateGameInput): Promise<Ga
   }
   return r.json();
 }
+
+export async function deleteGame(id: number): Promise<Game> {
+  const r = await fetch(`/api/games/${id}`, {
+    method: 'DELETE',
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(body?.error ?? `Failed to delete game: ${r.status}`);
+  }
+  return r.json();
+}

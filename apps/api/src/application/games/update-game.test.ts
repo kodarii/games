@@ -21,6 +21,13 @@ class FakeGameRepository implements GameRepository {
     return updated;
   }
 
+  async delete(id: number): Promise<Game | null> {
+    const game = this.games.get(id);
+    if (!game) return null;
+    this.games.delete(id);
+    return game;
+  }
+
   seed(game: Game): void {
     this.games.set(game.id, game);
   }

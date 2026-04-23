@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { CreateGame } from '../application/games/create-game';
+import { DeleteGame } from '../application/games/delete-game';
 import { GetGame } from '../application/games/get-game';
 import { ListGames } from '../application/games/list-games';
 import { UpdateGame } from '../application/games/update-game';
@@ -9,6 +10,7 @@ import { DrizzleGameRepository } from '../infrastructure/games/drizzle-game-repo
 
 const repo = new DrizzleGameRepository();
 const createGame = new CreateGame(repo);
+const deleteGame = new DeleteGame(repo);
 const listGames = new ListGames(repo);
 const getGame = new GetGame(repo);
 const updateGame = new UpdateGame(repo);
@@ -78,4 +80,19 @@ games.post('/', async (c) => {
 
   const game: Game = result.value;
   return c.json(game, 201);
+});
+
+games.delete('/:id', async (c) => {
+  const id = Number(c.req.param('id'));
+  if (!Number.isFinite(id)) {
+    return c.json({ error: 'Invalid id' }, 400);
+  }
+
+  const result = await deleteGame.execute(id);
+
+  if (!result.ok) {
+    return c.json({ error: 'not found' }, 404);
+  }
+
+  return c.json(result.value);
 });

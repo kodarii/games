@@ -111,4 +111,11 @@ export class DrizzleGameRepository implements GameRepository {
     if (!updated) return null;
     return this.mapRowToGame(updated);
   }
+
+  async delete(id: number): Promise<Game | null> {
+    const [deleted] = await db.delete(gamesTable).where(eq(gamesTable.id, id)).returning();
+
+    if (!deleted) return null;
+    return this.mapRowToGame(deleted);
+  }
 }

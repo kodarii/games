@@ -4,6 +4,7 @@ import {
   type CreateGameInput,
   type UpdateGameInput,
   createGame,
+  deleteGame,
   fetchGame,
   fetchGames,
   updateGame,
@@ -42,6 +43,16 @@ export function useUpdateGameMutation() {
       qc.invalidateQueries({ queryKey: ['games'] });
       qc.invalidateQueries({ queryKey: ['game', String(game.id)] });
       qc.invalidateQueries({ queryKey: ['game', game.id] });
+    },
+  });
+}
+
+export function useDeleteGameMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deleteGame(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['games'] });
     },
   });
 }

@@ -18,4 +18,5 @@ export interface GameRepository {
   findById(id: number): Promise<Game | null>;
   create(game: NewGame): Promise<Game>;
   update(id: number, game: GameUpdate): Promise<Game | null>;
+  delete(id: number): Promise<Game | null>;
 }
