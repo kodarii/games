@@ -77,9 +77,12 @@ const columns = [
           {initials(row.original.title)}
         </div>
         <div>
-          <div className="text-[13.5px] font-semibold leading-[1.35] text-apex-ink">
+          <Link
+            to={`/games/${row.original.id}/edit`}
+            className="text-[13.5px] font-semibold leading-[1.35] text-apex-ink transition-colors hover:text-apex-accent"
+          >
             {row.original.title}
-          </div>
+          </Link>
           <div className="text-[11.5px] leading-[1.35] text-apex-faint">
             {row.original.developer}
           </div>
