@@ -8,487 +8,486 @@ description: >
   dla zadania kodowania, które ma być wykonane przez inny model/agenta — szczególnie gdy
   wymienia: OpenCode, Big Pickle, GLM, Gemma, Qwen, DeepSeek, Ollama, LM Studio, lokalny
   model, open-weight, sub-agent, coding agent. Triggeruj też gdy użytkownik planuje wykonanie
-  wieloetapowego taska w innej sesji/agencie niż bieżąca rozmowa. Plany pisane są wertykalnie
-  (vertical slice przez cały stos: DB → domain → API → UI per feature), z wymuszeniem DDD
-  (agregaty, value objects, domain services, ports & adapters), SOLID, separation of concerns
-  w React (custom hooks vs prezentacja), Context7 do pobrania docs bibliotek, i jawnym
-  stackiem (Bun + Hono + Drizzle + Better-Auth + React + Radix + Tailwind). NIE używaj gdy
-  plan jest dla człowieka-dewelopera ani gdy użytkownik prosi o samą implementację tu i teraz.
+  wieloetapowego taska w innej sesji/agencie niż bieżąca rozmowa. Plany pisane są jako FAZY
+  (osobne pliki po 3-4 kroki), vertical slice z DDD, TDD, separation of concerns w React,
+  Context7 do docs, stack: Bun + Hono + Drizzle + Better-Auth + React + Radix + Tailwind.
+  NIE używaj gdy plan jest dla człowieka-dewelopera ani gdy użytkownik prosi o implementację.
 ---
 
 # Plan kodowania dla lokalnych coding agents
 
-## Dlaczego ten skill istnieje
+## Problem: agent gubi się przy >5 krokach
 
-Open-weight coding agents (Big Pickle/GLM-4.6, Gemma 4 27B, Qwen3 Coder itp.) są mocne
-w generowaniu kodu, ale w porównaniu z frontier modelami mają cztery słabości:
+Lokalne modele (27B-klasa) realnie ogarniają 3-5 kroków. Plan z 10 krokami
+= agent wykona pierwszą połowę dobrze, drugą pominie lub zepsuje.
 
-1. **Pomijają ukryte wymagania** — co nie jest napisane wprost, zostanie pominięte
-2. **Dryfują** po ~20 tool-callach — gubią pierwotny cel
-3. **Nie wiedzą kiedy skończyć** — refaktorują w kółko lub kończą za wcześnie
-4. **Halucynują API bibliotek** — piszą nieistniejące klasy Tailwind, stare hooki React
+Rozwiązanie: **fazy**. Zamiast jednego planu z 10 krokami, generuj 3 osobne pliki
+po 3-4 kroki każdy. Każda faza to zamknięty mini-plan z własnym celem, Context7,
+DoD i Constraints. Agent dostaje jedną fazę na raz, wykonuje, kończy. Potem
+dostaje następną fazę z czystym kontekstem.
 
-Plus piąta, architektoniczna:
-
-5. **Domyślnie piszą anemic model** — logika w routerach/kontrolerach, serwisy jako
-   przelewalki, brak wartości obiektowych. Bez explicit planu DDD → dostajesz CRUD.
-
-Twoja rola: napisać plan, który domyka te pięć luk — daje explicit wymagania, kotwice
-kontekstu, kryteria stopu, wymusza sięganie po docs, i narzuca architekturę DDD.
+Fazy łączą się przez **artefakty** — faza 1 produkuje pliki na dysku, faza 2
+je czyta (`Files to read`) i buduje na nich. Agent nie musi pamiętać co robił
+w fazie 1 — widzi rezultat w kodzie.
 
 ---
 
 ## Stack projektu (domyślny)
 
-Jeśli użytkownik nie podał innego — zakładaj ten stack:
-
 **Backend:** Bun + HonoJS + Drizzle ORM + PostgreSQL + Better-Auth
 **Frontend:** React + react-router-dom + Radix UI + Tailwind CSS
 **Runtime/PM:** Bun (NIE Node.js, NIE npm)
-**Architektura:** DDD, Ports & Adapters (hexagonal), vertical slicing per feature
-**Zasady:** SOLID, DRY, YAGNI — kod łatwy w utrzymaniu i rozwijaniu
-
-Jeśli użytkownik ma inny stack — zapytaj i dostosuj szablony.
+**Architektura:** DDD, Ports & Adapters, vertical slicing per feature
+**Zasady:** SOLID, DRY, YAGNI, TDD (test-first)
 
 ---
 
-## Zapis planu na dysk
+## Konsultuj się z innymi skillami PRZED pisaniem planu
 
-Plan ZAWSZE zapisuj jako plik markdown w katalogu `docs/plans/` w rootcie projektu.
-Użyj `create_file` — nie wyświetlaj planu w chacie. Użytkownik otworzy plik sam.
+Ty (Claude) masz dostęp do skilli eksperckich. Agent lokalny ich NIE MA — widzi
+tylko treść pliku fazy. Dlatego ZANIM napiszesz fazy:
 
-**Konwencja nazewnictwa:**
+1. **Przeczytaj odpowiednie skille** — wczytaj ich SKILL.md i zastosuj wiedzę
+2. **Przetraw wiedzę** — wyciągnij konkretne wytyczne istotne dla tego feature'a
+3. **Osadź wytyczne w fazach** — wstaw je do Context/Constraints danej fazy
+   jako krótkie, explicit instrukcje (nie referencje do skilli)
+
+### Które skille konsultować i kiedy
+
+| Faza | Skill | Kiedy | Co wyciągnąć do fazy |
+|------|-------|-------|---------------------|
+| PHASE 1 (domain) | `ddd-expert` | ZAWSZE | Czy to agregat czy VO? Jakie invarianty? Jaki wzorzec (specification, strategy)? Wstaw wynik analizy do Context fazy 1 jako sekcję "Domain design decisions" |
+| PHASE 1 (domain) | `ddd-reviewer` | Jeśli feature rozbudowuje istniejącą domenę | Przeczytaj istniejący kod domenowy, zidentyfikuj problemy, wstaw do Constraints fazy 1: "NIE powtarzaj błędu X z istniejącego kodu" |
+| PHASE 2 (backend) | `enterprise-web-expert` | ZAWSZE | Error handling pattern, auth flow, transaction boundaries. Wstaw do Constraints fazy 2 |
+| PHASE 3 (frontend) | `ux-ui-expert` | ZAWSZE | Wygeneruj Visual spec z pomocą tego skilla. Wstaw gotowy opis layoutu, komponentów Radix, kolorów, spacing do fazy 3 |
+
+### Jak to wygląda w praktyce
+
+Użytkownik mówi: "zrób plan: dodaj zarządzanie zamówieniami"
+
+Claude (planista) robi:
 ```
-docs/plans/PLAN_<krótka-nazwa-feature>.md
-```
-
-Przykłady:
-- `docs/plans/PLAN_user-registration.md`
-- `docs/plans/PLAN_order-creation.md`
-- `docs/plans/PLAN_admin-dashboard.md`
-
-Zasady:
-- Nazwa pliku: lowercase, kebab-case, bez spacji, bez polskich znaków
-- Jeden plik = jeden plan = jeden feature (vertical slice)
-- Jeśli katalog `docs/plans/` nie istnieje — utwórz go
-- Po zapisaniu pliku — powiedz użytkownikowi ścieżkę i krótko (2-3 zdania) co plan
-  obejmuje. Nie streszczaj całego planu — użytkownik go przeczyta sam
-
----
-
-## Vertical slice: jak rozbijać zadania
-
-Plan jest ZAWSZE pisany jako **vertical slice** — jeden mały feature przechodzący
-przez cały stos. NIE rozpisuj "najpierw cała warstwa DB, potem cała warstwa serwisów,
-potem cały frontend". To prowadzi do 500-liniowych PR-ów i niespójności.
-
-Jeden plan = jeden feature/use case, np:
-- "Użytkownik może dodać produkt do koszyka"
-- "Admin może zobaczyć listę zamówień"
-- "System wysyła email po rejestracji"
-
-Jeśli feature jest za duży (>12 kroków) — rozbij na dwa plany z handoffem.
-
-Porządek kroków w vertical slice (TDD — test first):
-```
-Step 0: Context7 — pobierz docs bibliotek
-Step 1: Domain types — typy, interfejsy portów, sygnatury (kompilujący się szkielet)
-Step 2: TEST domeny — testy logiki biznesowej agregatu/VO/factory (RED — nie przechodzą)
-Step 3: Domain impl — implementacja aż testy z Step 2 przejdą (GREEN)
-Step 4: DB schema + migracja (Drizzle)
-Step 5: Repository adapter — implementacja portu
-Step 6: TEST use case — test z fake/mock repozytorium (RED)
-Step 7: Application service — implementacja use case (GREEN)
-Step 8: Route handler (Hono) — cienki, deleguje do application service
-Step 9: Frontend — custom hook + komponent prezentacyjny
-Step 10: Lint & typecheck & all tests green
+1. Czytam ddd-expert → analizuję: Order to aggregate root z OrderLine,
+   invariant "min 1 pozycja", "suma = Σ pozycji". OrderStatus to VO z maszyną stanów.
+2. Czytam enterprise-web-expert → decyduję: Result<T,E> na error handling,
+   transakcja na zapis Order + Lines, idempotency key na endpoint tworzenia.
+3. Czytam ux-ui-expert → projektuję Visual spec: tabela zamówień z statusem,
+   formularz z dynamiczną listą pozycji, Radix Dialog na potwierdzenie.
+4. Piszę 3 fazy z wbudowanymi wytycznymi z powyższych analiz.
 ```
 
-Zasada TDD w planie: **NIE pisz kodu produkcyjnego bez testu który go wymusza.**
-Najpierw test (RED), potem implementacja (GREEN), refactor jeśli trzeba.
-Agent NIE może pominąć kroku z testem — bez niego następny krok nie ma sensu.
+### Co wstawiać do faz — format
 
-NIE musisz zawsze mieć wszystkich warstw. YAGNI — jeśli feature nie potrzebuje
-domain service (bo logika jest trywialna), nie twórz go na siłę. Ale jeśli jest
-logika biznesowa — musi być w domenie, nie w routerze. Nawet przy CRUD-ach
-test factory/VO jest wymagany (weryfikuje invarianty).
+W fazie dodaj krótką sekcję `## Design decisions` (max 5-8 linii) z wynikami
+analizy. Agent nie musi wiedzieć SKĄD te decyzje — musi wiedzieć CO robić.
 
----
-
-## Obowiązkowy Step 0: Context7
-
-Każdy plan zaczyna się od pobrania dokumentacji bibliotek przez Context7.
-Bez tego agent halucynuje API (szczególnie Tailwind, Drizzle, Radix).
-
+Przykład w PHASE_1_domain.md:
 ```markdown
-### Step 0: Pobierz dokumentację
-**Co robimy:** Użyj Context7 aby pobrać aktualne docs:
-- Drizzle ORM: "<konkretne pytanie — np. insert with returning, relations>"
-- Radix UI: "<konkretny komponent — np. Dialog, DropdownMenu>"
-- Tailwind CSS: "<konkretne klasy — np. grid layout, responsive breakpoints>"
-- Better-Auth: "<jeśli feature dotyczy auth>"
-- Hono: "<jeśli feature dotyczy routing/middleware>"
-**Rezultat:** Masz docs w kontekście. Cały kod piszesz NA PODSTAWIE docs, nie z pamięci.
-**WAŻNE:** NIE pomijaj. Jeśli w kolejnym kroku potrzebujesz API biblioteki której
-nie pobrałeś — WRÓĆ tu i pobierz zanim zaczniesz kodować.
+## Design decisions
+- Order to aggregate root. OrderLine jest częścią agregatu Order (nie samodzielną encją)
+- Invariant: Order musi mieć min 1 pozycję. Pilnuj w `removeLine()` — err jeśli ostatnia
+- OrderStatus: Draft → Confirmed → Shipped → Delivered. Nie ma cofania z Shipped
+- Money to Value Object (amount + currency), nie goły number
+- ID generowane w domenie: `OrderId = UUID`, nie auto-increment
 ```
 
-Dopasuj pytania do Context7 do konkretnego feature'a. Nie pisz generycznie
-"pobierz docs Drizzle" — napisz "pobierz docs Drizzle: how to define many-to-one
-relation with Drizzle ORM relations API".
+Przykład w PHASE_2_backend.md:
+```markdown
+## Design decisions
+- Error handling: Result<T, AppError> — nie wyjątki
+- Zapis Order + OrderLines w jednej transakcji Drizzle (`db.transaction()`)
+- Endpoint POST /api/orders — idempotency key w headerze (X-Idempotency-Key)
+- Auth: Better-Auth session middleware na route, user_id z sesji (nie z body)
+```
+
+Przykład w PHASE_3_frontend.md:
+```markdown
+## Visual spec
+**Layout:** Tabela zamówień (kolumny: #, data, status, kwota, akcje)
+**Formularz:** Radix Dialog, dynamiczna lista pozycji (dodaj/usuń), Select na produkt
+**Status badge:** zielony=Delivered, niebieski=Shipped, szary=Draft
+**Mobile:** tabela → lista kart, formularz fullscreen
+**Komponenty Radix:** Dialog, Select, Table (pobierz docs z Context7)
+```
+
+### WAŻNE: nie referencjonuj skilli w plikach faz
+
+Agent lokalny NIE zna Twoich skilli. NIE pisz w fazie: "zgodnie z ddd-expert..."
+ani "jak mówi enterprise-web-expert...". Wstaw KONKRETNE wytyczne, nie referencje.
+
+**Źle:** "Zaprojektuj agregat zgodnie z zasadami DDD (patrz skill ddd-expert)"
+**Dobrze:** "Order to aggregate root. OrderLine jest częścią Order. Invariant: min 1 pozycja."
 
 ---
 
-## Szablon planu (pełny vertical slice)
+## Zapis planów na dysk
+
+Każdy feature generuje katalog z fazami w `docs/plans/`:
+
+```
+docs/plans/<feature-name>/
+  PHASE_1_domain.md
+  PHASE_2_backend.md
+  PHASE_3_frontend.md
+```
+
+Nazwy: lowercase, kebab-case, bez polskich znaków. Użyj `create_file`.
+Po zapisaniu — powiedz użytkownikowi ścieżki i krótko (1 zdanie per faza) co obejmują.
+
+---
+
+## Trzy fazy vertical slice
+
+Każdy feature rozbijaj na 3 fazy. Agent wykonuje je kolejno, każdą w osobnej
+sesji (czysty kontekst). Fazy łączą się przez pliki na dysku.
+
+```
+PHASE 1: Domain + testy          → produkuje: src/domain/<context>/*
+PHASE 2: Infra + API + testy     → czyta domain, produkuje: src/infrastructure/*, src/api/*
+PHASE 3: Frontend                → czyta API routes, produkuje: src/client/features/*
+```
+
+Jeśli feature nie ma frontendu — pomiń fazę 3.
+Jeśli feature to prosty CRUD bez logiki — połącz fazę 1 i 2 w jedną.
+
+---
+
+## Szablon PHASE 1: Domain + testy (TDD)
 
 ````markdown
-# <Nazwa feature'a — jedno zdanie imperatywne, np. "Dodaj endpoint tworzenia zamówienia">
+# <Feature> — Faza 1: Domain
 
 ## Goal
-<Co ma powstać — 2-4 zdania. Jaki use case realizujemy. Jaki problem rozwiązujemy.>
+<1-2 zdania: co modelujemy w domenie, jakie invarianty chronimy>
 
 ## Definition of Done
-- [ ] <Konkretny warunek sprawdzalny automatycznie — np. "POST /api/orders zwraca 201">
-- [ ] Testy domeny przechodzą: `bun test` (unit testy agregatu/VO)
-- [ ] Testy use case przechodzą: `bun test` (z fake repozytorium)
-- [ ] Logika biznesowa jest w warstwie domeny (NIE w route handlerze)
-- [ ] Lint clean: `bun run lint`
-- [ ] Typecheck clean: `bun run check`
+- [ ] Testy domeny przechodzą: `bun test <ścieżka do testów>`
+- [ ] Typecheck: `bun run check`
+- [ ] Logika walidacji jest w Value Objects / factory, nie w gołych ifach
 
-Agent kończy pracę WYŁĄCZNIE gdy wszystkie powyższe checkboxy są spełnione.
+Agent kończy pracę WYŁĄCZNIE gdy powyższe są spełnione.
 
 ## Context
-**Stack:** Bun, Hono, Drizzle ORM, PostgreSQL, Better-Auth, React, react-router-dom, Radix UI, Tailwind CSS
-**Runtime:** Bun (NIE Node.js). Komendy:
-  - instalacja: `bun add <pkg>` (NIE npm install)
-  - uruchomienie: `bun run <script>` (NIE npm run)
-  - testy: `bun test` (NIE npm test / jest / vitest)
-  - jednorazowo: `bunx <pkg>` (NIE npx)
-**Architektura:** DDD, Ports & Adapters. Warstwy:
-  - `src/domain/` — agregaty, value objects, domain services, porty (interfejsy)
-  - `src/application/` — use cases / command handlers, application services
-  - `src/infrastructure/` — adaptery (repozytoria, external services, auth)
-  - `src/api/` — route handlery Hono (cienkie, delegują do application)
-  - `src/client/` — React frontend
-**Konwencje:**
-  - Logika biznesowa WYŁĄCZNIE w `src/domain/` — nigdy w routerze, nigdy w komponencie React
-  - Repozytoria: interfejs (port) w domain, implementacja (adapter) w infrastructure
-  - React: logika w custom hookach, komponenty TYLKO prezentacyjne
-  - Error handling: Result<T, E> pattern (nie wyjątki dla błędów domenowych)
-  - Nazewnictwo: angielskie, ubiquitous language z domeny
+**Runtime:** Bun (NIE Node.js, NIE npm — `bun test`, `bun run check`)
+**Architektura:** DDD — domain layer nie importuje infrastructure
+**Error handling:** Result<T, E> pattern (`ok(value)` / `err(error)`)
+
+## Design decisions
+<Wyniki analizy z ddd-expert — jakie agregaty, VO, invarianty, wzorce.
+Agent nie musi wiedzieć skąd te decyzje — musi wiedzieć CO robić.
+Max 5-8 linii, konkretnie.>
 
 ### Relevant files (edit only these)
 - `src/domain/<context>/<aggregate>.ts`
-- `src/domain/<context>/<port>.ts`
-- `src/infrastructure/<context>/<adapter>.ts`
-- `src/application/<context>/<use-case>.ts`
-- `src/api/routes/<resource>.ts`
-- `src/client/features/<feature>/use<Feature>.ts` — custom hook
-- `src/client/features/<feature>/<Feature>Page.tsx` — komponent prezentacyjny
+- `src/domain/<context>/__tests__/<aggregate>.test.ts`
+- `src/domain/<context>/<port>.ts` — interfejs repozytorium
 
 ### Files to read but NOT edit
-- `src/domain/shared/` — shared value objects, Result type
-- `src/infrastructure/db/index.ts` — Drizzle config, export `db`
-- `src/infrastructure/auth/` — Better-Auth config
-- `tailwind.config.ts` — Tailwind config
+- `src/domain/shared/result.ts` — typ Result, funkcje ok/err
 
-## Constraints (hard rules)
-- TDD: NIE pisz kodu produkcyjnego bez UPRZEDNIEGO testu. Kolejność: test (RED) → implementacja (GREEN) → refactor
-- NIE pomijaj kroków z testami — bez nich następny krok nie ma sensu
-- NIE wrzucaj logiki biznesowej do route handlera — handler TYLKO: parsuj input → wywołaj use case → zwróć response
-- NIE wrzucaj logiki do komponentu React — logika w custom hooku, komponent TYLKO renderuje
-- NIE importuj infrastructure w domain — dependency rule: domain nie zna infrastructure
-- NIE dodawaj zależności (`bun add`) bez jawnej zgody
-- NIE modyfikuj plików spoza listy "Relevant files"
-- NIE twórz abstrakcji "na zapas" (YAGNI) — ale jeśli jest logika biznesowa, MUSI być w domenie
-- NIE pisz klas/hooków Tailwind ani API Radix z pamięci — używaj docs z Step 0
-- Nazwy klas/funkcji z domeny biznesowej (NIE: Manager, Handler, Data, Info, Utils)
+## Constraints
+- TDD: NAJPIERW test (RED), POTEM implementacja (GREEN)
+- NIE importuj nic z infrastructure / application / api
+- NIE parsuj `unknown` — factory przyjmuje typowany input
+- ID agregatu generowane w domenie (UUID), NIE auto-increment z bazy
+- Każdy error kind UNIKALNY — NIE reużywaj tego samego kind na różne błędy
+- Value Object na każde pole z invariantem (nie goły string/number)
 
-## Implementation plan
+## Steps
 
-### Step 0: Pobierz dokumentację
-**Co robimy:** Użyj Context7 aby pobrać docs:
-- <biblioteki potrzebne w tym feature>
-**WAŻNE:** NIE pomijaj. Koduj na podstawie pobranych docs.
-
-### Step 1: Domain types (szkielet)
-**Co robimy:** W `src/domain/<context>/` utwórz TYPY i SYGNATURY (bez implementacji):
-
-**Value Objects** — każde pole z regułą biznesową dostaje własny typ:
-- <NazwaVO> — opakowuje <typ bazowy>, waliduje: <reguła>
-- NIE używaj gołych stringów/numberów na pola z invariantami
-- Factory: `create<VO>(raw: <bazowy>): Result<VO, Error>` — walidacja w factory
-- Przykład sygnatury (TYLKO jeśli model potrzebuje wzorca):
-  ```typescript
-  type GameTitle = { readonly _brand: 'GameTitle'; readonly value: string };
-  function createGameTitle(raw: string): Result<GameTitle, { kind: 'title_empty' }>;
-  ```
-
-**Aggregate** — pełny typ z tożsamością:
-- ID generowane w domenie (UUID), NIE auto-increment z bazy
-- Pola używają Value Objects, nie prymitywów (jeśli mają invarianty)
-- Factory `create<Aggregate>(input): Result<Aggregate, DomainError>` tworzy PEŁNY
-  obiekt (z id), nie DTO-bez-id
-- Metody biznesowe jako funkcje: `<akcja>(aggregate, params): Result<Aggregate, Error>`
-
-**Domain Errors** — osobny typ na każdy rodzaj błędu:
-- `{ kind: '<nazwa>' }` — unikalne per error, NIE reużywaj tego samego kind
-
-**Port (interfejs):** `<Nazwa>Repository` — sygnatury metod CRUD + query
-
-**Rezultat kroku:** pliki kompilują się (`bun run check`). Factory/metody mogą
-rzucać `throw new Error('not implemented')` — to OK na tym etapie.
-
-### Step 2: TEST domeny (RED)
-**Co robimy:** W `src/domain/<context>/__tests__/<aggregate>.test.ts` napisz testy:
-- Factory z poprawnym inputem → zwraca ok z prawidłowym agregatem (ma id, ma VO)
-- Factory z pustym <pole> → zwraca err z `{ kind: '<unikalne>' }`
-- Factory z nieprawidłowym <pole> → zwraca err z `{ kind: '<unikalne>' }`
-- Value Object factory: poprawny input → branded type, niepoprawny → err
-- Metoda biznesowa → sprawdza invariant (np. "hours nie mogą zmaleć")
-- Sprawdź że KAŻDY error kind jest UNIKALNY (nie reużywaj)
-Uruchom: `bun test` → testy MUSZĄ FAILOWAĆ (RED). Jeśli przechodzą bez
-implementacji — testy są za słabe, popraw je.
-**Rezultat kroku:** testy istnieją i FAILUJĄ. To jest prawidłowy stan.
-
-### Step 3: Domain impl (GREEN)
-**Co robimy:** Zaimplementuj factory i metody tak aby testy z Step 2 przeszły:
-- Value Object factories: walidacja → branded type lub err
-- Aggregate factory: tworzy pełny obiekt z `id: generateId()`, używa VO factories
-  do walidacji pól, zwraca `Result<Aggregate, DomainError>`
-- NIE parsuj `unknown` w domain factory — to robota warstwy application (Zod).
-  Factory przyjmuje TYPOWANY input (już sparsowany), nie `unknown`.
-- Metody biznesowe: chroni invarianty, zwraca nowy stan agregatu
-Uruchom: `bun test` → testy MUSZĄ PRZECHODZIĆ (GREEN).
-**Rezultat kroku:** `bun test` — zielone. `bun run check` — czyste.
-
-### Step 4: DB schema (Drizzle)
-**Co robimy:** W `src/infrastructure/db/schema/` dodaj/zmodyfikuj schemat:
-- Tabela `<nazwa>`: kolumny <lista z typami>
-- Relacje: <opis relacji>
-Wygeneruj migrację: `bunx drizzle-kit generate`
-Uruchom migrację: `bunx drizzle-kit migrate`
-**Rezultat kroku:** migracja przechodzi bez błędów. Schemat odpowiada modelowi domeny.
-
-### Step 5: Repository adapter
-**Co robimy:** W `src/infrastructure/<context>/` zaimplementuj port z Step 1:
-- `Drizzle<Nazwa>Repository implements <Nazwa>Repository`
-- Mapowanie: DB row ↔ domain aggregate (NIE zwracaj surowych DB rows)
-**Rezultat kroku:** adapter kompiluje się i implementuje wszystkie metody portu.
-
-### Step 6: TEST use case (RED)
-**Co robimy:** W `src/application/<context>/__tests__/<use-case>.test.ts` napisz testy:
-- Utwórz `Fake<Nazwa>Repository` (in-memory, implementuje port)
-- Test: poprawny input → `ok` + rekord w repo
-- Test: nieprawidłowy input → `err` z odpowiednim błędem
-- Test: <edge case specyficzny dla use case>
-Uruchom: `bun test` → nowe testy FAILUJĄ (RED). Stare testy domeny wciąż GREEN.
-**Rezultat kroku:** nowe testy istnieją i failują.
-
-### Step 7: Application service (GREEN)
-**Co robimy:** W `src/application/<context>/` utwórz use case:
-- `<NazwaUseCase>` — orkiestruje: waliduj input (Zod) → wywołaj domain logic → zapisz przez port
-- Input: <DTO/command z walidacją Zod>
-- Output: `Result<ResponseDTO, AppError>`
-Uruchom: `bun test` → WSZYSTKIE testy GREEN (domain + use case).
-**Rezultat kroku:** `bun test` — zielone. Use case nie importuje infrastructure.
-
-### Step 8: Route handler (Hono)
-**Co robimy:** W `src/api/routes/` dodaj handler:
-- `<METHOD> <path>` — CIENKI handler:
-  1. Parsuj i waliduj input (Zod)
-  2. Wywołaj use case
-  3. Zmapuj Result na HTTP response
-- Żadnej logiki biznesowej tutaj. Max ~20 linii.
-**Request/Response:**
-```
-POST /api/<resource>
-Body: { ... }
-→ 201: { id: "...", ... }
-→ 400: { error: "validation: ..." }
-→ 401: { error: "Unauthorized" }
-```
-**Rezultat kroku:** endpoint odpowiada na request.
-
-### Step 9: Frontend — custom hook + komponent prezentacyjny
+### Step 1: Typy + testy (RED)
 **Co robimy:**
-1. Hook `use<Feature>()` w `src/client/features/<feature>/use<Feature>.ts`:
-   - fetch/mutacja, state, handlery akcji
-   - Zwraca: `{ data, isLoading, error, <akcje> }`
-   - ZERO logiki renderowania
-2. Komponent `<Feature>Page.tsx` w tym samym katalogu:
-   - Wywołuje hook na górze
-   - Renderuje UI: Radix UI + Tailwind (z docs z Step 0)
-   - ZERO logiki — żadnych fetch, żadnych obliczeń
-   - Jeśli >100 linii — wydziel sub-komponenty
-**Rezultat kroku:** strona renderuje się bez błędów w konsoli.
+1. Utwórz typy: Value Object, Aggregate, DomainError, Port (interfejs repo)
+2. Napisz testy factory i VO:
+   - factory z poprawnym inputem → `ok` z agregatem (ma ID, ma VO)
+   - factory z <niepoprawne pole> → `err({ kind: '<unikalne>' })`
+   - <metoda biznesowa> jeśli jest → sprawdza invariant
+3. `bun test` → RED (testy failują — to prawidłowe)
+**Rezultat:** pliki istnieją, testy FAILUJĄ.
 
-### Step 10: Final check — lint, typecheck, ALL tests
-**Co robimy:** `bun run lint` + `bun run check` + `bun test`
-**Rezultat:** ZERO errors, WSZYSTKIE testy zielone (domain + use case).
-Jeśli coś failuje — wróć do odpowiedniego kroku i napraw.
+### Step 2: Implementacja domeny (GREEN)
+**Co robimy:**
+1. Zaimplementuj VO factories (walidacja → branded type lub err)
+2. Zaimplementuj aggregate factory (generuje ID, używa VO factories)
+3. Zaimplementuj metody biznesowe
+4. `bun test` → GREEN
+**Rezultat:** `bun test` zielone, `bun run check` czyste.
 
-## Out of scope (NIE rób tego)
-- NIE refaktoruj istniejącego kodu który działa
-- NIE dodawaj paginacji/sortowania/filtrowania (osobny feature)
-- NIE implementuj auth jeśli feature tego nie wymaga
-- NIE optymalizuj query (indexy — osobny task)
-- NIE dodawaj animacji/transitions
-- NIE aktualizuj dokumentacji
-
-## If you get stuck
-Jeśli po 2 próbach coś nie działa: ZATRZYMAJ się. Napisz:
-```
-STUCK at Step <N>: <co próbowałeś, jaki błąd, jaka hipoteza>
-```
-Zakończ pracę. Człowiek zdecyduje.
+### Step 3: Port repozytorium
+**Co robimy:** Zdefiniuj interfejs `<Nazwa>Repository` z metodami:
+- `findById(id): Promise<Aggregate | null>`
+- `save(aggregate): Promise<void>`
+- <inne potrzebne>
+**Rezultat:** interfejs kompiluje się. To TYLKO interfejs — implementacja w fazie 2.
 ````
 
 ---
 
-## Reguły pisania planu
+## Szablon PHASE 2: Infra + API + testy (TDD)
 
-### 1. Vertical slice — cały stos per feature, nie per warstwa
+````markdown
+# <Feature> — Faza 2: Backend
 
-Plan ZAWSZE idzie: domain → infra → API → UI dla jednego feature'a.
-NIGDY: "zrób całą bazę danych", "zrób wszystkie endpointy", "zrób cały frontend".
+## Goal
+<1-2 zdania: jaki endpoint, co robi, jakie responses>
 
-Dlaczego: agent przy per-layer dryftuje — robi 10 tabel, zapomina po co, potem pisze
-endpointy niezgodne ze schematem. Per-feature daje mu zamknięty kontekst.
+## Definition of Done
+- [ ] Endpoint `<METHOD> <path>` zwraca poprawny response
+- [ ] Testy use case przechodzą: `bun test <ścieżka>`
+- [ ] Wszystkie testy (domain + use case): `bun test`
+- [ ] `bun run check` + `bun run lint` czyste
 
-### 2. TDD — test PRZED implementacją, nie po
+## Context
+**Runtime:** Bun (NIE Node.js, NIE npm)
+**ORM:** Drizzle. Migracje: `bunx drizzle-kit generate` + `bunx drizzle-kit migrate`
+**Walidacja inputu:** Zod (parsowanie unknown → DTO w warstwie application)
 
-To najważniejsza zmiana w tym skillu. Agent z testem na końcu (Step 8/9)
-pomija go — "poniósł się" implementacją, uznał że typecheck wystarczy.
+## Design decisions
+<Wyniki analizy z enterprise-web-expert — error handling, transakcje,
+auth flow, idempotency. Max 5-8 linii, konkretnie.>
 
-W TDD testy są Step 2 i Step 6 — w środku planu, nie na końcu. Agent
-NIE MOŻE ich przeskoczyć, bo:
-- Step 3 (domain impl) mówi "implementuj aż testy z Step 2 przejdą"
-- Step 7 (use case impl) mówi "implementuj aż testy z Step 6 przejdą"
+### Step 0: Pobierz dokumentację
+Użyj Context7:
+- Drizzle ORM: "<konkretne pytanie — np. insert with returning>"
+- Hono: "<konkretne pytanie — np. route handler with json body>"
+- Zod: "schema validation"
 
-Bez testów nie wie kiedy skończył krok. Testy stają się kryterium stopu.
+### Relevant files (edit only these)
+- `src/infrastructure/db/schema/<tabela>.ts`
+- `src/infrastructure/<context>/<repo-adapter>.ts`
+- `src/application/<context>/<use-case>.ts`
+- `src/application/<context>/__tests__/<use-case>.test.ts`
+- `src/api/routes/<resource>.ts`
 
-Dlaczego to działa z agentami:
-- Agent ma twardy, mechaniczny checkpoint: `bun test` → RED/GREEN
-- Nie musi oceniać "czy kod jest dobry" — test mu powie
-- Nie może "zapomnieć" o testach — następny krok je wymaga
+### Files to read but NOT edit
+- `src/domain/<context>/` — typy, porty, logika z fazy 1
+- `src/infrastructure/db/client.ts` — Drizzle client
 
-### 3. Domain layer ZAWSZE jako Step 1 (po docs)
+## Constraints
+- TDD: NAJPIERW test use case (RED), POTEM implementacja (GREEN)
+- Route handler max ~20 linii — TYLKO: parsuj → wywołaj use case → response
+- NIE wrzucaj logiki biznesowej do routera ani adaptera
+- Repository adapter mapuje DB row ↔ domain aggregate (nie zwraca surowych rows)
+- Parsowanie unknown → DTO przez Zod w application layer, NIE w domain
 
-Agent domyślnie zaczyna od "zrobię endpoint i DB schema" i wrzuca logikę do routera.
-Wymuszając domain layer jako pierwszy krok, zmuszasz go do myślenia o agregatach,
-value objects i invariantach ZANIM dotknie infrastruktury.
+## Steps
 
-**Czym jest agregat:** granica transakcyjnej spójności, nie "kolekcja rzeczy".
-Pytanie: "czy jest invariant wymagający sprawdzenia wielu X naraz?"
-- Jeśli nie → X jest samodzielnym agregatem (np. Game jest aggregate root)
-- Jeśli tak → X jest częścią większego agregatu (np. OrderLine wewnątrz Order)
-- Kolekcja Game'ów NIE jest agregatem — to repozytorium.
+### Step 1: DB schema + adapter
+**Co robimy:**
+1. Dodaj schemat Drizzle (tabela + kolumny + relacje)
+2. `bunx drizzle-kit generate` + `bunx drizzle-kit migrate`
+3. Zaimplementuj `Drizzle<Nazwa>Repository implements <Nazwa>Repository`
+4. Mapowanie: DB row ↔ domain aggregate
+**Rezultat:** migracja OK, adapter kompiluje się.
 
-**Czym jest Value Object:** typ z invariantami, bez tożsamości.
-- GameTitle to VO (nie goły string) bo ma regułę "nie może być pusty"
-- Email to VO bo ma regułę formatu
-- Pole bez reguł (np. opcjonalny opis) może zostać stringiem — YAGNI
+### Step 2: Test use case (RED)
+**Co robimy:**
+1. Utwórz `Fake<Nazwa>Repository` (in-memory, implementuje port)
+2. Napisz testy:
+   - poprawny input → `ok` + rekord w fake repo
+   - niepoprawny input → `err`
+   - <edge case>
+3. `bun test` → nowe testy RED, stare (domain) GREEN
+**Rezultat:** testy use case istnieją i FAILUJĄ.
 
-**Factory agregatu vs walidacja inputu:**
-- Domain factory (`createGame`) przyjmuje TYPOWANY input, nie `unknown`
-- Parsowanie `unknown` → DTO to robota warstwy application (Zod schema)
-- Domain factory tworzy PEŁNY agregat z ID (generowane w domenie, np. UUID)
+### Step 3: Use case + route handler (GREEN)
+**Co robimy:**
+1. Zaimplementuj use case: Zod parse → domain logic → save via port
+2. Dodaj route handler: parsuj request → wywołaj use case → response
+3. `bun test` → ALL GREEN
+**API spec:**
+```
+<METHOD> <path>
+→ 201: { ... }
+→ 400: { error: "..." }
+```
+**Rezultat:** endpoint działa, `bun test` zielone, `bun run check` czyste.
+````
 
-Jeśli logika jest trywialna (CRUD bez reguł) — napisz to wprost w planie:
-"Ten feature to prosty CRUD — nie twórz domain service, wystarczy value objects + repository."
-YAGNI, ale świadomy.
+---
 
-### 4. Route handler = max 20 linii
+## Szablon PHASE 3: Frontend
 
-Wprost napisz w Constraints. Bez tego agent wrzuci walidację, logikę biznesową,
-mapowanie DB i formatowanie response'a w jeden handler.
+````markdown
+# <Feature> — Faza 3: Frontend
 
-### 5. React: custom hook + prezentacja — zawsze osobno
+## Goal
+<1-2 zdania: jaka strona/komponent, co użytkownik widzi i może zrobić>
 
-Bez tego agent pisze `useEffect` + `fetch` + renderowanie w jednym pliku 300 linii.
-Plan wymusza:
-- `use<Feature>.ts` — hook z logiką (fetch, state, handlery)
-- `<Feature>Page.tsx` — komponent który TYLKO wywołuje hook i renderuje
+## Definition of Done
+- [ ] Strona renderuje się bez błędów w konsoli
+- [ ] Logika w custom hooku, komponent TYLKO prezentacyjny
+- [ ] `bun run check` + `bun run lint` czyste
 
-Hook zwraca czyste API: `{ data, isLoading, error, actions }`.
-Komponent nie wie skąd dane się biorą.
+## Context
+**Runtime:** Bun (NIE Node.js, NIE npm)
+**UI:** Radix UI + Tailwind CSS — NIE pisz klas z pamięci, pobierz docs
 
-### 6. Context7 per krok — nie tylko na starcie
+### Step 0: Pobierz dokumentację
+Użyj Context7:
+- Radix UI: "<konkretny komponent — Dialog, Select, etc.>"
+- Tailwind CSS: "<konkretne klasy — grid, flex, spacing>"
 
-Jeśli w Step 7 agent potrzebuje komponentu Radix którego nie pobrał w Step 0 —
-plan powinien mówić: "Wróć do Step 0 i pobierz docs Radix Dialog".
+### Relevant files (edit only these)
+- `src/client/features/<feature>/use<Feature>.ts`
+- `src/client/features/<feature>/<Feature>Page.tsx`
+- `src/client/features/<feature>/components/` — sub-komponenty jeśli >100 linii
 
-Alternatywnie: w Constraints napisz regułę globalną:
-"Zanim użyjesz API biblioteki — sprawdź czy masz docs z Context7. Jeśli nie — pobierz."
+### Files to read but NOT edit
+- `src/api/routes/<resource>.ts` — żeby znać API endpoint (method, path, request/response)
+- `src/client/lib/api.ts` — istniejące fetch functions
 
-### 7. Nazewnictwo z domeny — wprost w planie
+## Visual spec
+<Zaprojektowany z pomocą ux-ui-expert — dokładny opis layoutu, komponentów
+Radix, spacing, kolorów, responsywności. Agent widzi gotowy spec, nie musi
+projektować sam.>
+**Layout:** <dokładny opis>
+**Kluczowe elementy:**
+- <element> — <co wyświetla, jakie interakcje, jaki komponent Radix>
+**Responsywność:** <breakpointy, co się zmienia na mobile>
+**Design tokens:** <kolory statusów, spacing, typografia jeśli niestandardowe>
 
-Napisz w planie: "Agregat nazywa się `Order`, nie `OrderManager` ani `OrderService`."
-Agent generuje nazwy `XxxManager`, `XxxHandler` odruchowo — musi mieć explicit nazwy.
+## Constraints
+- NIE koduj Tailwind/Radix z pamięci — TYLKO z docs z Step 0
+- NIE wrzucaj logiki do komponentu — logika w hooku
+- NIE pisz custom CSS — Tailwind utility classes only
+- Jeśli komponent >100 linii — wydziel sub-komponenty
 
-### 8. Dependency rule — wprost w Constraints
+## Steps
 
-"NIE importuj infrastructure w domain." Bez tego agent zaimportuje `db` bezpośrednio
-w agregatze. Napisz to wprost, bo to najczęstsza layer violation.
+### Step 1: Custom hook
+**Co robimy:**
+1. `use<Feature>()` — fetch/mutacja, state, handlery
+2. Zwraca: `{ data, isLoading, error, <akcje> }`
+3. ZERO logiki renderowania
+**Rezultat:** hook kompiluje się, eksportuje czyste API.
 
-### 9. Definition of Done na górze
+### Step 2: Komponent prezentacyjny
+**Co robimy:**
+1. `<Feature>Page.tsx` — wywołuje hook, renderuje UI
+2. Użyj Radix + Tailwind ZGODNIE z docs z Step 0
+3. ZERO logiki — żadnych fetch, obliczeń, transformacji
+**Rezultat:** strona renderuje się bez błędów.
 
-Agent decyduje o stopie na podstawie DoD. Jeśli jest na końcu — zapomni sprawdzić.
+### Step 3: Sprawdź
+**Co robimy:** `bun run check` + `bun run lint`
+**Rezultat:** zero errors.
+````
 
-### 10. "If you get stuck" — max 2 próby
+---
 
-Agent potrafi próbować 10 razy tego samego. Sekcja STUCK zamyka pętlę po 2.
+## Reguły pisania fazowych planów
+
+### 1. Max 3-4 kroki per fazę
+
+Agent ogarnia 3-5 kroków. 3-4 to sweet spot — wystarczająco dużo na zamkniętą
+jednostkę pracy, wystarczająco mało żeby nie dryfować. Jeśli faza ma 5+ kroków
+— rozbij ją na dwie pod-fazy.
+
+### 2. Każda faza ma własny Context7 (Step 0)
+
+Faza 2 potrzebuje docs Drizzle i Hono. Faza 3 potrzebuje docs Radix i Tailwind.
+NIE zakładaj że agent pamięta docs z poprzedniej fazy — ma czysty kontekst.
+
+### 3. Fazy łączą się przez pliki, nie przez pamięć
+
+Faza 2 czyta `src/domain/` (output fazy 1). Faza 3 czyta `src/api/routes/`
+(output fazy 2). Sekcja "Files to read but NOT edit" to jest handoff.
+
+Agent nie musi pamiętać co było wcześniej — widzi rezultat w kodzie na dysku.
+
+### 4. TDD w fazach 1 i 2, nie w 3
+
+- Faza 1: test domeny → impl domeny (RED → GREEN)
+- Faza 2: test use case → impl use case + route (RED → GREEN)
+- Faza 3: bez testów (UI testy to osobny temat, nie wymuszaj)
+
+Testy są PRZED implementacją w obrębie fazy — agent nie może ich pominąć,
+bo następny krok mówi "implementuj aż testy przejdą".
+
+### 5. Context — krótki, tylko to co ta faza potrzebuje
+
+Faza 1 nie musi wiedzieć o Hono, Drizzle, Tailwind.
+Faza 3 nie musi wiedzieć o DB schema ani Zod.
+Im mniej w Context — tym więcej kontekstu agent ma na kod.
+
+### 6. DoD — specyficzne per fazę
+
+Faza 1 DoD: "testy domeny zielone + typecheck". Nie sprawdza endpointu.
+Faza 2 DoD: "endpoint zwraca 201 + testy zielone". Nie sprawdza UI.
+Faza 3 DoD: "strona renderuje się + lint clean". Nie sprawdza domeny.
+
+### 7. Vertical slice — wciąż obowiązuje
+
+Fazy to nie "warstwa po warstwie". To vertical slice **rozbity na etapy**.
+Cały czas robimy JEDEN feature. Tylko dajemy agentowi mniejsze kawałki.
+
+### 8. Czym jest agregat — przewodnik dla planisty
+
+Agregat = granica transakcyjnej spójności, NIE kolekcja obiektów.
+- Pytanie: "czy jest invariant wymagający sprawdzenia wielu X naraz?"
+- Tak → X jest częścią większego agregatu (np. OrderLine wewnątrz Order)
+- Nie → X jest samodzielnym aggregate root (np. Game jest sam agregatem)
+- Kolekcja Game'ów to repozytorium, NIE agregat
+- Value Object = typ z invariantami, bez tożsamości (np. GameTitle, Email)
+- Factory agregatu tworzy PEŁNY obiekt z ID, nie DTO-bez-id
+- Parsowanie `unknown` to Zod w application layer, nie domain factory
+
+### 9. "If you get stuck" — w KAŻDEJ fazie
+
+Każda faza kończy się sekcją:
+```
+## If you get stuck
+Jeśli po 2 próbach coś nie działa: ZATRZYMAJ się. Napisz:
+STUCK at Step <N>: <co, jaki błąd, jaka hipoteza>
+Zakończ pracę.
+```
 
 ---
 
 ## Dostrajanie pod model
 
 ### Gemma 3/4 27B
-- Plan **<4000 tokenów**. Skróć Context, ogranicz do 6-8 kroków.
-- Dodaj do Constraints: "Odpowiadaj zwięźle. Wykonuj, nie komentuj."
-- Context7: jeśli Ollama bez MCP — użyj CLI (`ctx7 docs`) albo wklej snippety API.
+- Max 3 kroki per fazę. Dodaj: "Odpowiadaj zwięźle. Wykonuj, nie komentuj."
+- Context7: jeśli brak MCP — wklej snippety API w Context jako code fence.
 
 ### Big Pickle / GLM-4.6 (OpenCode Zen)
-- Plan do **~8k tokenów** OK — duży context.
-- Max ~12 steps. Więcej → podziel na dwa plany.
-- Komentarze/nazwy w kodzie po angielsku (gorszy multilingual).
-- Context7 skonfigurowany w OpenCode — zakładaj że działa.
+- 4 kroki per fazę OK. Bogatszy Context dozwolony.
+- Komentarze/nazwy po angielsku.
 
 ---
 
 ## Czego plan NIE naprawi
 
-| Problem | Plan pomoże? | Prawdziwe rozwiązanie |
-|---------|-------------|----------------------|
-| Model pomija testy na końcu | ✅ | TDD — testy w środku planu, nie na końcu |
-| Model pisze npm zamiast bun | ✅ | — |
-| Model halucynuje Tailwind/Radix | ✅ częściowo | Context7 MCP w agencie |
-| Model pisze monolit-komponent | ✅ | — |
-| Model pisze anemic model | ✅ | — |
-| Model miesza logikę z prezentacją | ✅ | — |
-| Model nie zna API Drizzle v0.35 | ❌ | Context7 |
-| Model generuje brzydki UI | ❌ | Daj Visual spec / użyj Radix + dobry Tailwind design system |
-| Model nie radzi sobie z complex state | ❌ | Użyj mocniejszego modelu na ten step |
-| Model ignoruje DDD mimo planu | ❌ | Model za słaby na tę architekturę → zredukuj DDD do minimum |
+| Problem | Plan pomoże? | Rozwiązanie |
+|---------|-------------|-------------|
+| Agent pomija kroki (za dużo naraz) | ✅ | Fazy po 3-4 kroki |
+| Agent pomija testy na końcu | ✅ | TDD — testy przed impl w fazie |
+| Agent pisze npm zamiast bun | ✅ | Explicit runtime w Context |
+| Agent halucynuje Tailwind/Radix | ✅ częściowo | Context7 w fazie 3 |
+| Agent pisze anemic model | ✅ | VO + factory w fazie 1 |
+| Agent miesza logikę z prezentacją | ✅ | Hook + komponent w fazie 3 |
+| Agent nie zna API Drizzle | ❌ | Context7 MCP w agencie |
+| Agent generuje brzydki UI | ❌ | Visual spec + Radix |
+| Agent ignoruje DDD | ❌ | Model za słaby → uprość |
 
 ---
 
-## Checklist przed oddaniem planu
+## Checklist przed oddaniem
 
-- [ ] Plan jest vertical slice (jeden feature, cały stos)
-- [ ] Step 0 (Context7) z konkretnymi pytaniami per biblioteka
-- [ ] Runtime = Bun, wymieniony wprost z komendami
-- [ ] TDD: testy domeny PRZED implementacją domeny (Step 2 → Step 3)
-- [ ] TDD: testy use case PRZED implementacją use case (Step 6 → Step 7)
-- [ ] Testy mają konkretne przypadki (happy path + min. 2 edge cases)
-- [ ] Domain layer jest Step 1 (przed infra/API)
-- [ ] Agregaty/VO/porty mają jawne nazwy z domeny
-- [ ] Constraints: TDD, "logika w domenie", "NIE importuj infra w domain"
-- [ ] Route handler: constraint max ~20 linii
-- [ ] Frontend: oddzielny hook + oddzielny komponent prezentacyjny
-- [ ] DoD jest NAD krokami, zawiera "testy zielone"
-- [ ] Jest "If you get stuck" z limitem 2 prób
-- [ ] Jest Out of scope (min. 3 pozycje)
-- [ ] Nie ma nadmiarowych abstrakcji (YAGNI)
-- [ ] Krok count: 8-12. Więcej → podziel.
+- [ ] Skonsultowano z ddd-expert (faza 1: agregaty, VO, invarianty)
+- [ ] Skonsultowano z enterprise-web-expert (faza 2: error handling, auth, transakcje)
+- [ ] Skonsultowano z ux-ui-expert (faza 3: Visual spec, komponenty Radix)
+- [ ] Wyniki konsultacji wstawione jako "Design decisions" w fazach (nie referencje)
+- [ ] Feature rozbity na 2-3 fazy (nie jeden wielki plan)
+- [ ] Każda faza ma max 3-4 kroki
+- [ ] Każda faza ma własny Context7 (Step 0) z konkretnymi pytaniami
+- [ ] Każda faza ma własny DoD (specyficzny, nie ogólny)
+- [ ] Runtime = Bun wymieniony w KAŻDEJ fazie
+- [ ] Fazy łączą się przez "Files to read" (nie przez pamięć agenta)
+- [ ] TDD w fazie 1 i 2: test (RED) → impl (GREEN)
+- [ ] Faza 1: VO z branded types, factory z ID, unique error kinds
+- [ ] Faza 2: Zod w application, route handler max 20 linii
+- [ ] Faza 3: hook + komponent osobno, Visual spec z ux-ui-expert
+- [ ] "If you get stuck" w każdej fazie
+- [ ] Pliki zapisane w `docs/plans/<feature>/PHASE_N_<nazwa>.md`

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import type { Game, GameUpdate } from '../../domain/games/game';
+import { Game, type GameUpdate } from '../../domain/games/game';
+import { HoursPlayed, ReleaseYear } from '../../domain/games/game';
 import type { GameRepository } from '../../domain/games/game-repository';
 import { UpdateGame } from './update-game';
 
@@ -7,7 +8,19 @@ class FakeGameRepository implements GameRepository {
   private games = new Map<number, Game>();
 
   list = async () => ({ items: [], total: 0 });
-  create = async (g: Game) => g;
+  create = async (g: GameUpdate) => {
+    return Game.fromPersistence({
+      id: Date.now(),
+      title: g.title,
+      developer: g.developer,
+      genre: g.genre,
+      releaseYear: g.releaseYear.value,
+      platform: g.platform,
+      edition: g.edition ?? null,
+      hoursPlayed: g.hoursPlayed.value,
+      status: g.status,
+    });
+  };
 
   async findById(id: number): Promise<Game | null> {
     return this.games.get(id) ?? null;
@@ -16,7 +29,17 @@ class FakeGameRepository implements GameRepository {
   async update(id: number, game: GameUpdate): Promise<Game | null> {
     const existing = this.games.get(id);
     if (!existing) return null;
-    const updated = { ...existing, ...game };
+    const updated = Game.fromPersistence({
+      id: existing.id,
+      title: game.title,
+      developer: game.developer,
+      genre: game.genre,
+      releaseYear: game.releaseYear.value,
+      platform: game.platform,
+      edition: game.edition ?? null,
+      hoursPlayed: game.hoursPlayed.value,
+      status: game.status,
+    });
     this.games.set(id, updated);
     return updated;
   }
@@ -44,17 +67,17 @@ const validInput = {
   status: 'Completed' as const,
 };
 
-const existingGame: Game = {
+const existingGame = Game.fromPersistence({
   id: 1,
   title: 'Dark Souls',
   developer: 'FromSoftware',
   genre: 'ARPG',
   releaseYear: 2011,
   platform: 'PS3',
-  edition: undefined,
+  edition: null,
   hoursPlayed: 50,
   status: 'Completed',
-};
+});
 
 describe('UpdateGame', () => {
   it('updates game and returns ok', async () => {

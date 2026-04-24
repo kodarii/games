@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { type Game, type GameValidationError, createNewGame } from '../../domain/games/game';
+import {
+  type Game,
+  type GameProps,
+  type GameValidationError,
+  NewGame,
+} from '../../domain/games/game';
 import type { GameRepository } from '../../domain/games/game-repository';
 import { err, ok } from '../../domain/shared/result';
 import type { Result } from '../../domain/shared/result';
@@ -33,7 +38,7 @@ export class CreateGame {
 
     const data = parsed.data;
 
-    const domainInput = {
+    const props: GameProps = {
       title: data.title,
       developer: data.developer,
       genre: data.genre,
@@ -44,7 +49,7 @@ export class CreateGame {
       status: data.status,
     };
 
-    const newGameResult = createNewGame(domainInput);
+    const newGameResult = NewGame.create(props);
 
     if (!newGameResult.ok) {
       return err({ kind: 'domain', error: newGameResult.error });
