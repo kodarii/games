@@ -13,13 +13,15 @@ export interface Game {
   status: GameStatus;
 }
 
-export type GameSortField =
-  | 'title'
-  | 'genre'
-  | 'platform'
-  | 'status'
-  | 'releaseYear'
-  | 'hoursPlayed';
+export const GAME_SORT_FIELDS = [
+  'title',
+  'genre',
+  'platform',
+  'status',
+  'releaseYear',
+  'hoursPlayed',
+] as const;
+export type GameSortField = (typeof GAME_SORT_FIELDS)[number];
 export type SortDir = 'asc' | 'desc';
 
 export interface GamesResponse {

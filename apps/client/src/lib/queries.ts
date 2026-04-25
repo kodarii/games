@@ -1,4 +1,4 @@
-import type { GamesResponse, SortDir } from '@/types';
+import type { GameSortField, GamesResponse, SortDir } from '@/types';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   type CreateGameInput,
@@ -13,7 +13,7 @@ import {
 export type InfiniteGamesParams = {
   search: string;
   perPage: number;
-  sort?: string;
+  sort?: GameSortField;
   dir?: SortDir;
 };
 

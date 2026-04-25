@@ -1,135 +1,33 @@
-import { Avatar } from '@/components/avatar';
 import { DataTable } from '@/components/data-table';
 import { FilterButton } from '@/components/filter-button';
 import { IconButton } from '@/components/icon-button';
 import { Icon } from '@/components/icons';
-import { InfiniteScrollSentinel } from '@/components/infinite-scroll-sentinel';
+import { InfiniteScrollFooter } from '@/components/infinite-scroll-footer';
 import { PageHeader } from '@/components/page-header';
 import { SearchInput } from '@/components/search-input';
-import { StatusBadge } from '@/components/status-badge';
 import { Toolbar, ToolbarSpacer } from '@/components/toolbar';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { statusFor } from '@/lib/game-status';
+import { useGamesListState } from '@/lib/games-list-state';
 import { useInfiniteGamesQuery } from '@/lib/queries';
 import type { Game } from '@/types';
-import {
-  type RowSelectionState,
-  type SortingState,
-  createColumnHelper,
-  getCoreRowModel,
-  useReactTable,
-} from '@tanstack/react-table';
+import { type RowSelectionState, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-
-const columnHelper = createColumnHelper<Game>();
-
-const columns = [
-  columnHelper.display({
-    id: 'select',
-    header: ({ table }) => {
-      const all = table.getIsAllRowsSelected();
-      const some = table.getIsSomeRowsSelected();
-      return (
-        <Checkbox
-          checked={all ? true : some ? 'indeterminate' : false}
-          onCheckedChange={(v) => table.toggleAllRowsSelected(v === true)}
-          aria-label="Select all"
-        />
-      );
-    },
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(v) => row.toggleSelected(v === true)}
-        aria-label={`Select ${row.original.title}`}
-      />
-    ),
-    enableSorting: false,
-    meta: {
-      cellClassName: 'w-10 pl-5 pr-3',
-      headerClassName: 'px-[14px]',
-    },
-  }),
-  columnHelper.accessor('title', {
-    header: 'Title',
-    cell: ({ row }) => (
-      <div className="flex items-center gap-[11px]">
-        <Avatar shape="rect" size={40} name={row.original.title} />
-        <div>
-          <Link
-            to={`/games/${row.original.id}`}
-            className="text-[13.5px] font-semibold leading-[1.35] text-apex-ink transition-colors hover:text-apex-accent"
-          >
-            {row.original.title}
-          </Link>
-          <div className="text-[11.5px] leading-[1.35] text-apex-faint">
-            {row.original.developer}
-          </div>
-        </div>
-      </div>
-    ),
-    meta: { minWidth: 260 },
-  }),
-  columnHelper.accessor('genre', {
-    header: 'Genre',
-    cell: ({ row }) => (
-      <>
-        <div className="text-[13px] leading-[1.35] text-apex-ink">{row.original.genre}</div>
-        <div className="text-[11.5px] leading-[1.35] text-apex-faint">
-          Released {row.original.releaseYear}
-        </div>
-      </>
-    ),
-    meta: { minWidth: 160 },
-  }),
-  columnHelper.accessor('platform', {
-    header: 'Platform',
-    cell: ({ row }) => (
-      <>
-        <div className="text-[13px] font-semibold leading-[1.35] text-apex-ink">
-          {row.original.platform}
-        </div>
-        {row.original.edition && (
-          <div className="text-[11.5px] leading-[1.35] text-apex-faint">{row.original.edition}</div>
-        )}
-      </>
-    ),
-    meta: { minWidth: 140 },
-  }),
-  columnHelper.accessor('status', {
-    header: 'Status',
-    cell: ({ row }) => <StatusBadge {...statusFor(row.original.status)} />,
-    meta: { minWidth: 140 },
-  }),
-  columnHelper.display({
-    id: 'actions',
-    header: '',
-    cell: () => (
-      <IconButton variant="ghost-sm" aria-label="Row actions">
-        <Icon.more size={14} />
-      </IconButton>
-    ),
-    enableSorting: false,
-    meta: { cellClassName: 'px-2' },
-  }),
-];
+import { gamesColumns } from './games-columns';
 
 const PER_PAGE = 7;
 
 export function GamesPage() {
-  const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const [search, setSearch] = useState('');
+  const { search, sort, dir, sorting, onSortingChange, searchInput, setSearchInput } =
+    useGamesListState();
 
-  const sort = sorting[0];
   const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteGamesQuery(
     {
       search,
       perPage: PER_PAGE,
-      sort: sort?.id,
-      dir: sort ? (sort.desc ? 'desc' : 'asc') : undefined,
+      sort,
+      dir: sort ? dir : undefined,
     },
   );
 
@@ -137,9 +35,9 @@ export function GamesPage() {
 
   const table = useReactTable<Game>({
     data: items,
-    columns,
+    columns: gamesColumns,
     state: { sorting, rowSelection },
-    onSortingChange: setSorting,
+    onSortingChange,
     onRowSelectionChange: setRowSelection,
     manualSorting: true,
     getCoreRowModel: getCoreRowModel(),
@@ -164,8 +62,8 @@ export function GamesPage() {
         <FilterButton>All Statuses</FilterButton>
         <ToolbarSpacer />
         <SearchInput
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
           shortcut="⌘1"
           containerClassName="w-[220px]"
         />
@@ -190,50 +88,11 @@ export function GamesPage() {
             isFetchingNextPage={isFetchingNextPage}
             hasNextPage={hasNextPage}
             itemCount={items.length}
+            emptyLabel="No games found."
             onLoadMore={() => fetchNextPage()}
           />
         </div>
       </div>
     </>
-  );
-}
-
-function InfiniteScrollFooter({
-  isLoading,
-  isFetchingNextPage,
-  hasNextPage,
-  itemCount,
-  onLoadMore,
-}: {
-  isLoading: boolean;
-  isFetchingNextPage: boolean;
-  hasNextPage: boolean;
-  itemCount: number;
-  onLoadMore: () => void;
-}) {
-  if (isLoading) {
-    return <FooterBar>Loading…</FooterBar>;
-  }
-  if (itemCount === 0) {
-    return <FooterBar>No games found.</FooterBar>;
-  }
-  return (
-    <>
-      <InfiniteScrollSentinel
-        enabled={hasNextPage && !isFetchingNextPage}
-        onIntersect={onLoadMore}
-        rootMargin="200px"
-      />
-      {isFetchingNextPage && <FooterBar>Loading…</FooterBar>}
-      {!isFetchingNextPage && !hasNextPage && <FooterBar>End of list</FooterBar>}
-    </>
-  );
-}
-
-function FooterBar({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex h-11 min-h-[44px] items-center justify-center bg-white text-[12px] text-apex-faint">
-      {children}
-    </div>
   );
 }
