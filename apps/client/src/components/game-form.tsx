@@ -108,7 +108,7 @@ export function GameForm({
     }
 
     createMutation.mutate(payload satisfies CreateGameInput, {
-      onSuccess: () => navigate('/games'),
+      onSuccess: (g) => navigate(`/games/${g.id}`),
     });
   };
 
