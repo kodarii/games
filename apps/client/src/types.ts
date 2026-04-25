@@ -27,5 +27,5 @@ export interface GamesResponse {
   page: number;
   perPage: number;
   total: number;
-  totalPages: number;
+  hasMore: boolean;
 }

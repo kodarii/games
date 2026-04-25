@@ -33,7 +33,7 @@ export class ListGames {
       page: query.page,
       perPage: query.perPage,
       total: result.total,
-      totalPages: Math.max(1, Math.ceil(result.total / query.perPage)),
+      hasMore: query.page * query.perPage < result.total,
     };
   }
 }

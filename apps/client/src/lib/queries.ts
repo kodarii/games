@@ -1,5 +1,5 @@
-import type { GamesResponse } from '@/types';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { GamesResponse, SortDir } from '@/types';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   type CreateGameInput,
   type UpdateGameInput,
@@ -10,10 +10,30 @@ import {
   updateGame,
 } from './api';
 
-export function useGamesQuery(params: URLSearchParams) {
-  return useQuery<GamesResponse>({
-    queryKey: ['games', params.toString()],
-    queryFn: () => fetchGames(params),
+export type InfiniteGamesParams = {
+  search: string;
+  perPage: number;
+  sort?: string;
+  dir?: SortDir;
+};
+
+export function useInfiniteGamesQuery(params: InfiniteGamesParams) {
+  return useInfiniteQuery({
+    queryKey: ['games', 'infinite', params] as const,
+    initialPageParam: 1,
+    queryFn: ({ pageParam }): Promise<GamesResponse> => {
+      const sp = new URLSearchParams({
+        page: String(pageParam),
+        perPage: String(params.perPage),
+        search: params.search,
+      });
+      if (params.sort) {
+        sp.set('sort', params.sort);
+        sp.set('dir', params.dir ?? 'asc');
+      }
+      return fetchGames(sp);
+    },
+    getNextPageParam: (last, _all, lastParam) => (last.hasMore ? lastParam + 1 : undefined),
   });
 }
 

@@ -3,25 +3,24 @@ import { DataTable } from '@/components/data-table';
 import { FilterButton } from '@/components/filter-button';
 import { IconButton } from '@/components/icon-button';
 import { Icon } from '@/components/icons';
+import { InfiniteScrollSentinel } from '@/components/infinite-scroll-sentinel';
 import { PageHeader } from '@/components/page-header';
-import { Pagination } from '@/components/pagination';
 import { SearchInput } from '@/components/search-input';
 import { StatusBadge } from '@/components/status-badge';
 import { Toolbar, ToolbarSpacer } from '@/components/toolbar';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { statusFor } from '@/lib/game-status';
-import { useGamesQuery } from '@/lib/queries';
-import type { Game, GamesResponse } from '@/types';
+import { useInfiniteGamesQuery } from '@/lib/queries';
+import type { Game } from '@/types';
 import {
-  type PaginationState,
   type RowSelectionState,
   type SortingState,
   createColumnHelper,
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const columnHelper = createColumnHelper<Game>();
@@ -117,37 +116,32 @@ const columns = [
   }),
 ];
 
-const EMPTY: GamesResponse = { items: [], page: 1, perPage: 7, total: 0, totalPages: 1 };
+const PER_PAGE = 7;
 
 export function GamesPage() {
-  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 7 });
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [search, setSearch] = useState('');
 
-  const params = new URLSearchParams({
-    page: String(pagination.pageIndex + 1),
-    perPage: String(pagination.pageSize),
-    search,
-  });
   const sort = sorting[0];
-  if (sort) {
-    params.set('sort', sort.id);
-    params.set('dir', sort.desc ? 'desc' : 'asc');
-  }
+  const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteGamesQuery(
+    {
+      search,
+      perPage: PER_PAGE,
+      sort: sort?.id,
+      dir: sort ? (sort.desc ? 'desc' : 'asc') : undefined,
+    },
+  );
 
-  const { data = EMPTY } = useGamesQuery(params);
+  const items = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
 
   const table = useReactTable<Game>({
-    data: data.items,
+    data: items,
     columns,
-    state: { pagination, sorting, rowSelection },
-    onPaginationChange: setPagination,
+    state: { sorting, rowSelection },
     onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
-    manualPagination: true,
     manualSorting: true,
-    rowCount: data.total,
     getCoreRowModel: getCoreRowModel(),
     getRowId: (row) => String(row.id),
   });
@@ -171,10 +165,7 @@ export function GamesPage() {
         <ToolbarSpacer />
         <SearchInput
           value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPagination((p) => ({ ...p, pageIndex: 0 }));
-          }}
+          onChange={(e) => setSearch(e.target.value)}
           shortcut="⌘1"
           containerClassName="w-[220px]"
         />
@@ -194,14 +185,55 @@ export function GamesPage() {
           <div className="overflow-hidden px-3 pt-3">
             <DataTable table={table} />
           </div>
-          <Pagination
-            page={pagination.pageIndex + 1}
-            totalPages={data.totalPages}
-            onPageChange={(p) => setPagination((prev) => ({ ...prev, pageIndex: p - 1 }))}
-            perPage={pagination.pageSize}
+          <InfiniteScrollFooter
+            isLoading={isLoading}
+            isFetchingNextPage={isFetchingNextPage}
+            hasNextPage={hasNextPage}
+            itemCount={items.length}
+            onLoadMore={() => fetchNextPage()}
           />
         </div>
       </div>
     </>
+  );
+}
+
+function InfiniteScrollFooter({
+  isLoading,
+  isFetchingNextPage,
+  hasNextPage,
+  itemCount,
+  onLoadMore,
+}: {
+  isLoading: boolean;
+  isFetchingNextPage: boolean;
+  hasNextPage: boolean;
+  itemCount: number;
+  onLoadMore: () => void;
+}) {
+  if (isLoading) {
+    return <FooterBar>Loading…</FooterBar>;
+  }
+  if (itemCount === 0) {
+    return <FooterBar>No games found.</FooterBar>;
+  }
+  return (
+    <>
+      <InfiniteScrollSentinel
+        enabled={hasNextPage && !isFetchingNextPage}
+        onIntersect={onLoadMore}
+        rootMargin="200px"
+      />
+      {isFetchingNextPage && <FooterBar>Loading…</FooterBar>}
+      {!isFetchingNextPage && !hasNextPage && <FooterBar>End of list</FooterBar>}
+    </>
+  );
+}
+
+function FooterBar({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex h-11 min-h-[44px] items-center justify-center bg-white text-[12px] text-apex-faint">
+      {children}
+    </div>
   );
 }
