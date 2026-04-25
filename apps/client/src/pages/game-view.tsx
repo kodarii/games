@@ -5,6 +5,7 @@ import { GameCover } from '@/components/game-cover';
 import { IconButton } from '@/components/icon-button';
 import { Icon } from '@/components/icons';
 import { PageHeader } from '@/components/page-header';
+import { SectionHeader } from '@/components/section-header';
 import { StatusBadge } from '@/components/status-badge';
 import { statusFor } from '@/lib/game-status';
 import { useDeleteGameMutation, useGameQuery } from '@/lib/queries';
@@ -121,19 +122,6 @@ export function GameViewPage() {
         onConfirm={handleDelete}
       />
     </>
-  );
-}
-
-function SectionHeader({ title, description }: { title: string; description?: string }) {
-  return (
-    <div className="mb-5 flex flex-col gap-1">
-      <h2 className="text-[16px] font-semibold leading-tight tracking-tight text-apex-ink">
-        {title}
-      </h2>
-      {description && (
-        <p className="text-[12.5px] leading-relaxed text-apex-muted">{description}</p>
-      )}
-    </div>
   );
 }
 
