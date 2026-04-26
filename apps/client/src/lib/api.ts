@@ -1,7 +1,7 @@
 import type { Game, GameFormat, GamePlatform, GameStatus, GamesResponse } from '@/types';
 
 export async function fetchGames(params: URLSearchParams): Promise<GamesResponse> {
-  const r = await fetch(`/api/games?${params.toString()}`);
+  const r = await fetch(`/api/games?${params.toString()}`, { credentials: 'include' });
   if (!r.ok) {
     throw new Error(`Failed to fetch games: ${r.status}`);
   }
@@ -9,7 +9,7 @@ export async function fetchGames(params: URLSearchParams): Promise<GamesResponse
 }
 
 export async function fetchGame(id: string | number): Promise<Game> {
-  const r = await fetch(`/api/games/${id}`);
+  const r = await fetch(`/api/games/${id}`, { credentials: 'include' });
   if (!r.ok) {
     throw new Error(`Failed to fetch game: ${r.status}`);
   }
@@ -31,6 +31,7 @@ export interface CreateGameInput {
 export async function createGame(input: CreateGameInput): Promise<Game> {
   const r = await fetch('/api/games', {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
@@ -46,6 +47,7 @@ export type UpdateGameInput = CreateGameInput;
 export async function updateGame(id: number, input: UpdateGameInput): Promise<Game> {
   const r = await fetch(`/api/games/${id}`, {
     method: 'PUT',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
@@ -59,6 +61,7 @@ export async function updateGame(id: number, input: UpdateGameInput): Promise<Ga
 export async function deleteGame(id: number): Promise<Game> {
   const r = await fetch(`/api/games/${id}`, {
     method: 'DELETE',
+    credentials: 'include',
   });
   if (!r.ok) {
     const body = await r.json().catch(() => ({}));

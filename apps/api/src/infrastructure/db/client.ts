@@ -4,6 +4,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
+import * as authSchema from './auth-schema';
+import * as gameSchema from './schema';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_DIR = resolve(__dirname, '../../../data');
@@ -17,7 +19,7 @@ if (!existsSync(DB_DIR)) {
 const sqlite = new Database(DB_PATH);
 sqlite.exec('PRAGMA journal_mode = WAL;');
 
-export const db = drizzle({ client: sqlite });
+export const db = drizzle({ client: sqlite, schema: { ...gameSchema, ...authSchema } });
 
 const g = globalThis as unknown as { __apexDbMigrated?: boolean };
 if (!g.__apexDbMigrated) {

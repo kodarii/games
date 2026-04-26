@@ -1,359 +1,263 @@
-# Auth (rejestracja + logowanie) — Faza 2: Backend Infra + API
+# Auth (rejestracja + logowanie) — Faza 2: Backend integracja (handler + middleware)
 
 ## Goal
-Zbuduj infrastrukturę i endpointy auth: schemat DB (`users`, `sessions`), Drizzle adaptery repozytoriów, BunPasswordHasher (Bun.password / argon2id), use case'y `RegisterUser` / `LoginUser` / `LogoutUser` / `GetCurrentUser`, route'y `/api/auth/*` z cookie-based session, oraz middleware `requireAuth` chroniący `/api/games/*`.
+Wmontuj handler better-auth do Hono pod `/api/auth/**`, napisz middleware `requireAuth` używające `auth.api.getSession({ headers })`, ochroń `/api/games/*` tym middlewarem, skonfiguruj CORS z `credentials: true` dla origin frontu (Vite 5173). Po tej fazie endpointy better-auth są dostępne (signup/signin/signout/get-session/...) i `/api/games/*` zwraca 401 bez ważnej sesji.
 
 ## Definition of Done
-- [ ] `bun test` — WSZYSTKIE testy zielone (domain z fazy 1, application z fazy 2, istniejące games)
+- [ ] `bun test` — istniejące testy `games` zielone (nic nie zepsute)
 - [ ] `bun run --filter '*' typecheck` czyste
 - [ ] `bun run lint` czyste
-- [ ] `bun run --cwd apps/api db:generate` wyprodukowało migrację z tabelami `users` i `sessions`, a `db:migrate` ją zaaplikował (na lokalnej `apps/api/data/apex.db`)
-- [ ] `POST /api/auth/register { email, password }` → 201 z `{ user, session }` + Set-Cookie `apex_session=...`
-- [ ] `POST /api/auth/login { email, password }` → 200 z `{ user, session }` + Set-Cookie
-- [ ] `POST /api/auth/logout` → 204 + cookie wyczyszczone (Max-Age=0)
-- [ ] `GET /api/auth/me` z cookie → 200 `{ user }`; bez cookie albo z wygasłym → 401
-- [ ] `GET /api/games` BEZ cookie → 401; z ważnym cookie → 200
-- [ ] `User.toJSON()` w response NIE zawiera `passwordHash` (test integration to potwierdza)
+- [ ] `POST /api/auth/sign-up/email` z `{ email, password, name }` → 200 z `{ user, token }` + Set-Cookie sesyjne
+- [ ] `POST /api/auth/sign-in/email` z `{ email, password }` → 200 z `{ user, token }` + Set-Cookie
+- [ ] `POST /api/auth/sign-out` z cookie → 200 + cookie wyczyszczone
+- [ ] `GET /api/auth/get-session` z cookie → 200 `{ user, session }`; bez cookie → 200 `null` (better-auth zwraca null, nie 401)
+- [ ] `GET /api/games` BEZ cookie → 401 `{ error: 'unauthorized' }`; z ważnym cookie → 200
+- [ ] `POST /api/games` BEZ cookie → 401; z ważnym cookie → 201
+- [ ] Cookie ma `HttpOnly`, `SameSite=Lax`, `Path=/`, w produkcji `Secure` (potwierdza to better-auth defaultowo, nie konfigurujemy ręcznie)
+- [ ] Smoke test ręczny w `curl` (lista poniżej w Step 4) przechodzi end-to-end
 
 Agent kończy pracę WYŁĄCZNIE gdy powyższe są spełnione.
 
 ## Context
-**Runtime:** Bun (NIE Node.js, NIE npm — `bun test`, `bun run --filter '*' typecheck`, `bun run --cwd apps/api db:generate`, `bun run --cwd apps/api db:migrate`, `bun run lint`)
-**ORM:** Drizzle (bun:sqlite). Schema w `apps/api/src/infrastructure/db/schema.ts`. Migracje generowane przez `bunx drizzle-kit generate` (skrypt `db:generate`), apply przez `db:migrate`. Pliki migracji w `apps/api/drizzle/`.
-**Walidacja inputu:** Zod w use case'ach (`safeParse` → `err({ kind: 'invalid_input', issues: [...] })`).
-**Hashing:** `Bun.password.hash(plain, { algorithm: 'argon2id' })` i `Bun.password.verify(plain, hash)` — wbudowane w Bun, ZERO dependencies. Nie instaluj bcrypt/argon2.
-**Wzorzec referencyjny:** `apps/api/src/application/games/create-game.ts` (use case + Zod), `apps/api/src/infrastructure/games/drizzle-game-repository.ts` (adapter), `apps/api/src/routes/games.ts` (route handler), `apps/api/src/application/games/create-game.test.ts` (test use case z fake repo).
+**Runtime:** Bun (NIE Node.js, NIE npm — `bun test`, `bun run --filter '*' typecheck`, `bun run --cwd apps/api dev`, `bun run lint`)
+**Architektura:** Hono routing + better-auth handler. ZERO custom use-case'ów `RegisterUser`/`LoginUser`/`LogoutUser` — to wszystko zapewnia better-auth pod `/api/auth/**`.
+**Wzorzec referencyjny:** `apps/api/src/routes/games.ts` (handlery Hono, mapowanie błędów, response shape). Ten styl zostaje dla `/api/games`. NIE tworzymy `apps/api/src/routes/auth.ts` — better-auth handler eksponujemy bezpośrednio.
 
 ## Design decisions
-- **Session token w HttpOnly cookie** `apex_session`. `HttpOnly`, `SameSite=Lax`, `Path=/`, `Max-Age = 30 * 24 * 60 * 60` (30 dni). `Secure` jeśli `process.env.NODE_ENV === 'production'`. NIE w localStorage, NIE w body response (token w body tylko dla testów / debug — opcjonalne).
-- **TTL sesji = 30 dni absolute** (stała `SESSION_TTL_MS` w `apps/api/src/application/auth/constants.ts`). Brak sliding window.
-- **`requireAuth` middleware**: czyta cookie `apex_session`, wywołuje `GetCurrentUser.execute(token)`, jeśli `ok` → `c.set('user', user)`, jeśli `err` → `c.json({ error: 'unauthorized' }, 401)`. Routes pobierają `c.get('user')`.
-- **`/api/games/*` chronione** przez `requireAuth`. Dodajemy w `apps/api/src/index.ts`: `app.use('/api/games/*', requireAuth)`. Auth route'y (`/api/auth/*`) ROUTOWANE PRZED tym middlewarem i NIE chronione (rejestracja/login muszą być publiczne).
-- **Email uniqueness** egzekwujemy na poziomie DB (`unique` constraint na kolumnie `email`). Use case `RegisterUser` najpierw sprawdza `findByEmail` → jeśli exists → `err({ kind: 'email_taken' })`. Race condition (dwóch userów rejestrujących równocześnie) lokalnie nieistotny (SQLite single-writer), ale i tak łapiemy `unique constraint failed` z Drizzle i mapujemy na `email_taken`.
-- **Min hasła = 8 znaków** (Zod `.min(8)`). Brak innych wymagań (no max, no special chars). Walidacja w Zod schema use case'a, NIE w domenie.
-- **Response shape**: `{ user: { id, email, createdAt }, session: { token, expiresAt } }`. `user` to `User.toJSON()` (BEZ passwordHash). `session` to `Session.toJSON()` (token jest publiczny, klient i tak go ma w cookie — w body dla wygody klienta).
-- **Logout** usuwa session z DB I czyści cookie. Idempotentne — brak cookie/zła wartość → 204.
-- **Error model na route'ach** (ten sam wzorzec co `games.ts`):
-  - `invalid_input` → 400 `{ error: 'validation', issues }`
-  - `email_taken` → 409 `{ error: 'email_taken' }`
-  - `invalid_credentials` → 401 `{ error: 'invalid_credentials' }`
-  - `unauthorized` (brak/wygasły session) → 401 `{ error: 'unauthorized' }`
-  - `domain` → 400 `{ error: 'validation', domain: e.error }`
-  - inne → 500 `{ error: 'unknown error' }`
-- **Stała `SESSION_COOKIE = 'apex_session'`** w jednym miejscu (`apps/api/src/application/auth/constants.ts`) — używana zarówno w route handlers jak i middleware.
+- **Handler better-auth pod `/api/auth/**`** (uwaga: `**`, nie `*`, bo better-auth używa wielo-segmentowych ścieżek typu `/api/auth/sign-in/email`). Route Hono: `app.on(['POST', 'GET'], '/api/auth/**', (c) => auth.handler(c.req.raw))`.
+- **`requireAuth` middleware** — czyta sesję przez `auth.api.getSession({ headers: c.req.raw.headers })`. Jeśli `null` → 401. Jeśli ok → `c.set('user', session.user)` + `c.set('session', session.session)`. Routes pobierają przez `c.get('user')`.
+- **Hono ContextVariableMap typowanie** — używamy `Hono<{ Variables: { user: ...; session: ... } }>`. Albo lokalnie w app, albo przez `declare module 'hono' { interface ContextVariableMap { ... } }` w pliku middleware. Wybierz opcję lokalnego typowania `Hono<{ Variables: ... }>` — jest czystsza i nie wycieka globalnie.
+- **`/api/games/*` chronione** przez `app.use('/api/games/*', requireAuth)`, ZAREJESTROWANE PRZED `app.route('/api/games', games)`. better-auth handler MUSI być zaroutowany PRZED tym middlewarem (żeby `/api/auth/**` nie został przechwycony — chociaż w praktyce nie matchuje pattern `/api/games/*`, ale lepsza kolejność dla czytelności).
+- **CORS** — better-auth wymaga `credentials: true` żeby cookie szło cross-origin (Vite na 5173, API na 3001). Zmieniamy `app.use('/api/*', cors())` na:
+  ```ts
+  app.use('/api/*', cors({
+    origin: 'http://localhost:5173',
+    credentials: true,
+    allowHeaders: ['Content-Type', 'Authorization'],
+    allowMethods: ['POST', 'GET', 'OPTIONS', 'PUT', 'DELETE'],
+    exposeHeaders: ['Content-Length'],
+    maxAge: 600,
+  }));
+  ```
+- **Origin-check (CSRF) better-auth** — biblioteka samodzielnie waliduje, że origin requestu jest na liście `trustedOrigins` (skonfigurowane w `auth.ts` w fazie 1). Bez tego POST z 5173 do 3001 dostanie 403. Jeśli tak się dzieje: wróć do fazy 1 i sprawdź `trustedOrigins`.
+- **Brak własnego cookie helpera** — better-auth ustawia cookie samodzielnie w response handlera. NIE używamy `setCookie`/`deleteCookie` z `hono/cookie`. Cookie name jest skonfigurowane przez bibliotekę (defaultowo `better-auth.session_token`).
+- **Error model na `/api/games/*`**: 401 zwracamy z naszego middleware'a (`{ error: 'unauthorized' }`). Inne błędy zostawiamy jak są (route'y games już je obsługują). better-auth handler sam mapuje swoje błędy (`USER_ALREADY_EXISTS`, `INVALID_EMAIL_OR_PASSWORD`, etc.) na własne JSON response — NIE tłumaczymy ich w naszej warstwie.
 
 ### Step 0: Pobierz dokumentację
-Użyj Context7 (resolve-library-id + query-docs) DOKŁADNIE TYCH:
-1. `drizzle-orm` — pytanie: "sqlite-core: define table with UNIQUE constraint on text column, foreign key with ON DELETE CASCADE, indexes, integer timestamp mode"
-2. `hono` — pytanie: "read cookie from request, set cookie with HttpOnly + SameSite + Max-Age, use middleware on path prefix, c.set/c.get for context state"
-3. `zod` — pytanie: "object schema with email validation and min length, safeParse error issues format"
+Użyj Context7 PRZED kodowaniem:
+1. `better-auth` — pytanie: "Hono integration: app.on(['POST','GET'], '/api/auth/**', auth.handler), middleware reading auth.api.getSession({ headers: c.req.raw.headers }), Hono Variables for user/session, cors with credentials"
+2. `hono` — pytanie: "app.on with multiple methods and ** wildcard path, Hono<{ Variables }> generic for context state, cors middleware with credentials true, app.use middleware on path pattern, order of route vs middleware"
 
-NIE pisz kodu zanim nie pobierzesz docs Context7 dla tych trzech bibliotek. Drizzle `unique`, Hono cookie API i Zod `.email()` mogły zmienić API między wersjami w `apps/api/package.json` (`drizzle-orm@^0.45`, `hono@^4.6`, `zod@^4.3`).
+NIE pisz kodu zanim nie pobierzesz docs Context7. better-auth API integration changes between versions, a Hono middleware ordering jest delikatne.
 
 ### Relevant files (edit only these)
-- `apps/api/src/infrastructure/db/schema.ts` — dopisz tabele `users`, `sessions` (NIE ruszaj `games`)
-- `apps/api/drizzle/<auto>.sql` — wygenerowana migracja (NIE pisać ręcznie, generuj przez `db:generate`)
-- `apps/api/src/infrastructure/auth/drizzle-user-repository.ts` — **NEW**
-- `apps/api/src/infrastructure/auth/drizzle-session-repository.ts` — **NEW**
-- `apps/api/src/infrastructure/auth/bun-password-hasher.ts` — **NEW**
-- `apps/api/src/application/auth/constants.ts` — **NEW** — `SESSION_COOKIE`, `SESSION_TTL_MS`
-- `apps/api/src/application/auth/register-user.ts` — **NEW** — Zod + use case
-- `apps/api/src/application/auth/login-user.ts` — **NEW**
-- `apps/api/src/application/auth/logout-user.ts` — **NEW**
-- `apps/api/src/application/auth/get-current-user.ts` — **NEW**
-- `apps/api/src/application/auth/__tests__/register-user.test.ts` — **NEW** (fake repos + fake hasher)
-- `apps/api/src/application/auth/__tests__/login-user.test.ts` — **NEW**
-- `apps/api/src/application/auth/__tests__/get-current-user.test.ts` — **NEW**
-- `apps/api/src/routes/auth.ts` — **NEW** — handlery + cookie helper
-- `apps/api/src/routes/middleware/require-auth.ts` — **NEW**
-- `apps/api/src/index.ts` — wmontuj `/api/auth` routes i middleware na `/api/games/*`
+- `apps/api/src/routes/middleware/require-auth.ts` — **NEW** — middleware Hono używający `auth.api.getSession`
+- `apps/api/src/index.ts` — zmiana CORS, wmontowanie handlera better-auth, podpięcie middleware'a, typowanie `Hono<{ Variables }>`
 
 ### Files to read but NOT edit
-- `apps/api/src/domain/auth/*` — wszystko z fazy 1 (typy, agregaty, porty)
-- `apps/api/src/domain/shared/result.ts`
-- `apps/api/src/infrastructure/db/client.ts` — istniejący `db` Drizzle client
-- `apps/api/src/infrastructure/games/drizzle-game-repository.ts` — wzorzec adaptera
-- `apps/api/src/application/games/create-game.ts` — wzorzec use case + Zod
-- `apps/api/src/application/games/create-game.test.ts` — wzorzec testu use case z fake repo
-- `apps/api/src/routes/games.ts` — wzorzec route handler (passthrough, mapowanie błędów)
-- `apps/api/drizzle.config.ts` — config drizzle-kit
+- `apps/api/src/infrastructure/auth/auth.ts` — instancja `auth` (faza 1)
+- `apps/api/src/infrastructure/db/auth-schema.ts` — schemat tabel (faza 1)
+- `apps/api/src/routes/games.ts` — handlery games, NIE ruszamy logiki, tylko nakładamy middleware
+- `apps/api/src/index.ts` (przed edycją) — obecny setup Hono z `cors()` i `app.route('/api/games', games)`
 
 ## Constraints
-- TDD per use case: NAJPIERW test z fake repo + fake hasher (RED), POTEM impl (GREEN). 3 testy use case zgodnie z DoD.
-- Route handler max ~30 linii — TYLKO: parsuj request → wywołaj use case → ustaw cookie → response. ZERO logiki domenowej w route.
-- Repository adapter mapuje DB row ↔ domain aggregate przez `User.fromPersistence` / `Session.fromPersistence`. NIE zwraca rows na zewnątrz.
-- Middleware `requireAuth` używa `GetCurrentUser` use case'a — NIE czyta DB bezpośrednio. To jeden punkt prawdy.
-- NIE wystawiaj `passwordHash` w żadnym response. Adapter user repo zwraca `User` (domain), `User.toJSON()` go pomija — to gwarancja domeny.
-- Cookie ustawiaj przez `setCookie` z `hono/cookie` (NIE ręcznie `c.header('Set-Cookie', ...)`). Czytaj przez `getCookie`.
-- Stałe (`SESSION_COOKIE`, `SESSION_TTL_MS`) zaimportowane z jednego miejsca, NIE zduplikowane.
-- ID użytkownika to `string` (UUID) w schemacie Drizzle: `text('id').primaryKey()`. NIE `integer({ autoIncrement: true })`.
-- Foreign key `sessions.user_id` → `users.id` z `onDelete: 'cascade'`. Usunięcie usera kasuje jego sesje.
-- Email w DB w lowercase (już znormalizowany przez VO `Email`). `unique` na kolumnie `email`.
-- Test bezpieczeństwa w `register-user.test.ts`: po rejestracji `result.value.user.toJSON()` NIE ma `passwordHash` — assertem `expect(JSON.stringify(result.value.user)).not.toContain('argon')` (Bun.password tworzy hashe `$argon2id$...`).
-- Migrację SQL generuje Drizzle — NIE pisz ręcznie. Plik trafia do `apps/api/drizzle/`.
+- NIE pisz `apps/api/src/routes/auth.ts` z własnymi handlerami login/register/logout — to anti-goal. Endpointy `/api/auth/*` zapewnia better-auth handler, my tylko mountujemy.
+- NIE pisz własnych use-case'ów w `apps/api/src/application/auth/*` — fazy nie zostawiają przestrzeni na taki kod. Jeśli stamtąd zostały pliki z wcześniejszych iteracji: usuń (sanity check fazy 1 step 5 powinien był to złapać).
+- NIE używaj `hono/cookie` `setCookie`/`getCookie` w naszym kodzie — better-auth zarządza cookie samodzielnie. Czytanie sesji TYLKO przez `auth.api.getSession({ headers })`.
+- Kolejność w `apps/api/src/index.ts`: CORS → logger → handler better-auth (`/api/auth/**`) → `requireAuth` middleware (`/api/games/*`) → `app.route('/api/games', games)`. Dokładnie tak. Nie zamieniaj.
+- Middleware musi być `async` i wywoływać `await next()` po `c.set(...)`. Jeśli zapomnisz `await next()` — 401 + zawieszony request.
+- Route handler max ~30 linii — to się nie zmienia. games handlery są już w tym budżecie.
+- TS: `Hono<{ Variables: { user: typeof auth.$Infer.Session.user; session: typeof auth.$Infer.Session.session } }>` — używaj `auth.$Infer.Session`, NIE pisz typów ręcznie. Better-auth eksportuje pomocniczy generic.
+- Test z fazy 1 (typecheck/lint/migracje) MUSI dalej przechodzić. Jeśli `db:migrate` failuje po edycji `client.ts` (jeżeli musiałeś dodać schema do drizzle clienta) — sprawdź czy nie nadpisałeś istniejącej konfiguracji.
 
 ## Steps
 
-### Step 1: DB schema + migracja + repos + hasher adapter
-**Pliki:** `apps/api/src/infrastructure/db/schema.ts`, `apps/api/drizzle/<auto>.sql`, `apps/api/src/infrastructure/auth/{drizzle-user-repository,drizzle-session-repository,bun-password-hasher}.ts`
+### Step 1: Middleware `requireAuth`
+**Pliki:** `apps/api/src/routes/middleware/require-auth.ts`
 
 **Co robimy:**
-1. W `schema.ts` dopisz (NIE ruszaj `games`):
+1. Stwórz katalog jeśli nie istnieje: `mkdir -p apps/api/src/routes/middleware`.
+2. Stwórz `require-auth.ts`:
    ```ts
-   export const users = sqliteTable('users', {
-     id: text('id').primaryKey(),
-     email: text('email').notNull().unique(),
-     passwordHash: text('password_hash').notNull(),
-     createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-   });
+   import type { MiddlewareHandler } from 'hono';
+   import { auth } from '../../infrastructure/auth/auth';
 
-   export const sessions = sqliteTable('sessions', {
-     token: text('token').primaryKey(),
-     userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-     expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
-     createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-   });
+   export type AuthVariables = {
+     user: typeof auth.$Infer.Session.user;
+     session: typeof auth.$Infer.Session.session;
+   };
 
-   export type UserRow = typeof users.$inferSelect;
-   export type NewUserRow = typeof users.$inferInsert;
-   export type SessionRow = typeof sessions.$inferSelect;
-   export type NewSessionRow = typeof sessions.$inferInsert;
-   ```
-2. Wygeneruj migrację: `bun run --cwd apps/api db:generate` (powstanie `apps/api/drizzle/0002_*.sql` z `CREATE TABLE users`, `CREATE TABLE sessions`, `CREATE UNIQUE INDEX users_email_unique`).
-3. Zaaplikuj: `bun run --cwd apps/api db:migrate`.
-4. `apps/api/src/infrastructure/auth/drizzle-user-repository.ts`:
-   ```ts
-   import { eq } from 'drizzle-orm';
-   import { db } from '../db/client';
-   import { users } from '../db/schema';
-   import { NewUser, User } from '../../domain/auth/user';
-   import type { UserRepository } from '../../domain/auth/user-repository';
-
-   export class DrizzleUserRepository implements UserRepository {
-     async findByEmail(email: string): Promise<User | null> {
-       const r = await db.select().from(users).where(eq(users.email, email)).limit(1);
-       if (r.length === 0) return null;
-       return User.fromPersistence({ id: r[0].id, email: r[0].email, passwordHash: r[0].passwordHash, createdAt: r[0].createdAt });
+   export const requireAuth: MiddlewareHandler<{ Variables: AuthVariables }> = async (c, next) => {
+     const session = await auth.api.getSession({ headers: c.req.raw.headers });
+     if (!session) {
+       return c.json({ error: 'unauthorized' }, 401);
      }
-     async findById(id: string): Promise<User | null> { /* analogicznie */ }
-     async create(newUser: NewUser): Promise<User> {
-       const [row] = await db.insert(users).values({
-         id: newUser.id,
-         email: newUser.email.value,
-         passwordHash: newUser.passwordHash.value,
-         createdAt: newUser.createdAt,
-       }).returning();
-       return User.fromPersistence({ id: row.id, email: row.email, passwordHash: row.passwordHash, createdAt: row.createdAt });
-     }
-   }
-   ```
-5. `apps/api/src/infrastructure/auth/drizzle-session-repository.ts`: analogicznie — `findByToken`, `create(session: Session)`, `deleteByToken`.
-6. `apps/api/src/infrastructure/auth/bun-password-hasher.ts`:
-   ```ts
-   import { PasswordHash } from '../../domain/auth/password-hash';
-   import type { PasswordHasher } from '../../domain/auth/password-hasher';
-
-   export class BunPasswordHasher implements PasswordHasher {
-     async hash(plain: string): Promise<PasswordHash> {
-       const value = await Bun.password.hash(plain, { algorithm: 'argon2id' });
-       return PasswordHash.fromTrusted(value);
-     }
-     async verify(plain: string, hash: PasswordHash): Promise<boolean> {
-       return Bun.password.verify(plain, hash.value);
-     }
-   }
-   ```
-7. `bun run --filter '*' typecheck` → czyste. Repos i hasher kompilują się.
-
-**Rezultat:** DB ma tabele, adaptery gotowe, migracja na dysku.
-
-### Step 2: Use cases + testy (RED → GREEN)
-**Pliki:** `apps/api/src/application/auth/{constants,register-user,login-user,logout-user,get-current-user}.ts` + 3 pliki testowe
-
-**Co robimy:**
-1. `constants.ts`:
-   ```ts
-   export const SESSION_COOKIE = 'apex_session';
-   export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-   ```
-2. Najpierw testy (RED) — w każdym pliku testowym napisz **fake repos** (in-memory `Map<email, User>`, `Map<token, Session>`) i **fake hasher** (`hash` → `PasswordHash.fromTrusted('hashed:' + plain)`, `verify` → `hash.value === 'hashed:' + plain`). Wzoruj się na strukturze `apps/api/src/application/games/create-game.test.ts`.
-3. **`register-user.test.ts`**:
-   - Happy path: `RegisterUser.execute({ email: 'a@b.com', password: 'password123' })` → `ok`, `result.value.user` instancja `User`, `result.value.session.token.length === 64`, `findByEmail('a@b.com')` w fake repo zwraca usera. **Sec assert:** `JSON.stringify(result.value.user)` nie zawiera `'hashed:'` ani `'password123'` ani klucza `passwordHash`.
-   - Email taken: po pierwszej rejestracji druga z tym samym emailem → `err`, `error.kind === 'email_taken'`.
-   - Email normalizacja: `'  USER@Example.COM '` → `ok`, w fake repo zapisany `'user@example.com'`.
-   - Walidacja Zod: `password: 'short'` (7 znaków) → `err`, `error.kind === 'invalid_input'`.
-   - Walidacja Zod: `email: 'not-email'` → `err`, `error.kind === 'invalid_input'`.
-4. **`login-user.test.ts`**:
-   - Setup: ręcznie pre-fill fake user repo userem o emailu `'a@b.com'` i passwordHash `PasswordHash.fromTrusted('hashed:password123')`.
-   - Happy: `LoginUser.execute({ email: 'a@b.com', password: 'password123' })` → `ok`, sesja utworzona w fake session repo, token zwrócony.
-   - Bad password: `password: 'wrong'` → `err`, `error.kind === 'invalid_credentials'`.
-   - Unknown email: → `err`, `error.kind === 'invalid_credentials'` (NIE `user_not_found` — nie ujawniaj który email istnieje).
-   - Walidacja Zod: brak pola → `err`, `error.kind === 'invalid_input'`.
-5. **`get-current-user.test.ts`**:
-   - Setup: pre-fill user + sesja ważna do `2099-01-01`.
-   - Happy: `GetCurrentUser.execute(validToken, { now: new Date('2024-01-01') })` → `ok`, `result.value.id === user.id`.
-   - Brak tokenu / null: → `err`, `error.kind === 'unauthorized'`.
-   - Wygasła sesja: pre-fill sesja `expiresAt: new Date('2020-01-01')`, `execute(token, { now: new Date('2024-01-01') })` → `err`, `error.kind === 'unauthorized'`. **Side effect**: wygasła sesja zostaje usunięta z fake repo (bo i tak nie jest ważna). Asercja: `sessionRepo.findByToken(token) === null` po execute.
-   - Token nie istnieje: → `err`, `error.kind === 'unauthorized'`.
-6. `bun test apps/api/src/application/auth` → RED (use cases nie istnieją).
-7. Implementacja use cases (zgodnie z testami):
-   - `register-user.ts` (Zod schema: `email: z.string().email()`, `password: z.string().min(8)`. Flow: parse → `findByEmail` (po `Email.create` jako normalizacja) → jeśli exists → `email_taken`. Inaczej: `hasher.hash(password)` → `NewUser.register({ email, passwordHash })` → propagate `domain` error → `userRepo.create(newUser)` → `Session.issue({ userId: user.id, ttlMs: SESSION_TTL_MS })` → `sessionRepo.create(session)` → `ok({ user, session })`).
-   - `login-user.ts` (parse → `userRepo.findByEmail(parsedEmail.toLowerCase())` — UWAGA: użyj `Email.create` żeby znormalizować input zanim zapytasz repo. Jeśli null → `invalid_credentials`. Inaczej `hasher.verify(password, user.passwordHash)` → false → `invalid_credentials`. True → `Session.issue` + `sessionRepo.create` → `ok({ user, session })`).
-   - `logout-user.ts` (przyjmuje `token: string | null`, zwraca `ok(undefined)` zawsze — idempotentne. Jeśli token niepusty → `sessionRepo.deleteByToken(token)`).
-   - `get-current-user.ts` (przyjmuje `token: string | null` + opcjonalnie `{ now?: Date }`. Null/empty → `err({ kind: 'unauthorized' })`. `sessionRepo.findByToken(token)` → null → `unauthorized`. `session.isExpired(now ?? new Date())` → true → `sessionRepo.deleteByToken(token)` + `unauthorized`. Inaczej: `userRepo.findById(session.userId)` → null → `unauthorized` (anomalia, log + cleanup). Inaczej `ok(user)`).
-8. `bun test` → ALL GREEN.
-
-**Rezultat:** Use cases gotowe, pełne pokrycie testami z fake adapterami, secret hygiene zweryfikowane.
-
-### Step 3: Routes + middleware + integracja
-**Pliki:** `apps/api/src/routes/auth.ts`, `apps/api/src/routes/middleware/require-auth.ts`, `apps/api/src/index.ts`
-
-**Co robimy:**
-1. `apps/api/src/routes/middleware/require-auth.ts`:
-   ```ts
-   import type { Context, MiddlewareHandler } from 'hono';
-   import { getCookie } from 'hono/cookie';
-   import { GetCurrentUser } from '../../application/auth/get-current-user';
-   import { SESSION_COOKIE } from '../../application/auth/constants';
-   import { DrizzleUserRepository } from '../../infrastructure/auth/drizzle-user-repository';
-   import { DrizzleSessionRepository } from '../../infrastructure/auth/drizzle-session-repository';
-   import type { User } from '../../domain/auth/user';
-
-   const userRepo = new DrizzleUserRepository();
-   const sessionRepo = new DrizzleSessionRepository();
-   const getCurrentUser = new GetCurrentUser(userRepo, sessionRepo);
-
-   declare module 'hono' {
-     interface ContextVariableMap { user: User; }
-   }
-
-   export const requireAuth: MiddlewareHandler = async (c, next) => {
-     const token = getCookie(c, SESSION_COOKIE) ?? null;
-     const result = await getCurrentUser.execute(token);
-     if (!result.ok) return c.json({ error: 'unauthorized' }, 401);
-     c.set('user', result.value);
+     c.set('user', session.user);
+     c.set('session', session.session);
      await next();
    };
    ```
-2. `apps/api/src/routes/auth.ts`:
+3. `bun run --filter '*' typecheck` — czyste. Middleware jeszcze nigdzie nie podpięty.
+
+**Rezultat:** Middleware gotowe, typowanie kontekstu zdefiniowane, jeden punkt prawdy o stanie auth.
+
+### Step 2: Wmontowanie handlera better-auth + middleware w `index.ts`
+**Pliki:** `apps/api/src/index.ts`
+
+**Co robimy:**
+1. Edytuj `apps/api/src/index.ts`:
    ```ts
    import { Hono } from 'hono';
-   import { setCookie, deleteCookie, getCookie } from 'hono/cookie';
-   import { RegisterUser } from '../application/auth/register-user';
-   import { LoginUser } from '../application/auth/login-user';
-   import { LogoutUser } from '../application/auth/logout-user';
-   import { SESSION_COOKIE, SESSION_TTL_MS } from '../application/auth/constants';
-   import { DrizzleUserRepository } from '../infrastructure/auth/drizzle-user-repository';
-   import { DrizzleSessionRepository } from '../infrastructure/auth/drizzle-session-repository';
-   import { BunPasswordHasher } from '../infrastructure/auth/bun-password-hasher';
-   import type { Session } from '../domain/auth/session';
+   import { cors } from 'hono/cors';
+   import { logger } from 'hono/logger';
+   import { auth } from './infrastructure/auth/auth';
+   import { seedGamesIfEmpty } from './infrastructure/db/seed';
+   import { games } from './routes/games';
+   import { requireAuth, type AuthVariables } from './routes/middleware/require-auth';
 
-   const userRepo = new DrizzleUserRepository();
-   const sessionRepo = new DrizzleSessionRepository();
-   const hasher = new BunPasswordHasher();
-   const registerUser = new RegisterUser(userRepo, sessionRepo, hasher);
-   const loginUser = new LoginUser(userRepo, sessionRepo, hasher);
-   const logoutUser = new LogoutUser(sessionRepo);
+   const app = new Hono<{ Variables: AuthVariables }>();
 
-   export const auth = new Hono();
+   app.use('*', logger());
 
-   const cookieOptions = (session: Session) => ({
-     httpOnly: true,
-     sameSite: 'Lax' as const,
-     path: '/',
-     maxAge: Math.floor(SESSION_TTL_MS / 1000),
-     secure: process.env.NODE_ENV === 'production',
-     expires: session.expiresAt,
-   });
+   app.use(
+     '/api/*',
+     cors({
+       origin: 'http://localhost:5173',
+       credentials: true,
+       allowHeaders: ['Content-Type', 'Authorization'],
+       allowMethods: ['POST', 'GET', 'OPTIONS', 'PUT', 'DELETE'],
+       exposeHeaders: ['Content-Length'],
+       maxAge: 600,
+     }),
+   );
 
-   auth.post('/register', async (c) => {
-     const body = await c.req.json();
-     const result = await registerUser.execute(body);
-     if (!result.ok) {
-       const e = result.error;
-       if (e.kind === 'invalid_input') return c.json({ error: 'validation', issues: e.issues }, 400);
-       if (e.kind === 'email_taken') return c.json({ error: 'email_taken' }, 409);
-       if (e.kind === 'domain') return c.json({ error: 'validation', domain: e.error }, 400);
-       return c.json({ error: 'unknown error' }, 500);
-     }
-     setCookie(c, SESSION_COOKIE, result.value.session.token, cookieOptions(result.value.session));
-     return c.json({ user: result.value.user, session: result.value.session }, 201);
-   });
+   app.get('/', (c) => c.json({ name: 'apex-api', status: 'ok' }));
+   app.get('/api/health', (c) => c.json({ status: 'ok' }));
 
-   auth.post('/login', async (c) => {
-     const body = await c.req.json();
-     const result = await loginUser.execute(body);
-     if (!result.ok) {
-       const e = result.error;
-       if (e.kind === 'invalid_input') return c.json({ error: 'validation', issues: e.issues }, 400);
-       if (e.kind === 'invalid_credentials') return c.json({ error: 'invalid_credentials' }, 401);
-       return c.json({ error: 'unknown error' }, 500);
-     }
-     setCookie(c, SESSION_COOKIE, result.value.session.token, cookieOptions(result.value.session));
-     return c.json({ user: result.value.user, session: result.value.session });
-   });
+   app.on(['POST', 'GET'], '/api/auth/**', (c) => auth.handler(c.req.raw));
 
-   auth.post('/logout', async (c) => {
-     const token = getCookie(c, SESSION_COOKIE) ?? null;
-     await logoutUser.execute(token);
-     deleteCookie(c, SESSION_COOKIE, { path: '/' });
-     return c.body(null, 204);
-   });
+   app.use('/api/games/*', requireAuth);
+   app.route('/api/games', games);
 
-   auth.get('/me', requireAuth, (c) => c.json({ user: c.get('user') }));
+   await seedGamesIfEmpty();
+
+   const port = Number(process.env.PORT ?? 3001);
+
+   export default {
+     port,
+     fetch: app.fetch,
+   };
+
+   console.log(`apex-api listening on http://localhost:${port}`);
    ```
-   (`requireAuth` zaimportuj z `./middleware/require-auth`.)
-3. W `apps/api/src/index.ts`:
-   - Dodaj `import { auth } from './routes/auth';` i `import { requireAuth } from './routes/middleware/require-auth';`
-   - PRZED `app.route('/api/games', games)` dodaj:
-     ```ts
-     app.route('/api/auth', auth);
-     app.use('/api/games/*', requireAuth);
-     ```
-   - WAŻNE: middleware `requireAuth` musi być ZAREJESTROWANY PRZED `app.route('/api/games', games)`. W Hono kolejność `app.use` matters, ale `app.use('/api/games/*', ...)` przed `app.route(...)` zadziała poprawnie pod warunkiem że jest dodany przed. Sprawdź uruchamiając serwer.
-4. Cors — istniejący `app.use('/api/*', cors())` musi przepuszczać credentials. Zmień na:
-   ```ts
-   app.use('/api/*', cors({ origin: 'http://localhost:5173', credentials: true }));
-   ```
-   (Vite domyślnie 5173. Jeśli inny port — popraw. Bez `credentials: true` przeglądarka NIE wyśle cookie cross-origin nawet jeśli front i back na różnych portach to różne origins.)
-5. **Smoke test ręczny**:
-   ```
-   bun run --cwd apps/api dev   # w jednym terminalu
+2. **Krytyczne punkty kolejności:**
+   - `cors` PRZED handlerem better-auth (preflight OPTIONS musi przejść przez cors).
+   - `app.on(... '/api/auth/**' ...)` PRZED `app.use('/api/games/*', requireAuth)` — żeby auth route'y nie wpadły w żadne nasze middleware, ale w praktyce `/api/auth/**` nie matchuje `/api/games/*`, więc to defensive ordering.
+   - `app.use('/api/games/*', requireAuth)` PRZED `app.route('/api/games', games)` — Hono stosuje middleware tylko jeśli zarejestrowany przed route'em z tym samym matcherem.
+3. `bun run --filter '*' typecheck` — czyste.
+4. `bun run lint` — czyste.
+5. `bun run --cwd apps/api dev` — serwer startuje, w logach `apex-api listening on http://localhost:3001`. Jeśli błąd `BETTER_AUTH_SECRET is required` → faza 1 step 1 (`.env`).
 
-   # w drugim:
-   curl -i -X POST http://localhost:3001/api/auth/register \
+**Rezultat:** Backend kompletny. Endpointy auth dostępne, games chronione.
+
+### Step 3: Smoke test ręczny (curl)
+**Co robimy:**
+W jednym terminalu zostaw `bun run --cwd apps/api dev`. W drugim:
+
+1. **Próba bez sesji — 401:**
+   ```bash
+   curl -i http://localhost:3001/api/games
+   # → HTTP/1.1 401 Unauthorized
+   # → {"error":"unauthorized"}
+   ```
+
+2. **Sign-up:**
+   ```bash
+   curl -i -X POST http://localhost:3001/api/auth/sign-up/email \
      -H 'Content-Type: application/json' \
+     -H 'Origin: http://localhost:5173' \
+     -d '{"email":"smoke@test.com","password":"password123","name":"Smoke Test"}' \
+     -c /tmp/apex.cookies
+   # → 200 z { user, token }, Set-Cookie: better-auth.session_token=...
+   ```
+   (Header `Origin: http://localhost:5173` musi pasować do `trustedOrigins` z `auth.ts` — bez niego dostaniesz 403 origin mismatch.)
+
+3. **Get-session:**
+   ```bash
+   curl -i http://localhost:3001/api/auth/get-session \
+     -H 'Origin: http://localhost:5173' \
+     -b /tmp/apex.cookies
+   # → 200 { "user": {...}, "session": {...} }
+   ```
+
+4. **Games z cookie — 200:**
+   ```bash
+   curl -i http://localhost:3001/api/games \
+     -H 'Origin: http://localhost:5173' \
+     -b /tmp/apex.cookies
+   # → 200, lista gier (zaseed'owana)
+   ```
+
+5. **Sign-out:**
+   ```bash
+   curl -i -X POST http://localhost:3001/api/auth/sign-out \
+     -H 'Origin: http://localhost:5173' \
+     -b /tmp/apex.cookies -c /tmp/apex.cookies
+   # → 200, Set-Cookie: better-auth.session_token=; Max-Age=0
+   ```
+
+6. **Po wylogowaniu — 401:**
+   ```bash
+   curl -i http://localhost:3001/api/games \
+     -H 'Origin: http://localhost:5173' \
+     -b /tmp/apex.cookies
+   # → 401 unauthorized
+   ```
+
+7. **Sign-in z istniejącym kontem:**
+   ```bash
+   curl -i -X POST http://localhost:3001/api/auth/sign-in/email \
+     -H 'Content-Type: application/json' \
+     -H 'Origin: http://localhost:5173' \
      -d '{"email":"smoke@test.com","password":"password123"}' \
      -c /tmp/apex.cookies
-   # → 201, Set-Cookie apex_session=...
-
-   curl -i http://localhost:3001/api/auth/me -b /tmp/apex.cookies
-   # → 200 { "user": { ... } }
-
-   curl -i http://localhost:3001/api/games -b /tmp/apex.cookies
-   # → 200 (lista gier)
-
-   curl -i http://localhost:3001/api/games
-   # → 401 unauthorized
-
-   curl -i -X POST http://localhost:3001/api/auth/logout -b /tmp/apex.cookies
-   # → 204, Set-Cookie apex_session= (cleared)
+   # → 200, ponownie cookie
    ```
-6. `bun test`, `bun run --filter '*' typecheck`, `bun run lint` → wszystkie czyste.
+
+8. **Bad credentials:**
+   ```bash
+   curl -i -X POST http://localhost:3001/api/auth/sign-in/email \
+     -H 'Content-Type: application/json' \
+     -H 'Origin: http://localhost:5173' \
+     -d '{"email":"smoke@test.com","password":"wrong"}'
+   # → 401 / 400 z error.code = INVALID_EMAIL_OR_PASSWORD
+   ```
+
+**Rezultat:** Pełny happy-path + edge cases zweryfikowane manualnie. Faza 2 zamknięta.
+
+### Step 4: Final sanity check
+**Co robimy:**
+1. `bun test` — istniejące testy `games` zielone.
+2. `bun run --filter '*' typecheck` — czyste.
+3. `bun run lint` — czyste.
+4. `grep -RE "from '\\./auth/(register-user|login-user|logout-user|get-current-user)'" apps/api/src` — ZERO wyników (nie zostało nic z poprzedniego planu).
+5. `ls apps/api/src/application 2>/dev/null` — tylko `games/` (bez `auth/`).
+6. `ls apps/api/src/domain 2>/dev/null` — tylko `games/`, `shared/` (bez `auth/`).
+
+**Rezultat:** Backend gotowy do integracji z frontem (faza 3). API spec poniżej.
 
 **API spec po fazie 2:**
 ```
-POST /api/auth/register   body: { email, password }   → 201 { user, session } + Set-Cookie
-POST /api/auth/login      body: { email, password }   → 200 { user, session } + Set-Cookie
-POST /api/auth/logout                                  → 204 + cookie cleared
-GET  /api/auth/me         cookie required              → 200 { user } | 401
+POST /api/auth/sign-up/email     body: { email, password, name }   → 200 { user, token } + Set-Cookie
+POST /api/auth/sign-in/email     body: { email, password }         → 200 { user, token } + Set-Cookie
+POST /api/auth/sign-out          cookie required                    → 200 + cookie cleared
+GET  /api/auth/get-session       cookie optional                    → 200 { user, session } | null
+... (full list endpointów better-auth: change-password, update-user, list-sessions, ... — niewykorzystywane w fazie 3)
 
-GET  /api/games           cookie required              → 200 | 401
-POST /api/games           cookie required              → 201 | 401
+GET  /api/games                  cookie required                    → 200 | 401
+POST /api/games                  cookie required                    → 201 | 401
 ... (wszystkie /api/games/* za requireAuth)
 ```
-
-**Rezultat:** Backend kompletny. Frontend (faza 3) integruje się z `/api/auth/*` i obsługuje 401.
 
 ## If you get stuck
 Jeśli po 2 próbach coś nie działa: ZATRZYMAJ się. Napisz:
@@ -361,12 +265,12 @@ Jeśli po 2 próbach coś nie działa: ZATRZYMAJ się. Napisz:
 Zakończ pracę.
 
 Typowe pułapki:
-- `db:generate` nic nie produkuje — sprawdź że dopisałeś `users`/`sessions` do `apps/api/src/infrastructure/db/schema.ts` ORAZ że pliki znajdują się w ścieżce z `drizzle.config.ts` (`./src/infrastructure/db/schema.ts`). Restart `db:generate` po zapisie pliku.
-- `db:migrate` zwraca "table already exists" — usuń ostatnio wygenerowaną migrację z `apps/api/drizzle/`, popraw schema, wygeneruj ponownie. NIGDY nie edytuj wygenerowanego SQL ręcznie.
-- `drizzle-kit` nie widzi `unique()` na kolumnie — sprawdź wersję drizzle-orm i drizzle-kit (z `package.json`). Składnia `text('email').notNull().unique()` działa od ~0.30. Pobierz z Context7 dokładną składnię dla wersji w projekcie.
-- Cookie nie jest wysyłane przez przeglądarkę z frontendu — sprawdź: `cors({ credentials: true })` na backendzie, `fetch(..., { credentials: 'include' })` na froncie (faza 3), oraz `SameSite=Lax` na cookie. Bez tego całego trio cross-origin cookie się nie zapnie.
-- `hono/cookie` nie eksportuje `setCookie` — sprawdź wersję Hono. W 4.x to `import { setCookie, getCookie, deleteCookie } from 'hono/cookie';`. Pobierz z Context7.
-- Test `register-user` failuje na `Bun.password.hash` w fake hasher — używasz REAL Bun.password zamiast fake hashera w teście. W teście MUSI być `class FakePasswordHasher implements PasswordHasher { ... 'hashed:' + plain ... }`. Real BunPasswordHasher to integration test, którego TU nie piszemy.
-- Test `get-current-user` failuje że sesja wygasła ale repo nie wie o jej usunięcie — sprawdź czy w impl `get-current-user.ts` faktycznie wywołujesz `sessionRepo.deleteByToken(token)` w gałęzi `isExpired`.
-- TS narzeka na `c.set('user', ...)` — brakuje `declare module 'hono'` z `ContextVariableMap`. Wstaw to w `require-auth.ts` (lub osobnym `apps/api/src/routes/middleware/types.ts` zaimportowanym wszędzie).
-- 401 nawet z poprawnym cookie — sprawdź kolejność w `index.ts`: `app.route('/api/auth', auth)` MUSI być przed `app.use('/api/games/*', requireAuth)` (lub niezależnie — bo `/api/auth/*` nie matchuje `/api/games/*`). Jeśli problem z `/api/games`: log z middleware `console.log('cookie =', getCookie(c, SESSION_COOKIE))` żeby zobaczyć czy cookie dociera.
+- 403 z `/api/auth/sign-up/email` mimo poprawnego body — `Origin` header nie matchuje `trustedOrigins` w `auth.ts`. W curl dodaj `-H 'Origin: http://localhost:5173'`. Z przeglądarki request automatycznie ma Origin, więc to problem tylko w curl smoke teście.
+- 404 z `/api/auth/sign-up/email` — handler zarejestrowany jako `'/api/auth/*'` zamiast `'/api/auth/**'`. Better-auth używa multi-segment paths, single `*` matchuje tylko jeden segment. ZAWSZE używaj `**`.
+- TS narzeka na `c.set('user', ...)` — `Hono` instance nie ma typowania Variables. Zmień `new Hono()` na `new Hono<{ Variables: AuthVariables }>()` w `index.ts`.
+- `auth.$Infer.Session` undefined — wersja better-auth starsza niż wprowadzenie helpera. Sprawdź wersję w `package.json`. Workaround: ręcznie `type AuthSession = Awaited<ReturnType<typeof auth.api.getSession>>` i wyciągnij `user`/`session` z tego.
+- 401 z `/api/games` mimo poprawnego cookie — middleware `requireAuth` zarejestrowany PO `app.route('/api/games', games)`. Hono evaluuje route'y w kolejności rejestracji. Przesuń `app.use('/api/games/*', requireAuth)` PRZED `app.route(...)`.
+- CORS preflight OPTIONS dostaje 405 — `cors` middleware zarejestrowany PO route'ach albo nie pokrywa metody OPTIONS. Sprawdź że `cors({...})` jest na `/api/*` i `allowMethods` zawiera `'OPTIONS'`.
+- W przeglądarce cookie nie zapisuje się po sign-up — sprawdź: backend `cors({ credentials: true })`, frontend `fetch(..., { credentials: 'include' })` (faza 3), `SameSite=Lax` (defaultowe better-auth). Bez tego trio cookie nie wsiądzie. Otwórz DevTools → Network → response z `/api/auth/sign-up/email` → header Set-Cookie powinien być widoczny.
+- `auth.api.getSession({ headers: c.req.raw.headers })` zwraca null mimo cookie — sprawdź czy `headers` to faktycznie `Headers` instance (nie zwykły object). `c.req.raw.headers` to native `Request.headers` — to powinno działać. Jeśli nie: `console.log(c.req.raw.headers.get('cookie'))` — czy widzisz cookie?
+- `db:migrate` zwrócił error przy próbie startu serwera — auto-migrate w `client.ts` próbuje zaaplikować migrację z fazy 1, która już jest w DB (jeśli uruchomiłeś `db:migrate` ręcznie wcześniej). To jest OK — `migrate()` jest idempotentne, `__drizzle_migrations` table śledzi co już aplikowane. Jeśli error inny: usuń `apps/api/data/apex.db` i pozwól auto-migrate odbudować od zera (TYLKO w dev, NIGDY nie usuwaj prod DB).

@@ -1,6 +1,9 @@
 import { Icon, type IconName } from '@/components/icons';
+import { signOut, useSession } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
-import { NavLink } from 'react-router-dom';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { useQueryClient } from '@tanstack/react-query';
+import { NavLink, useNavigate } from 'react-router-dom';
 
 type NavEntry = {
   label: string;
@@ -17,9 +20,9 @@ const bottomNav: NavEntry[] = [
 ];
 
 const favs = [
-  { label: 'PS3', color: '#6366f1', key: '\u23181' },
-  { label: 'PS4', color: '#ef4444', key: '\u23182' },
-  { label: 'PS5', color: '#ec4899', key: '\u23183' },
+  { label: 'PS3', color: '#6366f1', key: '⌘1' },
+  { label: 'PS4', color: '#ef4444', key: '⌘2' },
+  { label: 'PS5', color: '#ec4899', key: '⌘3' },
 ];
 
 function NavRow({ entry }: { entry: NavEntry }) {
@@ -80,6 +83,66 @@ function SectionLabel({
   );
 }
 
+function UserCard() {
+  const { data: session } = useSession();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+
+  const user = session?.user;
+  if (!user) return null;
+
+  const display = user.name?.trim() || user.email.split('@')[0];
+
+  const onLogout = async () => {
+    await signOut();
+    qc.removeQueries({ queryKey: ['games'] });
+    navigate('/login', { replace: true });
+  };
+
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button
+          type="button"
+          className="mx-[10px] mb-[6px] mt-2 flex w-[calc(100%-20px)] cursor-pointer items-center gap-[10px] rounded-[10px] border border-apex-line-4 p-[10px] transition-colors hover:bg-apex-surface-chip"
+        >
+          <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#8899cc] to-[#99aadd] text-[12px] font-semibold text-white">
+            <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden>
+              <circle cx="17" cy="13" r="6" fill="#c9d3e8" />
+              <ellipse cx="17" cy="30" rx="12" ry="9" fill="#c9d3e8" />
+            </svg>
+          </div>
+          <div className="min-w-0 flex-1 text-left">
+            <div className="truncate text-[13px] font-semibold text-apex-ink">{display}</div>
+            <div className="truncate text-[11px] text-apex-muted">{user.email}</div>
+          </div>
+          <span className="shrink-0 text-apex-kbd">
+            <Icon.chevright size={12} />
+          </span>
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          side="top"
+          align="start"
+          sideOffset={6}
+          className="z-50 min-w-[200px] rounded-lg border border-apex-line-4 bg-white p-1 shadow-lg"
+        >
+          <DropdownMenu.Item
+            className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-apex-ink outline-none hover:bg-apex-surface-hover"
+            onSelect={(e) => {
+              e.preventDefault();
+              onLogout();
+            }}
+          >
+            Sign out
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+}
+
 export function Sidebar() {
   return (
     <aside className="relative flex w-[248px] min-w-[248px] flex-col overflow-visible border-r border-apex-line-3 bg-white text-[13.5px]">
@@ -121,36 +184,7 @@ export function Sidebar() {
           <NavRow key={n.label} entry={n} />
         ))}
         <div className="mx-[14px] mb-1 mt-[6px] h-px bg-apex-line-4" />
-        <div className="mx-[10px] mb-[6px] mt-2 flex cursor-pointer items-center gap-[10px] rounded-[10px] border border-apex-line-4 p-[10px] transition-colors hover:bg-apex-surface-chip">
-          <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#8899cc] to-[#99aadd] text-[12px] font-semibold text-white">
-            <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden>
-              <circle cx="17" cy="13" r="6" fill="#c9d3e8" />
-              <ellipse cx="17" cy="30" rx="12" ry="9" fill="#c9d3e8" />
-            </svg>
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1">
-              <span className="truncate text-[13px] font-semibold text-apex-ink">
-                Arthur Taylor
-              </span>
-              <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-                <circle cx="7" cy="7" r="6.5" fill="#3b82f6" />
-                <path
-                  d="M4 7l2 2 4-4"
-                  stroke="#fff"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
-              </svg>
-            </div>
-            <div className="truncate text-[11px] text-apex-muted">arthur@apex.com</div>
-          </div>
-          <span className="shrink-0 text-apex-kbd">
-            <Icon.chevright size={12} />
-          </span>
-        </div>
+        <UserCard />
       </div>
     </aside>
   );

@@ -13,7 +13,9 @@
       "**/.turbo",
       "**/build",
       "**/components/ui/**",
-      "**/.claude/**"
+      "**/.claude/**",
+      "apps/api/src/infrastructure/db/auth-schema.ts",
+      "apps/api/drizzle/**"
     ]
   },
   "formatter": {
