@@ -11,6 +11,7 @@ const validRow = {
   edition: 'Standard',
   hoursPlayed: 120,
   status: 'Completed' as const,
+  format: 'digital' as const,
 };
 
 const validProps = (): GameProps => ({
@@ -22,6 +23,7 @@ const validProps = (): GameProps => ({
   edition: 'Standard',
   hoursPlayed: 120,
   status: 'Completed',
+  format: 'digital',
 });
 
 describe('ReleaseYear', () => {
@@ -84,7 +86,7 @@ describe('HoursPlayed', () => {
   });
 });
 
-import type { GamePlatform, GameStatus } from '../game';
+import type { GameFormat, GamePlatform, GameStatus } from '../game';
 
 describe('NewGame.create', () => {
   it('happy path', () => {
@@ -143,6 +145,33 @@ describe('NewGame.create', () => {
     }
   });
 
+  it('accepts format physical', () => {
+    const result = NewGame.create({ ...validProps(), format: 'physical' });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.format).toBe('physical');
+    }
+  });
+
+  it('accepts format digital', () => {
+    const result = NewGame.create({ ...validProps(), format: 'digital' });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.format).toBe('digital');
+    }
+  });
+
+  it('returns error for invalid format', () => {
+    const invalidFormat = 'cartridge' as unknown as GameFormat;
+    const result = NewGame.create({ ...validProps(), format: invalidFormat });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('format_invalid');
+      const e = result.error as { kind: string; value: string };
+      expect(e.value).toBe('cartridge');
+    }
+  });
+
   it('returns error for invalid releaseYear', () => {
     const result = NewGame.create({ ...validProps(), releaseYear: 1900 });
     expect(result.ok).toBe(false);
@@ -184,6 +213,7 @@ describe('Game.fromPersistence', () => {
       edition: 'Standard',
       hoursPlayed: 120,
       status: 'Completed',
+      format: 'digital',
     });
   });
 

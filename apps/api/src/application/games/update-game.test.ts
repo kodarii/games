@@ -19,6 +19,7 @@ class FakeGameRepository implements GameRepository {
       edition: g.edition ?? null,
       hoursPlayed: g.hoursPlayed.value,
       status: g.status,
+      format: g.format,
     });
   };
 
@@ -39,6 +40,7 @@ class FakeGameRepository implements GameRepository {
       edition: game.edition ?? null,
       hoursPlayed: game.hoursPlayed.value,
       status: game.status,
+      format: game.format,
     });
     this.games.set(id, updated);
     return updated;
@@ -65,6 +67,7 @@ const validInput = {
   edition: undefined,
   hoursPlayed: 120,
   status: 'Completed' as const,
+  format: 'digital' as const,
 };
 
 const existingGame = Game.fromPersistence({
@@ -77,6 +80,7 @@ const existingGame = Game.fromPersistence({
   edition: null,
   hoursPlayed: 50,
   status: 'Completed',
+  format: 'physical',
 });
 
 describe('UpdateGame', () => {
@@ -156,6 +160,35 @@ describe('UpdateGame', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.kind).toBe('invalid_input');
+    }
+  });
+
+  it('accepts format physical and returns ok', async () => {
+    const repo = new FakeGameRepository();
+    repo.seed(existingGame);
+    const useCase = new UpdateGame(repo);
+
+    const result = await useCase.execute(1, { ...validInput, format: 'physical' });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.format).toBe('physical');
+    }
+  });
+
+  it('returns invalid_input for invalid format', async () => {
+    const repo = new FakeGameRepository();
+    repo.seed(existingGame);
+    const useCase = new UpdateGame(repo);
+
+    const result = await useCase.execute(1, { ...validInput, format: 'cartridge' });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid_input');
+      if (result.error.kind === 'invalid_input') {
+        expect(result.error.issues.some((i) => i.path[0] === 'format')).toBe(true);
+      }
     }
   });
 });

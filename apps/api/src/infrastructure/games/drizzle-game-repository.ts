@@ -1,5 +1,11 @@
 import { and, asc, desc, eq, like, or, sql } from 'drizzle-orm';
-import { Game, type GamePlatform, type GameStatus, type NewGame } from '../../domain/games/game';
+import {
+  Game,
+  type GameFormat,
+  type GamePlatform,
+  type GameStatus,
+  type NewGame,
+} from '../../domain/games/game';
 import type {
   GameRepository,
   ListGamesQuery,
@@ -21,6 +27,7 @@ export class DrizzleGameRepository implements GameRepository {
       edition: row.edition,
       hoursPlayed: row.hoursPlayed,
       status: row.status as GameStatus,
+      format: row.format as GameFormat,
     });
   }
 
@@ -86,6 +93,7 @@ export class DrizzleGameRepository implements GameRepository {
         edition: newGame.edition ?? null,
         hoursPlayed: newGame.hoursPlayed.value,
         status: newGame.status,
+        format: newGame.format,
       })
       .returning();
 
@@ -104,6 +112,7 @@ export class DrizzleGameRepository implements GameRepository {
         edition: game.edition ?? null,
         hoursPlayed: game.hoursPlayed.value,
         status: game.status,
+        format: game.format,
       })
       .where(eq(gamesTable.id, id))
       .returning();

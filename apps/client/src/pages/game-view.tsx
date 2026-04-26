@@ -10,8 +10,11 @@ import { StatusBadge } from '@/components/status-badge';
 import { statusFor } from '@/lib/game-status';
 import { useDeleteGameMutation, useGameQuery } from '@/lib/queries';
 import { cn } from '@/lib/utils';
+import type { GameFormat } from '@/types';
 import { type ReactNode, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+
+const formatLabel = (f: GameFormat) => (f === 'physical' ? 'Physical' : 'Digital');
 
 export function GameViewPage() {
   const { id } = useParams<{ id: string }>();
@@ -82,6 +85,7 @@ export function GameViewPage() {
                   <Field label="Platform" value={game.platform} />
                   <Field label="Edition" value={game.edition} />
                   <Field label="Hours Played" value={`${game.hoursPlayed} h`} />
+                  <Field label="Format" value={formatLabel(game.format)} />
                 </FieldGrid>
               </div>
 

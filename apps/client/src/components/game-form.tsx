@@ -12,7 +12,7 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import type { CreateGameInput, UpdateGameInput } from '@/lib/api';
 import { useCreateGameMutation, useUpdateGameMutation } from '@/lib/queries';
-import type { Game, GamePlatform, GameStatus } from '@/types';
+import type { Game, GameFormat, GamePlatform, GameStatus } from '@/types';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -27,6 +27,7 @@ type FormState = {
   edition: string;
   hoursPlayed: string;
   status: GameStatus;
+  format: GameFormat;
   notes: string;
 };
 
@@ -39,6 +40,7 @@ const EMPTY: FormState = {
   edition: '',
   hoursPlayed: '',
   status: 'Backlog',
+  format: 'digital',
   notes: '',
 };
 
@@ -52,6 +54,7 @@ function gameToFormState(g: Game): FormState {
     edition: g.edition ?? '',
     hoursPlayed: String(g.hoursPlayed),
     status: g.status,
+    format: g.format,
     notes: '',
   };
 }
@@ -64,6 +67,11 @@ const STATUS_OPTS = [
   { value: 'Backlog' as const, color: '#f59e0b' },
   { value: 'Completed' as const, color: '#10b981' },
   { value: 'Dropped' as const, color: '#ef4444' },
+];
+
+const FORMAT_OPTS: { value: GameFormat; label: string }[] = [
+  { value: 'physical', label: 'Physical' },
+  { value: 'digital', label: 'Digital' },
 ];
 
 export function GameForm({
@@ -97,6 +105,7 @@ export function GameForm({
       edition: form.edition.trim() || undefined,
       hoursPlayed: Number(form.hoursPlayed) || 0,
       status: form.status,
+      format: form.format,
     };
 
     if (isEdit && initialGame) {
@@ -219,6 +228,15 @@ export function GameForm({
                       placeholder="e.g. 42"
                       value={form.hoursPlayed}
                       onChange={(e) => set('hoursPlayed', e.target.value)}
+                    />
+                  </FormField>
+                </FormFieldRow>
+                <FormFieldRow cols={1}>
+                  <FormField label="Format" required>
+                    <PillSelect
+                      value={form.format}
+                      options={FORMAT_OPTS}
+                      onChange={(v) => set('format', v)}
                     />
                   </FormField>
                 </FormFieldRow>

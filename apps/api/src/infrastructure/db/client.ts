@@ -3,48 +3,26 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
+import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_DIR = resolve(__dirname, '../../data');
+const DB_DIR = resolve(__dirname, '../../../data');
 const DB_PATH = resolve(DB_DIR, 'apex.db');
+const MIGRATIONS_DIR = resolve(__dirname, '../../../drizzle');
 
 if (!existsSync(DB_DIR)) {
   mkdirSync(DB_DIR, { recursive: true });
 }
 
-let sqlite: Database;
+const sqlite = new Database(DB_PATH);
+sqlite.exec('PRAGMA journal_mode = WAL;');
 
-function initDb(dbPath: string) {
-  sqlite = new Database(dbPath);
-  const check = sqlite
-    .query("SELECT name FROM sqlite_master WHERE type='table' AND name='games'")
-    .get();
-  if (!check) {
-    sqlite.exec(`
-      CREATE TABLE games (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        title TEXT NOT NULL,
-        developer TEXT NOT NULL,
-        genre TEXT NOT NULL,
-        release_year INTEGER NOT NULL,
-        platform TEXT NOT NULL,
-        edition TEXT,
-        hours_played INTEGER DEFAULT 0 NOT NULL,
-        status TEXT DEFAULT 'Backlog' NOT NULL,
-        created_at INTEGER
-      )
-    `);
-  }
+export const db = drizzle({ client: sqlite });
+
+const g = globalThis as unknown as { __apexDbMigrated?: boolean };
+if (!g.__apexDbMigrated) {
+  migrate(db, { migrationsFolder: MIGRATIONS_DIR });
+  g.__apexDbMigrated = true;
 }
-
-if (!existsSync(DB_PATH)) {
-  initDb(DB_PATH);
-} else {
-  sqlite = new Database(DB_PATH);
-}
-
-sqlite!.exec('PRAGMA journal_mode = WAL;');
-
-export const db = drizzle({ client: sqlite! });
 
 export { sqlite };

@@ -10,6 +10,7 @@ export const games = sqliteTable('games', {
   edition: text('edition'),
   hoursPlayed: integer('hours_played').notNull().default(0),
   status: text('status').notNull().default('Backlog'),
+  format: text('format').notNull().default('digital'),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 

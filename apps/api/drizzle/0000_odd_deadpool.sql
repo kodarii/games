@@ -8,5 +8,6 @@ CREATE TABLE `games` (
 	`edition` text,
 	`hours_played` integer DEFAULT 0 NOT NULL,
 	`status` text DEFAULT 'Backlog' NOT NULL,
+	`format` text DEFAULT 'digital' NOT NULL,
 	`created_at` integer
 );

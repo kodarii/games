@@ -1,5 +1,7 @@
 export type GameStatus = 'Playing' | 'Completed' | 'Backlog' | 'Dropped' | 'Wishlist';
 export type GamePlatform = 'PS3' | 'PS4' | 'PS5' | 'PC' | 'Xbox' | 'Switch';
+export const GAME_FORMATS = ['physical', 'digital'] as const;
+export type GameFormat = (typeof GAME_FORMATS)[number];
 
 export interface Game {
   id: number;
@@ -11,6 +13,7 @@ export interface Game {
   edition?: string;
   hoursPlayed: number;
   status: GameStatus;
+  format: GameFormat;
 }
 
 export const GAME_SORT_FIELDS = [

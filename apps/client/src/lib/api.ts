@@ -1,4 +1,4 @@
-import type { Game, GamePlatform, GameStatus, GamesResponse } from '@/types';
+import type { Game, GameFormat, GamePlatform, GameStatus, GamesResponse } from '@/types';
 
 export async function fetchGames(params: URLSearchParams): Promise<GamesResponse> {
   const r = await fetch(`/api/games?${params.toString()}`);
@@ -25,6 +25,7 @@ export interface CreateGameInput {
   edition?: string;
   hoursPlayed: number;
   status: GameStatus;
+  format: GameFormat;
 }
 
 export async function createGame(input: CreateGameInput): Promise<Game> {

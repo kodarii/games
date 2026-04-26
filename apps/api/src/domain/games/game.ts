@@ -3,9 +3,11 @@ import type { Result } from '../shared/result';
 
 export type GamePlatform = 'PS3' | 'PS4' | 'PS5' | 'PC' | 'Xbox' | 'Switch';
 export type GameStatus = 'Playing' | 'Completed' | 'Backlog' | 'Dropped' | 'Wishlist';
+export type GameFormat = 'physical' | 'digital';
 
 export const GAME_PLATFORMS = ['PS3', 'PS4', 'PS5', 'PC', 'Xbox', 'Switch'] as const;
 export const GAME_STATUSES = ['Playing', 'Completed', 'Backlog', 'Dropped', 'Wishlist'] as const;
+export const GAME_FORMATS = ['physical', 'digital'] as const;
 
 export type GameValidationError =
   | { kind: 'title_empty' }
@@ -13,7 +15,8 @@ export type GameValidationError =
   | { kind: 'release_year_out_of_range'; value: number }
   | { kind: 'hours_played_negative'; value: number }
   | { kind: 'platform_invalid'; value: string }
-  | { kind: 'status_invalid'; value: string };
+  | { kind: 'status_invalid'; value: string }
+  | { kind: 'format_invalid'; value: string };
 
 export type GameProps = {
   title: string;
@@ -24,6 +27,7 @@ export type GameProps = {
   edition?: string;
   hoursPlayed: number;
   status: GameStatus;
+  format: GameFormat;
 };
 
 export class ReleaseYear {
@@ -66,6 +70,7 @@ export class NewGame {
     private readonly _edition: string | undefined,
     private readonly _hoursPlayed: HoursPlayed,
     private readonly _status: GameStatus,
+    private readonly _format: GameFormat,
   ) {}
 
   static create(props: GameProps): Result<NewGame, GameValidationError> {
@@ -85,6 +90,10 @@ export class NewGame {
 
     if (!GAME_STATUSES.includes(props.status)) {
       return err({ kind: 'status_invalid', value: String(props.status) });
+    }
+
+    if (!GAME_FORMATS.includes(props.format)) {
+      return err({ kind: 'format_invalid', value: String(props.format) });
     }
 
     const releaseYearResult = ReleaseYear.create(props.releaseYear);
@@ -110,6 +119,7 @@ export class NewGame {
         edition,
         hoursPlayedResult.value,
         props.status,
+        props.format,
       ),
     );
   }
@@ -138,6 +148,9 @@ export class NewGame {
   get status(): GameStatus {
     return this._status;
   }
+  get format(): GameFormat {
+    return this._format;
+  }
 }
 
 export type GameUpdate = NewGame;
@@ -153,6 +166,7 @@ export class Game {
     private readonly _edition: string | undefined,
     private readonly _hoursPlayed: HoursPlayed,
     private readonly _status: GameStatus,
+    private readonly _format: GameFormat,
   ) {}
 
   static fromPersistence(row: {
@@ -165,6 +179,7 @@ export class Game {
     edition: string | null;
     hoursPlayed: number;
     status: GameStatus;
+    format: GameFormat;
   }): Game {
     return new Game(
       row.id,
@@ -176,6 +191,7 @@ export class Game {
       row.edition ?? undefined,
       HoursPlayed.fromTrusted(row.hoursPlayed),
       row.status,
+      row.format,
     );
   }
 
@@ -206,6 +222,9 @@ export class Game {
   get status(): GameStatus {
     return this._status;
   }
+  get format(): GameFormat {
+    return this._format;
+  }
 
   toJSON() {
     return {
@@ -218,6 +237,7 @@ export class Game {
       edition: this._edition,
       hoursPlayed: this._hoursPlayed.value,
       status: this._status,
+      format: this._format,
     };
   }
 }

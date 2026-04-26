@@ -37,6 +37,7 @@ function makeGames(count: number): Game[] {
       edition: null,
       hoursPlayed: 0,
       status: 'Backlog',
+      format: 'digital',
     }),
   );
 }

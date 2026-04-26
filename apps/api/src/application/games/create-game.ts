@@ -18,6 +18,7 @@ const CreateGameInputSchema = z.object({
   edition: z.string().optional().default(''),
   hoursPlayed: z.coerce.number().min(0).default(0),
   status: z.enum(['Playing', 'Completed', 'Backlog', 'Dropped', 'Wishlist']).default('Backlog'),
+  format: z.enum(['physical', 'digital']).default('digital'),
 });
 
 export type CreateGameInput = z.infer<typeof CreateGameInputSchema>;
@@ -47,6 +48,7 @@ export class CreateGame {
       edition: data.edition || undefined,
       hoursPlayed: data.hoursPlayed,
       status: data.status,
+      format: data.format,
     };
 
     const newGameResult = NewGame.create(props);

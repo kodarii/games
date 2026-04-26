@@ -6,6 +6,6 @@ export default defineConfig({
   schema: './src/infrastructure/db/schema.ts',
   out: './drizzle',
   dbCredentials: {
-    url: resolve(process.cwd(), 'apps/api/data/apex.db'),
+    url: resolve(process.cwd(), 'data/apex.db'),
   },
 });

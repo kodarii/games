@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "e6d78b1c-9164-4a47-a6cc-e65aae8d9083",
+  "id": "370a23a2-2b0a-402f-943c-6e86a75e6743",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "games": {
@@ -71,6 +71,14 @@
           "notNull": true,
           "autoincrement": false,
           "default": "'Backlog'"
+        },
+        "format": {
+          "name": "format",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'digital'"
         },
         "created_at": {
           "name": "created_at",

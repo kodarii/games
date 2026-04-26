@@ -18,6 +18,7 @@ class FakeGameRepository implements GameRepository {
       edition: g.edition ?? null,
       hoursPlayed: g.hoursPlayed.value,
       status: g.status,
+      format: g.format,
     });
   };
   update = async (id: number, game: GameUpdate) => {
@@ -33,6 +34,7 @@ class FakeGameRepository implements GameRepository {
       edition: game.edition ?? null,
       hoursPlayed: game.hoursPlayed.value,
       status: game.status,
+      format: game.format,
     });
     this.games.set(id, updated);
     return updated;
@@ -64,6 +66,7 @@ const existingGame = Game.fromPersistence({
   edition: null,
   hoursPlayed: 50,
   status: 'Completed',
+  format: 'digital',
 });
 
 describe('DeleteGame', () => {
