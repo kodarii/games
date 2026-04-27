@@ -40,7 +40,9 @@ function DefaultTable<T>({ table }: { table: Table<T> }) {
               return (
                 <th
                   key={header.id}
-                  style={meta?.minWidth ? { minWidth: meta.minWidth } : undefined}
+                  style={
+                    meta?.minWidth ? { minWidth: meta.minWidth } : undefined
+                  }
                   className={cn(
                     'sticky top-0 z-[1] whitespace-nowrap bg-apex-surface-head px-3 py-[10px] text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-apex-muted',
                     isFirst && 'rounded-tl-[8px]',
@@ -54,11 +56,17 @@ function DefaultTable<T>({ table }: { table: Table<T> }) {
                       onClick={header.column.getToggleSortingHandler()}
                       className="inline-flex cursor-pointer items-center gap-[3px] bg-transparent text-inherit transition-colors hover:text-apex-ink-2"
                     >
-                      {flexRender(header.column.columnDef.header, header.getContext())}
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )}
                       <SortIndicator state={sorted} />
                     </button>
                   ) : (
-                    flexRender(header.column.columnDef.header, header.getContext())
+                    flexRender(
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )
                   )}
                 </th>
               );
@@ -82,7 +90,10 @@ function DefaultTable<T>({ table }: { table: Table<T> }) {
                 return (
                   <td
                     key={cell.id}
-                    className={cn('px-3 py-[14px] align-middle', meta?.cellClassName)}
+                    className={cn(
+                      'px-3 py-[10px] align-middle',
+                      meta?.cellClassName,
+                    )}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
@@ -109,7 +120,9 @@ function CardsTable<T>({ table }: { table: Table<T> }) {
               return (
                 <th
                   key={header.id}
-                  style={meta?.minWidth ? { minWidth: meta.minWidth } : undefined}
+                  style={
+                    meta?.minWidth ? { minWidth: meta.minWidth } : undefined
+                  }
                   className={cn(
                     'whitespace-nowrap border-b border-apex-line-3 bg-transparent px-4 pb-3 pt-1 text-left text-[11px] font-semibold uppercase tracking-[0.07em] text-apex-faint',
                     meta?.headerClassName,
@@ -121,11 +134,17 @@ function CardsTable<T>({ table }: { table: Table<T> }) {
                       onClick={header.column.getToggleSortingHandler()}
                       className="inline-flex cursor-pointer items-center gap-[3px] bg-transparent text-inherit transition-colors hover:text-apex-muted"
                     >
-                      {flexRender(header.column.columnDef.header, header.getContext())}
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )}
                       <SortIndicator state={sorted} />
                     </button>
                   ) : (
-                    flexRender(header.column.columnDef.header, header.getContext())
+                    flexRender(
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )
                   )}
                 </th>
               );
