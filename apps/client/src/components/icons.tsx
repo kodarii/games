@@ -24,6 +24,11 @@ const svg = (children: ReactNode, vb = '0 0 16 16'): Svg => {
 };
 
 export const Icon = {
+  rows: svg(
+    <>
+      <path d="M2.5 5h11M2.5 8h11M2.5 11h11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </>,
+  ),
   grid: svg(
     <>
       <rect x="2.5" y="2.5" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.4" />

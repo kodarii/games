@@ -1,3 +1,4 @@
+import { AddGameDialog } from '@/components/add-game-dialog';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './sidebar';
 
@@ -8,6 +9,7 @@ export function AppLayout() {
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-white">
         <Outlet />
       </main>
+      <AddGameDialog />
     </div>
   );
 }

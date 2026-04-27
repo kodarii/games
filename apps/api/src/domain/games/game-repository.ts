@@ -5,7 +5,7 @@ export interface ListGamesQuery {
   search?: string;
   page: number;
   perPage: number;
-  sort?: 'title' | 'genre' | 'platform' | 'status' | 'releaseYear' | 'hoursPlayed';
+  sort?: 'title' | 'genre' | 'platform' | 'format' | 'status' | 'releaseYear' | 'hoursPlayed';
   dir: 'asc' | 'desc';
 }
 

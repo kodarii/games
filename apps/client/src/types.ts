@@ -14,12 +14,14 @@ export interface Game {
   hoursPlayed: number;
   status: GameStatus;
   format: GameFormat;
+  coverColor?: string | null;
 }
 
 export const GAME_SORT_FIELDS = [
   'title',
   'genre',
   'platform',
+  'format',
   'status',
   'releaseYear',
   'hoursPlayed',

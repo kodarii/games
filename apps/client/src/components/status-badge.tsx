@@ -1,10 +1,21 @@
 import type { ReactNode } from 'react';
 
-export type StatusVariant = 'progress' | 'info' | 'pending' | 'done' | 'inactive';
+export type StatusVariant =
+  | 'progress'
+  | 'info'
+  | 'pending'
+  | 'done'
+  | 'inactive';
 
 function BlueCircle() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" className="shrink-0" aria-hidden>
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      className="shrink-0"
+      aria-hidden
+    >
       <circle cx="7" cy="7" r="7" className="fill-apex-status-progress" />
     </svg>
   );
@@ -12,7 +23,13 @@ function BlueCircle() {
 
 function InfoCircle() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" className="shrink-0" aria-hidden>
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      className="shrink-0"
+      aria-hidden
+    >
       <circle cx="7" cy="7" r="7" className="fill-apex-status-progress" />
       <text
         x="7"
@@ -31,7 +48,13 @@ function InfoCircle() {
 
 function Triangle() {
   return (
-    <svg width="15" height="13" viewBox="0 0 15 13" className="shrink-0" aria-hidden>
+    <svg
+      width="15"
+      height="13"
+      viewBox="0 0 15 13"
+      className="shrink-0"
+      aria-hidden
+    >
       <path d="M7.5 1L14 12.5H1L7.5 1z" className="fill-apex-status-pending" />
     </svg>
   );
@@ -39,7 +62,13 @@ function Triangle() {
 
 function GreenCheck() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" className="shrink-0" aria-hidden>
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      className="shrink-0"
+      aria-hidden
+    >
       <circle cx="7" cy="7" r="7" className="fill-apex-status-done" />
       <path
         d="M4 7l2 2 4-4"
@@ -55,7 +84,13 @@ function GreenCheck() {
 
 function RedCircle() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" className="shrink-0" aria-hidden>
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      className="shrink-0"
+      aria-hidden
+    >
       <circle cx="7" cy="7" r="7" className="fill-apex-status-inactive" />
     </svg>
   );
@@ -69,10 +104,16 @@ const GLYPHS: Record<StatusVariant, () => ReactNode> = {
   inactive: RedCircle,
 };
 
-export function StatusBadge({ variant, label }: { variant: StatusVariant; label: string }) {
+export function StatusBadge({
+  variant,
+  label,
+}: {
+  variant: StatusVariant;
+  label: string;
+}) {
   const Glyph = GLYPHS[variant];
   return (
-    <span className="inline-flex items-center gap-[6px] whitespace-nowrap text-[12.5px] text-apex-ink">
+    <span className="inline-flex items-center gap-[6px] whitespace-nowrap text-[11px] text-apex-ink">
       <Glyph />
       {label}
     </span>

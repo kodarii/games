@@ -22,6 +22,13 @@
       "when": 1777232866283,
       "tag": "0002_simple_fat_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1777321021806,
+      "tag": "0003_late_the_hand",
+      "breakpoints": true
     }
   ]
 }

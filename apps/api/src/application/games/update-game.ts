@@ -19,6 +19,10 @@ const UpdateGameInputSchema = z.object({
   hoursPlayed: z.coerce.number().min(0).default(0),
   status: z.enum(['Playing', 'Completed', 'Backlog', 'Dropped', 'Wishlist']).default('Backlog'),
   format: z.enum(['physical', 'digital']).default('digital'),
+  coverColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
 });
 
 export type UpdateGameInput = z.infer<typeof UpdateGameInputSchema>;
@@ -54,6 +58,7 @@ export class UpdateGame {
       hoursPlayed: data.hoursPlayed,
       status: data.status,
       format: data.format,
+      coverColor: data.coverColor,
     };
 
     const gameUpdateResult = NewGame.create(props);

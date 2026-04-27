@@ -30,6 +30,7 @@ export type GameProps = {
   hoursPlayed: number;
   status: GameStatus;
   format: GameFormat;
+  coverColor?: string;
 };
 
 export class ReleaseYear {
@@ -74,6 +75,7 @@ export class NewGame {
     private readonly _hoursPlayed: HoursPlayed,
     private readonly _status: GameStatus,
     private readonly _format: GameFormat,
+    private readonly _coverColor: string | undefined,
   ) {}
 
   static create(props: GameProps): Result<NewGame, GameValidationError> {
@@ -115,6 +117,7 @@ export class NewGame {
 
     const genre = props.genre.trim();
     const edition = props.edition?.trim() || undefined;
+    const coverColor = props.coverColor?.trim() || undefined;
 
     return ok(
       new NewGame(
@@ -128,6 +131,7 @@ export class NewGame {
         hoursPlayedResult.value,
         props.status,
         props.format,
+        coverColor,
       ),
     );
   }
@@ -162,6 +166,9 @@ export class NewGame {
   get format(): GameFormat {
     return this._format;
   }
+  get coverColor(): string | undefined {
+    return this._coverColor;
+  }
 }
 
 export type GameUpdate = NewGame;
@@ -179,6 +186,7 @@ export class Game {
     private readonly _hoursPlayed: HoursPlayed,
     private readonly _status: GameStatus,
     private readonly _format: GameFormat,
+    private readonly _coverColor: string | undefined,
   ) {}
 
   static fromPersistence(row: {
@@ -193,6 +201,7 @@ export class Game {
     hoursPlayed: number;
     status: GameStatus;
     format: GameFormat;
+    coverColor?: string | null;
   }): Game {
     return new Game(
       row.id,
@@ -206,6 +215,7 @@ export class Game {
       HoursPlayed.fromTrusted(row.hoursPlayed),
       row.status,
       row.format,
+      row.coverColor ?? undefined,
     );
   }
 
@@ -242,6 +252,9 @@ export class Game {
   get format(): GameFormat {
     return this._format;
   }
+  get coverColor(): string | undefined {
+    return this._coverColor;
+  }
 
   toJSON() {
     return {
@@ -256,6 +269,7 @@ export class Game {
       hoursPlayed: this._hoursPlayed.value,
       status: this._status,
       format: this._format,
+      coverColor: this._coverColor,
     };
   }
 }

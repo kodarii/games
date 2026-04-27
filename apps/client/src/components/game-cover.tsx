@@ -4,14 +4,16 @@ import { cn } from '@/lib/utils';
 export function GameCover({
   name,
   src,
+  color,
   className,
 }: {
   name?: string;
   src?: string | null;
+  color?: string | null;
   className?: string;
 }) {
   const trimmed = name?.trim() ?? '';
-  const bg = trimmed ? avatarColor(trimmed) : '#c8c8c8';
+  const bg = color ?? (trimmed ? avatarColor(trimmed) : '#c8c8c8');
   const glyph = trimmed ? initials(trimmed) : '?';
   return (
     <div

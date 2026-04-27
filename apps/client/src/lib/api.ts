@@ -26,6 +26,7 @@ export interface CreateGameInput {
   hoursPlayed: number;
   status: GameStatus;
   format: GameFormat;
+  coverColor?: string;
 }
 
 export async function createGame(input: CreateGameInput): Promise<Game> {

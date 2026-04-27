@@ -29,6 +29,7 @@ export class DrizzleGameRepository implements GameRepository {
       hoursPlayed: row.hoursPlayed,
       status: row.status as GameStatus,
       format: row.format as GameFormat,
+      coverColor: row.coverColor,
     });
   }
 
@@ -59,6 +60,7 @@ export class DrizzleGameRepository implements GameRepository {
           title: gamesTable.title,
           genre: gamesTable.genre,
           platform: gamesTable.platform,
+          format: gamesTable.format,
           status: gamesTable.status,
           releaseYear: gamesTable.releaseYear,
           hoursPlayed: gamesTable.hoursPlayed,
@@ -99,6 +101,7 @@ export class DrizzleGameRepository implements GameRepository {
         hoursPlayed: newGame.hoursPlayed.value,
         status: newGame.status,
         format: newGame.format,
+        coverColor: newGame.coverColor ?? null,
       })
       .returning();
 
@@ -118,6 +121,7 @@ export class DrizzleGameRepository implements GameRepository {
         hoursPlayed: game.hoursPlayed.value,
         status: game.status,
         format: game.format,
+        coverColor: game.coverColor ?? null,
       })
       .where(eq(gamesTable.id, id))
       .returning();

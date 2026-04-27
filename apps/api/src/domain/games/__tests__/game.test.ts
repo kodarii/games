@@ -242,6 +242,7 @@ describe('Game.fromPersistence', () => {
       hoursPlayed: 120,
       status: 'Completed',
       format: 'digital',
+      coverColor: undefined,
     });
   });
 

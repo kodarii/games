@@ -3,22 +3,22 @@ import { signOut, useSession } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useQueryClient } from '@tanstack/react-query';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 
 type NavEntry = {
   label: string;
   icon: IconName;
   to: string;
-  arrow?: boolean;
+  addTo?: string;
 };
 
 const mainNav: NavEntry[] = [
-  { label: 'Games', icon: 'gamepad', to: '/games', arrow: true },
+  { label: 'Games', icon: 'gamepad', to: '/games', addTo: '/games?add=1' },
+  { label: 'Dictionaries', icon: 'rows', to: '/dictionaries' },
 ];
 
 const bottomNav: NavEntry[] = [
   { label: 'Settings', icon: 'settings', to: '/settings' },
-  { label: 'Support', icon: 'support', to: '/support' },
 ];
 
 // const favs = [
@@ -29,36 +29,38 @@ const bottomNav: NavEntry[] = [
 
 function NavRow({ entry }: { entry: NavEntry }) {
   const Svg = Icon[entry.icon];
-  const Chev = Icon.chevright;
   return (
     <NavLink
       to={entry.to}
       className={({ isActive }) =>
         cn(
-          'relative mx-[6px] flex items-center gap-[10px] rounded-[7px] px-4 py-[10px] text-[13.5px] text-apex-ink-3 transition-colors select-none',
-          'hover:bg-apex-surface-hover hover:text-apex-ink',
-          isActive && 'bg-apex-surface-hover font-semibold text-apex-ink',
+          'mx-[6px] flex items-center gap-[10px] rounded-[7px] px-4 py-[10px] text-[13.5px] transition-colors select-none',
+          isActive
+            ? 'bg-[oklch(95%_0.02_220)] font-semibold text-apex-accent'
+            : 'text-apex-ink-3 hover:bg-apex-surface-hover hover:text-apex-ink',
         )
       }
     >
       {({ isActive }) => (
         <>
-          {isActive && (
-            <span className="absolute -left-[9px] top-[6px] bottom-[6px] w-[3px] rounded-r-[3px] bg-apex-accent" />
-          )}
           <span
             className={cn(
               'flex h-[17px] w-[17px] shrink-0 items-center justify-center',
-              isActive ? 'text-apex-accent opacity-100' : 'opacity-55',
+              isActive ? 'text-apex-accent' : 'opacity-55',
             )}
           >
             <Svg size={14} />
           </span>
           <span className="flex-1">{entry.label}</span>
-          {entry.arrow && (
-            <span className="ml-auto flex items-center text-apex-kbd">
-              <Chev size={12} />
-            </span>
+          {entry.addTo && (
+            <Link
+              to={entry.addTo}
+              onClick={(e) => e.stopPropagation()}
+              className="ml-auto flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[4px] bg-apex-accent text-white transition-colors hover:bg-apex-accent/90"
+              aria-label="Add new"
+            >
+              <Icon.plus size={11} />
+            </Link>
           )}
         </>
       )}
@@ -172,20 +174,6 @@ export function Sidebar() {
           <NavRow key={n.label} entry={n} />
         ))}
       </nav>
-
-      {/* <SectionLabel className="mt-[6px]">Favs</SectionLabel> */}
-      {/* <nav className="flex flex-col">
-        {favs.map((f) => (
-          <div
-            key={f.label}
-            className="mx-[6px] flex cursor-pointer items-center gap-[10px] rounded-[7px] px-4 py-[10px] text-[13.5px] text-apex-ink-3 transition-colors hover:bg-apex-surface-hover hover:text-apex-ink"
-          >
-            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: f.color }} />
-            {f.label}
-            <span className="ml-auto text-[11px] text-apex-kbd">{f.key}</span>
-          </div>
-        ))}
-      </nav> */}
 
       <div className="flex-1" />
 
