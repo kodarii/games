@@ -2,7 +2,6 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { auth } from './infrastructure/auth/auth';
-import { seedGamesIfEmpty } from './infrastructure/db/seed';
 import { games } from './routes/games';
 import { type AuthVariables, requireAuth } from './routes/middleware/require-auth';
 
@@ -29,8 +28,6 @@ app.on(['POST', 'GET'], '/api/auth/**', (c) => auth.handler(c.req.raw));
 
 app.use('/api/games/*', requireAuth);
 app.route('/api/games', games);
-
-await seedGamesIfEmpty();
 
 const port = Number(process.env.PORT ?? 3001);
 

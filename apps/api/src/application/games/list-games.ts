@@ -15,10 +15,11 @@ export type ListGamesInput = z.infer<typeof ListGamesQuerySchema>;
 export class ListGames {
   constructor(private readonly repo: GameRepository) {}
 
-  async execute(input: unknown) {
+  async execute(input: unknown, userId: string) {
     const parsed = ListGamesQuerySchema.parse(input);
 
     const query: ListGamesQuery = {
+      userId,
       search: parsed.search || undefined,
       page: parsed.page,
       perPage: parsed.perPage,

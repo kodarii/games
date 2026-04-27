@@ -12,18 +12,20 @@ type NavEntry = {
   arrow?: boolean;
 };
 
-const mainNav: NavEntry[] = [{ label: 'Games', icon: 'gamepad', to: '/games', arrow: true }];
+const mainNav: NavEntry[] = [
+  { label: 'Games', icon: 'gamepad', to: '/games', arrow: true },
+];
 
 const bottomNav: NavEntry[] = [
   { label: 'Settings', icon: 'settings', to: '/settings' },
   { label: 'Support', icon: 'support', to: '/support' },
 ];
 
-const favs = [
-  { label: 'PS3', color: '#6366f1', key: '⌘1' },
-  { label: 'PS4', color: '#ef4444', key: '⌘2' },
-  { label: 'PS5', color: '#ec4899', key: '⌘3' },
-];
+// const favs = [
+//   { label: 'PS3', color: '#6366f1', key: '⌘1' },
+//   { label: 'PS4', color: '#ef4444', key: '⌘2' },
+//   { label: 'PS5', color: '#ec4899', key: '⌘3' },
+// ];
 
 function NavRow({ entry }: { entry: NavEntry }) {
   const Svg = Icon[entry.icon];
@@ -113,8 +115,12 @@ function UserCard() {
             </svg>
           </div>
           <div className="min-w-0 flex-1 text-left">
-            <div className="truncate text-[13px] font-semibold text-apex-ink">{display}</div>
-            <div className="truncate text-[11px] text-apex-muted">{user.email}</div>
+            <div className="truncate text-[13px] font-semibold text-apex-ink">
+              {display}
+            </div>
+            <div className="truncate text-[11px] text-apex-muted">
+              {user.email}
+            </div>
           </div>
           <span className="shrink-0 text-apex-kbd">
             <Icon.chevright size={12} />
@@ -151,8 +157,12 @@ export function Sidebar() {
           <Icon.logoMark size={18} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-[14px] font-semibold leading-[1.25] text-apex-ink">Apex</div>
-          <div className="text-[10.5px] leading-[1.3] text-apex-muted">Finance App Technology</div>
+          <div className="text-[14px] font-semibold leading-[1.25] text-apex-ink">
+            Apex
+          </div>
+          <div className="text-[10.5px] leading-[1.3] text-apex-muted">
+            Finance App Technology
+          </div>
         </div>
       </div>
 
@@ -163,8 +173,8 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <SectionLabel className="mt-[6px]">Favs</SectionLabel>
-      <nav className="flex flex-col">
+      {/* <SectionLabel className="mt-[6px]">Favs</SectionLabel> */}
+      {/* <nav className="flex flex-col">
         {favs.map((f) => (
           <div
             key={f.label}
@@ -175,7 +185,7 @@ export function Sidebar() {
             <span className="ml-auto text-[11px] text-apex-kbd">{f.key}</span>
           </div>
         ))}
-      </nav>
+      </nav> */}
 
       <div className="flex-1" />
 

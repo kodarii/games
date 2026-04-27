@@ -10,6 +10,7 @@ export const GAME_STATUSES = ['Playing', 'Completed', 'Backlog', 'Dropped', 'Wis
 export const GAME_FORMATS = ['physical', 'digital'] as const;
 
 export type GameValidationError =
+  | { kind: 'missing_user_id' }
   | { kind: 'title_empty' }
   | { kind: 'developer_empty' }
   | { kind: 'release_year_out_of_range'; value: number }
@@ -19,6 +20,7 @@ export type GameValidationError =
   | { kind: 'format_invalid'; value: string };
 
 export type GameProps = {
+  userId: string;
   title: string;
   developer: string;
   genre: string;
@@ -62,6 +64,7 @@ export class HoursPlayed {
 
 export class NewGame {
   private constructor(
+    private readonly _userId: string,
     private readonly _title: string,
     private readonly _developer: string,
     private readonly _genre: string,
@@ -74,6 +77,10 @@ export class NewGame {
   ) {}
 
   static create(props: GameProps): Result<NewGame, GameValidationError> {
+    if (!props.userId || !props.userId.trim()) {
+      return err({ kind: 'missing_user_id' });
+    }
+
     const trimmedTitle = props.title.trim();
     if (!trimmedTitle) {
       return err({ kind: 'title_empty' });
@@ -111,6 +118,7 @@ export class NewGame {
 
     return ok(
       new NewGame(
+        props.userId.trim(),
         trimmedTitle,
         trimmedDeveloper,
         genre,
@@ -124,6 +132,9 @@ export class NewGame {
     );
   }
 
+  get userId() {
+    return this._userId;
+  }
   get title() {
     return this._title;
   }
@@ -158,6 +169,7 @@ export type GameUpdate = NewGame;
 export class Game {
   private constructor(
     private readonly _id: number,
+    private readonly _userId: string,
     private readonly _title: string,
     private readonly _developer: string,
     private readonly _genre: string,
@@ -171,6 +183,7 @@ export class Game {
 
   static fromPersistence(row: {
     id: number;
+    userId: string;
     title: string;
     developer: string;
     genre: string;
@@ -183,6 +196,7 @@ export class Game {
   }): Game {
     return new Game(
       row.id,
+      row.userId,
       row.title,
       row.developer,
       row.genre,
@@ -197,6 +211,9 @@ export class Game {
 
   get id() {
     return this._id;
+  }
+  get userId() {
+    return this._userId;
   }
   get title() {
     return this._title;
@@ -229,6 +246,7 @@ export class Game {
   toJSON() {
     return {
       id: this._id,
+      userId: this._userId,
       title: this._title,
       developer: this._developer,
       genre: this._genre,

@@ -19,6 +19,7 @@ export class DrizzleGameRepository implements GameRepository {
   private mapRowToGame(row: GameRow): Game {
     return Game.fromPersistence({
       id: row.id,
+      userId: row.userId,
       title: row.title,
       developer: row.developer,
       genre: row.genre,
@@ -32,21 +33,25 @@ export class DrizzleGameRepository implements GameRepository {
   }
 
   async list(query: ListGamesQuery): Promise<ListGamesResult> {
-    const { search, page, perPage, sort, dir } = query;
+    const { userId, search, page, perPage, sort, dir } = query;
 
+    const userFilter = eq(gamesTable.userId, userId);
     const whereClause = search
-      ? or(
-          like(gamesTable.title, `%${search}%`),
-          like(gamesTable.developer, `%${search}%`),
-          like(gamesTable.genre, `%${search}%`),
-          like(gamesTable.platform, `%${search}%`),
+      ? and(
+          userFilter,
+          or(
+            like(gamesTable.title, `%${search}%`),
+            like(gamesTable.developer, `%${search}%`),
+            like(gamesTable.genre, `%${search}%`),
+            like(gamesTable.platform, `%${search}%`),
+          ),
         )
-      : undefined;
+      : userFilter;
 
-    const totalQuery = whereClause
-      ? db.select({ count: sql<number>`count(*)` }).from(gamesTable).where(whereClause)
-      : db.select({ count: sql<number>`count(*)` }).from(gamesTable);
-    const totalResult = await totalQuery;
+    const totalResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(gamesTable)
+      .where(whereClause);
     const total = totalResult[0]?.count ?? 0;
 
     const sortColumn = sort
@@ -62,8 +67,7 @@ export class DrizzleGameRepository implements GameRepository {
 
     const offset = (page - 1) * perPage;
 
-    let baseQuery = db.select().from(gamesTable).$dynamic();
-    if (whereClause) baseQuery = baseQuery.where(whereClause);
+    let baseQuery = db.select().from(gamesTable).where(whereClause).$dynamic();
     if (sortColumn)
       baseQuery = baseQuery.orderBy(dir === 'desc' ? desc(sortColumn) : asc(sortColumn));
     const items = await baseQuery.limit(perPage).offset(offset);
@@ -85,6 +89,7 @@ export class DrizzleGameRepository implements GameRepository {
     const [inserted] = await db
       .insert(gamesTable)
       .values({
+        userId: newGame.userId,
         title: newGame.title,
         developer: newGame.developer,
         genre: newGame.genre,

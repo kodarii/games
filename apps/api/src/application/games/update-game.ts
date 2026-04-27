@@ -31,14 +31,20 @@ export type UpdateGameError =
 export class UpdateGame {
   constructor(private readonly repo: GameRepository) {}
 
-  async execute(id: number, input: unknown): Promise<Result<Game, UpdateGameError>> {
+  async execute(id: number, input: unknown, userId: string): Promise<Result<Game, UpdateGameError>> {
     const parsed = UpdateGameInputSchema.safeParse(input);
     if (!parsed.success) {
       return err({ kind: 'invalid_input', issues: parsed.error.issues });
     }
 
+    const existing = await this.repo.findById(id);
+    if (!existing || existing.userId !== userId) {
+      return err({ kind: 'not_found' });
+    }
+
     const data = parsed.data;
     const props: GameProps = {
+      userId: existing.userId,
       title: data.title,
       developer: data.developer,
       genre: data.genre,

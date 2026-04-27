@@ -30,7 +30,7 @@ export type CreateGameError =
 export class CreateGame {
   constructor(private readonly repo: GameRepository) {}
 
-  async execute(input: unknown): Promise<Result<Game, CreateGameError>> {
+  async execute(input: unknown, userId: string): Promise<Result<Game, CreateGameError>> {
     const parsed = CreateGameInputSchema.safeParse(input);
 
     if (!parsed.success) {
@@ -40,6 +40,7 @@ export class CreateGame {
     const data = parsed.data;
 
     const props: GameProps = {
+      userId,
       title: data.title,
       developer: data.developer,
       genre: data.genre,

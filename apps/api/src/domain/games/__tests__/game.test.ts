@@ -3,6 +3,7 @@ import { Game, type GameProps, HoursPlayed, NewGame, ReleaseYear } from '../game
 
 const validRow = {
   id: 1,
+  userId: 'user-123',
   title: 'Elden Ring',
   developer: 'FromSoftware',
   genre: 'ARPG',
@@ -15,6 +16,7 @@ const validRow = {
 };
 
 const validProps = (): GameProps => ({
+  userId: 'user-123',
   title: 'Elden Ring',
   developer: 'FromSoftware',
   genre: 'ARPG',
@@ -196,6 +198,31 @@ describe('NewGame.create', () => {
       expect(result.value.edition).toBeUndefined();
     }
   });
+
+  it('returns error when userId is missing', () => {
+    const { userId: _userId, ...propsWithoutUserId } = validProps();
+    const result = NewGame.create(propsWithoutUserId as GameProps);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('missing_user_id');
+    }
+  });
+
+  it('returns error when userId is empty string', () => {
+    const result = NewGame.create({ ...validProps(), userId: '' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('missing_user_id');
+    }
+  });
+
+  it('exposes userId on created NewGame', () => {
+    const result = NewGame.create(validProps());
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.userId).toBe('user-123');
+    }
+  });
 });
 
 describe('Game.fromPersistence', () => {
@@ -205,6 +232,7 @@ describe('Game.fromPersistence', () => {
     const json = game.toJSON();
     expect(json).toEqual({
       id: 1,
+      userId: 'user-123',
       title: 'Elden Ring',
       developer: 'FromSoftware',
       genre: 'ARPG',
@@ -221,6 +249,11 @@ describe('Game.fromPersistence', () => {
     const rowWithNullEdition = { ...validRow, edition: null };
     const game = Game.fromPersistence(rowWithNullEdition);
     expect(game.edition).toBeUndefined();
+  });
+
+  it('exposes userId from persistence row', () => {
+    const game = Game.fromPersistence(validRow);
+    expect(game.userId).toBe('user-123');
   });
 });
 

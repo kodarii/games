@@ -5,8 +5,8 @@ import { GetGame } from '../application/games/get-game';
 import { ListGames } from '../application/games/list-games';
 import { UpdateGame } from '../application/games/update-game';
 import type { Game } from '../domain/games/game';
-import { db } from '../infrastructure/db/client';
 import { DrizzleGameRepository } from '../infrastructure/games/drizzle-game-repository';
+import type { AuthVariables } from './middleware/require-auth';
 
 const repo = new DrizzleGameRepository();
 const createGame = new CreateGame(repo);
@@ -15,16 +15,20 @@ const listGames = new ListGames(repo);
 const getGame = new GetGame(repo);
 const updateGame = new UpdateGame(repo);
 
-export const games = new Hono();
+export const games = new Hono<{ Variables: AuthVariables }>();
 
 games.get('/', async (c) => {
-  const result = await listGames.execute({
-    search: c.req.query('search'),
-    page: c.req.query('page'),
-    perPage: c.req.query('perPage'),
-    sort: c.req.query('sort'),
-    dir: c.req.query('dir'),
-  });
+  const userId = c.get('user').id;
+  const result = await listGames.execute(
+    {
+      search: c.req.query('search'),
+      page: c.req.query('page'),
+      perPage: c.req.query('perPage'),
+      sort: c.req.query('sort'),
+      dir: c.req.query('dir'),
+    },
+    userId,
+  );
   return c.json(result);
 });
 
@@ -34,7 +38,8 @@ games.get('/:id', async (c) => {
     return c.json({ error: 'Invalid id' }, 400);
   }
 
-  const result = await getGame.execute(id);
+  const userId = c.get('user').id;
+  const result = await getGame.execute(id, userId);
 
   if (!result.ok) {
     return c.json({ error: 'not found' }, 404);
@@ -49,8 +54,9 @@ games.put('/:id', async (c) => {
     return c.json({ error: 'Invalid id' }, 400);
   }
 
+  const userId = c.get('user').id;
   const body = await c.req.json();
-  const result = await updateGame.execute(id, body);
+  const result = await updateGame.execute(id, body, userId);
 
   if (!result.ok) {
     const e = result.error;
@@ -64,8 +70,9 @@ games.put('/:id', async (c) => {
 });
 
 games.post('/', async (c) => {
+  const userId = c.get('user').id;
   const body = await c.req.json();
-  const result = await createGame.execute(body);
+  const result = await createGame.execute(body, userId);
 
   if (!result.ok) {
     const err = result.error;
@@ -88,7 +95,8 @@ games.delete('/:id', async (c) => {
     return c.json({ error: 'Invalid id' }, 400);
   }
 
-  const result = await deleteGame.execute(id);
+  const userId = c.get('user').id;
+  const result = await deleteGame.execute(id, userId);
 
   if (!result.ok) {
     return c.json({ error: 'not found' }, 404);

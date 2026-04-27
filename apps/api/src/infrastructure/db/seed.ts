@@ -165,29 +165,5 @@ const SEED_GAMES: SeedGame[] = [
 ];
 
 export async function seedGamesIfEmpty() {
-  const countResult = await db.select({ count: sql<number>`count(*)` }).from(gamesTable);
-
-  const count = countResult[0]?.count ?? 0;
-
-  if (count > 0) {
-    console.log(`Database already has ${count} games, skipping seed`);
-    return;
-  }
-
-  console.log(`Seeding ${SEED_GAMES.length} games...`);
-
-  for (const game of SEED_GAMES) {
-    await db.insert(gamesTable).values({
-      title: game.title,
-      developer: game.developer,
-      genre: game.genre,
-      releaseYear: game.releaseYear,
-      platform: game.platform,
-      edition: game.edition ?? null,
-      hoursPlayed: game.hoursPlayed,
-      status: game.status,
-    });
-  }
-
-  console.log('Seed completed');
+  // Seed disabled — games are per-user, seeding without a userId is not supported
 }

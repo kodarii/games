@@ -10,6 +10,7 @@ class FakeGameRepository implements GameRepository {
   create = async (g: GameUpdate) => {
     return Game.fromPersistence({
       id: Date.now(),
+      userId: g.userId,
       title: g.title,
       developer: g.developer,
       genre: g.genre,
@@ -26,6 +27,7 @@ class FakeGameRepository implements GameRepository {
     if (!existing) return null;
     const updated = Game.fromPersistence({
       id: existing.id,
+      userId: game.userId,
       title: game.title,
       developer: game.developer,
       genre: game.genre,
@@ -58,6 +60,7 @@ class FakeGameRepository implements GameRepository {
 
 const existingGame = Game.fromPersistence({
   id: 1,
+  userId: 'user-A',
   title: 'Dark Souls',
   developer: 'FromSoftware',
   genre: 'ARPG',
@@ -75,7 +78,7 @@ describe('DeleteGame', () => {
     repo.seed(existingGame);
     const useCase = new DeleteGame(repo);
 
-    const result = await useCase.execute(1);
+    const result = await useCase.execute(1, 'user-A');
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -88,11 +91,26 @@ describe('DeleteGame', () => {
     const repo = new FakeGameRepository();
     const useCase = new DeleteGame(repo);
 
-    const result = await useCase.execute(99);
+    const result = await useCase.execute(99, 'user-A');
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.kind).toBe('not_found');
     }
+  });
+
+  it('returns not_found and leaves game intact when user does not own it (IDOR)', async () => {
+    const repo = new FakeGameRepository();
+    repo.seed(existingGame);
+    const useCase = new DeleteGame(repo);
+
+    const result = await useCase.execute(1, 'user-B');
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('not_found');
+    }
+    const stillExists = await repo.findById(1);
+    expect(stillExists).not.toBeNull();
   });
 });

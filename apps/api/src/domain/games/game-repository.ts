@@ -1,6 +1,7 @@
 import type { Game, GameUpdate, NewGame } from './game';
 
 export interface ListGamesQuery {
+  userId: string;
   search?: string;
   page: number;
   perPage: number;

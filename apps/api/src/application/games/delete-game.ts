@@ -8,7 +8,13 @@ export type DeleteGameError = { kind: 'not_found' };
 export class DeleteGame {
   constructor(private readonly repo: GameRepository) {}
 
-  async execute(id: number): Promise<Result<Game, DeleteGameError>> {
+  async execute(id: number, userId: string): Promise<Result<Game, DeleteGameError>> {
+    const existing = await this.repo.findById(id);
+
+    if (!existing || existing.userId !== userId) {
+      return err({ kind: 'not_found' });
+    }
+
     const deleted = await this.repo.delete(id);
 
     if (!deleted) {

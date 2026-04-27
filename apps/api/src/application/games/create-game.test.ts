@@ -12,6 +12,7 @@ class FakeGameRepository implements GameRepository {
   create = async (g: NewGame) => {
     return Game.fromPersistence({
       id: 1,
+      userId: g.userId,
       title: g.title,
       developer: g.developer,
       genre: g.genre,
@@ -41,7 +42,7 @@ describe('CreateGame', () => {
   it('creates game and returns ok', async () => {
     const useCase = new CreateGame(new FakeGameRepository());
 
-    const result = await useCase.execute(validInput);
+    const result = await useCase.execute(validInput, 'user-A');
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -50,10 +51,21 @@ describe('CreateGame', () => {
     }
   });
 
+  it('stores the userId from auth context', async () => {
+    const useCase = new CreateGame(new FakeGameRepository());
+
+    const result = await useCase.execute(validInput, 'user-A');
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.userId).toBe('user-A');
+    }
+  });
+
   it('accepts format physical and returns ok', async () => {
     const useCase = new CreateGame(new FakeGameRepository());
 
-    const result = await useCase.execute({ ...validInput, format: 'physical' });
+    const result = await useCase.execute({ ...validInput, format: 'physical' }, 'user-A');
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -65,7 +77,7 @@ describe('CreateGame', () => {
     const useCase = new CreateGame(new FakeGameRepository());
     const { format: _format, ...inputWithoutFormat } = validInput;
 
-    const result = await useCase.execute(inputWithoutFormat);
+    const result = await useCase.execute(inputWithoutFormat, 'user-A');
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -76,7 +88,7 @@ describe('CreateGame', () => {
   it('returns invalid_input for invalid format', async () => {
     const useCase = new CreateGame(new FakeGameRepository());
 
-    const result = await useCase.execute({ ...validInput, format: 'cartridge' });
+    const result = await useCase.execute({ ...validInput, format: 'cartridge' }, 'user-A');
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
