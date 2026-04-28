@@ -21,12 +21,6 @@ const bottomNav: NavEntry[] = [
   { label: 'Settings', icon: 'settings', to: '/settings' },
 ];
 
-// const favs = [
-//   { label: 'PS3', color: '#6366f1', key: '⌘1' },
-//   { label: 'PS4', color: '#ef4444', key: '⌘2' },
-//   { label: 'PS5', color: '#ec4899', key: '⌘3' },
-// ];
-
 function NavRow({ entry }: { entry: NavEntry }) {
   const Svg = Icon[entry.icon];
   return (

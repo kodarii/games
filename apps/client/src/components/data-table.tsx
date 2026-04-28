@@ -1,6 +1,6 @@
 import { Icon } from '@/components/icons';
 import { cn } from '@/lib/utils';
-import { type Table, flexRender } from '@tanstack/react-table';
+import { type Row, type Table, flexRender } from '@tanstack/react-table';
 
 declare module '@tanstack/react-table' {
   interface ColumnMeta<TData, TValue> {
@@ -15,17 +15,25 @@ type Variant = 'default' | 'cards';
 export function DataTable<T>({
   table,
   variant = 'default',
+  onRowClick,
 }: {
   table: Table<T>;
   variant?: Variant;
+  onRowClick?: (row: Row<T>) => void;
 }) {
   if (variant === 'cards') {
-    return <CardsTable table={table} />;
+    return <CardsTable table={table} onRowClick={onRowClick} />;
   }
-  return <DefaultTable table={table} />;
+  return <DefaultTable table={table} onRowClick={onRowClick} />;
 }
 
-function DefaultTable<T>({ table }: { table: Table<T> }) {
+function DefaultTable<T>({
+  table,
+  onRowClick,
+}: {
+  table: Table<T>;
+  onRowClick?: (row: Row<T>) => void;
+}) {
   return (
     <table className="w-full border-collapse">
       <thead>
@@ -80,9 +88,11 @@ function DefaultTable<T>({ table }: { table: Table<T> }) {
           return (
             <tr
               key={row.id}
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
               className={cn(
                 'border-b border-apex-line-5 transition-colors last:border-b-0',
                 isSelected ? 'bg-apex-row' : 'hover:bg-apex-row-hover',
+                onRowClick && 'cursor-pointer',
               )}
             >
               {row.getVisibleCells().map((cell) => {
@@ -107,9 +117,15 @@ function DefaultTable<T>({ table }: { table: Table<T> }) {
   );
 }
 
-function CardsTable<T>({ table }: { table: Table<T> }) {
+function CardsTable<T>({
+  table,
+  onRowClick,
+}: {
+  table: Table<T>;
+  onRowClick?: (row: Row<T>) => void;
+}) {
   return (
-    <table className="w-full border-separate border-spacing-x-0 border-spacing-y-2">
+    <table className="w-full border-separate border-spacing-x-0 border-spacing-y-1">
       <thead>
         {table.getHeaderGroups().map((hg) => (
           <tr key={hg.id}>
@@ -158,7 +174,11 @@ function CardsTable<T>({ table }: { table: Table<T> }) {
           const cells = row.getVisibleCells();
           const lastIndex = cells.length - 1;
           return (
-            <tr key={row.id} className="group">
+            <tr
+              key={row.id}
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
+              className={cn('group', onRowClick && 'cursor-pointer')}
+            >
               {cells.map((cell, i) => {
                 const meta = cell.column.columnDef.meta;
                 const isFirst = i === 0;
@@ -167,7 +187,7 @@ function CardsTable<T>({ table }: { table: Table<T> }) {
                   <td
                     key={cell.id}
                     className={cn(
-                      'border-y border-apex-line-3 bg-white px-4 py-[14px] align-middle transition-colors',
+                      'border-y border-apex-line-3 bg-white px-4 py-[9px] align-middle transition-colors',
                       isFirst && 'rounded-l-[10px] border-l',
                       isLast && 'rounded-r-[10px] border-r',
                       isSelected

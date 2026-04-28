@@ -13,6 +13,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { gamesColumns } from './games-columns';
 import { GamesGrid } from './games-grid';
 
@@ -31,6 +32,7 @@ export function GamesPage() {
     setSearchInput,
   } = useGamesListState();
   const { update: updateUrl } = useUrlState();
+  const navigate = useNavigate();
 
   const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } =
     useInfiniteGamesQuery({
@@ -190,7 +192,11 @@ export function GamesPage() {
         {viewMode === 'grid' ? (
           <GamesGrid items={items} />
         ) : (
-          <DataTable table={table} variant="cards" />
+          <DataTable
+            table={table}
+            variant="cards"
+            onRowClick={(row) => navigate(`/games/${row.original.id}`)}
+          />
         )}
         <InfiniteScrollFooter
           isLoading={isLoading}

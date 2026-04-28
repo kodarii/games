@@ -17,7 +17,9 @@ const CreateGameInputSchema = z.object({
   platform: z.enum(['PS3', 'PS4', 'PS5', 'PC', 'Xbox', 'Switch']),
   edition: z.string().optional().default(''),
   hoursPlayed: z.coerce.number().min(0).default(0),
-  status: z.enum(['Playing', 'Completed', 'Backlog', 'Dropped', 'Wishlist']).default('Backlog'),
+  status: z
+    .enum(['Playing', 'Completed', 'Backlog', 'Dropped', 'Wishlist'])
+    .default('Backlog'),
   format: z.enum(['physical', 'digital']).default('digital'),
   coverColor: z
     .string()
@@ -34,7 +36,10 @@ export type CreateGameError =
 export class CreateGame {
   constructor(private readonly repo: GameRepository) {}
 
-  async execute(input: unknown, userId: string): Promise<Result<Game, CreateGameError>> {
+  async execute(
+    input: unknown,
+    userId: string,
+  ): Promise<Result<Game, CreateGameError>> {
     const parsed = CreateGameInputSchema.safeParse(input);
 
     if (!parsed.success) {

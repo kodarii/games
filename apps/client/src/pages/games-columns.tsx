@@ -1,9 +1,6 @@
 import { Avatar } from '@/components/avatar';
-import { StatusBadge } from '@/components/status-badge';
-import { statusFor } from '@/lib/game-status';
 import type { Game } from '@/types';
 import { createColumnHelper } from '@tanstack/react-table';
-import { Link } from 'react-router-dom';
 
 const columnHelper = createColumnHelper<Game>();
 
@@ -19,12 +16,9 @@ export const gamesColumns = [
           color={row.original.coverColor}
         />
         <div>
-          <Link
-            to={`/games/${row.original.id}`}
-            className="text-[13.5px] font-semibold leading-[1.35] text-apex-ink transition-colors hover:text-apex-accent"
-          >
+          <div className="text-[13.5px] font-semibold leading-[1.35] text-apex-ink">
             {row.original.title}
-          </Link>
+          </div>
           <div className="text-[11.5px] leading-[1.35] text-apex-faint">
             {row.original.developer}
           </div>

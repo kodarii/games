@@ -11,7 +11,11 @@ import { RegisterPage } from '@/pages/register';
 import { QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom';
+import {
+  Navigate,
+  RouterProvider,
+  createBrowserRouter,
+} from 'react-router-dom';
 import './index.css';
 
 const router = createBrowserRouter([
@@ -36,6 +40,10 @@ const router = createBrowserRouter([
           { path: 'games/:id/edit', element: <GameEditPage /> },
           { path: 'settings', element: <Placeholder title="Settings" /> },
           { path: 'support', element: <Placeholder title="Support" /> },
+          {
+            path: 'dictionaries',
+            element: <Placeholder title="dictionaries" />,
+          },
         ],
       },
     ],
