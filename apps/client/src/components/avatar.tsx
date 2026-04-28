@@ -8,16 +8,18 @@ export function Avatar({
   size = 40,
   src,
   name,
+  color,
   className,
 }: {
   shape?: AvatarShape;
   size?: number;
   src?: string | null;
   name?: string;
+  color?: string | null;
   className?: string;
 }) {
   const trimmed = name?.trim() ?? '';
-  const bg = trimmed ? avatarColor(trimmed) : '#c8c8c8';
+  const bg = color ?? (trimmed ? avatarColor(trimmed) : '#c8c8c8');
   const glyph = trimmed ? initials(trimmed) : '?';
   const shapeClass = shape === 'circle' ? 'rounded-full' : 'rounded-[4px]';
   const height = size;

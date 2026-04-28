@@ -39,7 +39,7 @@ export function InfiniteScrollFooter({
 
 function FooterBar({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-11 min-h-[44px] items-center justify-center bg-white text-[12px] text-apex-faint">
+    <div className="flex h-11 min-h-[44px] items-center justify-center text-[12px] text-apex-faint">
       {children}
     </div>
   );

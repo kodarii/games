@@ -1,6 +1,6 @@
 import { Icon } from '@/components/icons';
 import { cn } from '@/lib/utils';
-import { type Table, flexRender } from '@tanstack/react-table';
+import { type Row, type Table, flexRender } from '@tanstack/react-table';
 
 declare module '@tanstack/react-table' {
   interface ColumnMeta<TData, TValue> {
@@ -10,7 +10,30 @@ declare module '@tanstack/react-table' {
   }
 }
 
-export function DataTable<T>({ table }: { table: Table<T> }) {
+type Variant = 'default' | 'cards';
+
+export function DataTable<T>({
+  table,
+  variant = 'default',
+  onRowClick,
+}: {
+  table: Table<T>;
+  variant?: Variant;
+  onRowClick?: (row: Row<T>) => void;
+}) {
+  if (variant === 'cards') {
+    return <CardsTable table={table} onRowClick={onRowClick} />;
+  }
+  return <DefaultTable table={table} onRowClick={onRowClick} />;
+}
+
+function DefaultTable<T>({
+  table,
+  onRowClick,
+}: {
+  table: Table<T>;
+  onRowClick?: (row: Row<T>) => void;
+}) {
   return (
     <table className="w-full border-collapse">
       <thead>
@@ -25,9 +48,11 @@ export function DataTable<T>({ table }: { table: Table<T> }) {
               return (
                 <th
                   key={header.id}
-                  style={meta?.minWidth ? { minWidth: meta.minWidth } : undefined}
+                  style={
+                    meta?.minWidth ? { minWidth: meta.minWidth } : undefined
+                  }
                   className={cn(
-                    'sticky top-0 z-[1] whitespace-nowrap bg-apex-surface-head px-3 py-[10px] text-left text-[12px] font-medium text-apex-muted',
+                    'sticky top-0 z-[1] whitespace-nowrap bg-apex-surface-head px-3 py-[10px] text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-apex-muted',
                     isFirst && 'rounded-tl-[8px]',
                     isLast && 'rounded-tr-[8px]',
                     meta?.headerClassName,
@@ -39,11 +64,17 @@ export function DataTable<T>({ table }: { table: Table<T> }) {
                       onClick={header.column.getToggleSortingHandler()}
                       className="inline-flex cursor-pointer items-center gap-[3px] bg-transparent text-inherit transition-colors hover:text-apex-ink-2"
                     >
-                      {flexRender(header.column.columnDef.header, header.getContext())}
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )}
                       <SortIndicator state={sorted} />
                     </button>
                   ) : (
-                    flexRender(header.column.columnDef.header, header.getContext())
+                    flexRender(
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )
                   )}
                 </th>
               );
@@ -57,9 +88,11 @@ export function DataTable<T>({ table }: { table: Table<T> }) {
           return (
             <tr
               key={row.id}
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
               className={cn(
                 'border-b border-apex-line-5 transition-colors last:border-b-0',
                 isSelected ? 'bg-apex-row' : 'hover:bg-apex-row-hover',
+                onRowClick && 'cursor-pointer',
               )}
             >
               {row.getVisibleCells().map((cell) => {
@@ -67,7 +100,101 @@ export function DataTable<T>({ table }: { table: Table<T> }) {
                 return (
                   <td
                     key={cell.id}
-                    className={cn('px-3 py-[14px] align-middle', meta?.cellClassName)}
+                    className={cn(
+                      'px-3 py-[10px] align-middle',
+                      meta?.cellClassName,
+                    )}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                );
+              })}
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+function CardsTable<T>({
+  table,
+  onRowClick,
+}: {
+  table: Table<T>;
+  onRowClick?: (row: Row<T>) => void;
+}) {
+  return (
+    <table className="w-full border-separate border-spacing-x-0 border-spacing-y-1">
+      <thead>
+        {table.getHeaderGroups().map((hg) => (
+          <tr key={hg.id}>
+            {hg.headers.map((header) => {
+              const meta = header.column.columnDef.meta;
+              const canSort = header.column.getCanSort();
+              const sorted = header.column.getIsSorted();
+              return (
+                <th
+                  key={header.id}
+                  style={
+                    meta?.minWidth ? { minWidth: meta.minWidth } : undefined
+                  }
+                  className={cn(
+                    'whitespace-nowrap border-b border-apex-line-3 bg-transparent px-4 pb-3 pt-1 text-left text-[11px] font-semibold uppercase tracking-[0.07em] text-apex-faint',
+                    meta?.headerClassName,
+                  )}
+                >
+                  {header.isPlaceholder ? null : canSort ? (
+                    <button
+                      type="button"
+                      onClick={header.column.getToggleSortingHandler()}
+                      className="inline-flex cursor-pointer items-center gap-[3px] bg-transparent text-inherit transition-colors hover:text-apex-muted"
+                    >
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )}
+                      <SortIndicator state={sorted} />
+                    </button>
+                  ) : (
+                    flexRender(
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )
+                  )}
+                </th>
+              );
+            })}
+          </tr>
+        ))}
+      </thead>
+      <tbody>
+        {table.getRowModel().rows.map((row) => {
+          const isSelected = row.getIsSelected();
+          const cells = row.getVisibleCells();
+          const lastIndex = cells.length - 1;
+          return (
+            <tr
+              key={row.id}
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
+              className={cn('group', onRowClick && 'cursor-pointer')}
+            >
+              {cells.map((cell, i) => {
+                const meta = cell.column.columnDef.meta;
+                const isFirst = i === 0;
+                const isLast = i === lastIndex;
+                return (
+                  <td
+                    key={cell.id}
+                    className={cn(
+                      'border-y border-apex-line-3 bg-white px-4 py-[9px] align-middle transition-colors',
+                      isFirst && 'rounded-l-[10px] border-l',
+                      isLast && 'rounded-r-[10px] border-r',
+                      isSelected
+                        ? 'bg-apex-row'
+                        : 'group-hover:bg-apex-surface-hover2',
+                      meta?.cellClassName,
+                    )}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>

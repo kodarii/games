@@ -125,14 +125,11 @@ describe('NewGame.create', () => {
     }
   });
 
-  it('returns error for invalid platform', () => {
-    const invalidPlatform = 'Atari' as unknown as GamePlatform;
-    const result = NewGame.create({ ...validProps(), platform: invalidPlatform });
+  it('returns error for empty platform', () => {
+    const result = NewGame.create({ ...validProps(), platform: '' });
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.kind).toBe('platform_invalid');
-      const e = result.error as { kind: string; value: string };
-      expect(e.value).toBe('Atari');
     }
   });
 
@@ -242,6 +239,7 @@ describe('Game.fromPersistence', () => {
       hoursPlayed: 120,
       status: 'Completed',
       format: 'digital',
+      coverColor: undefined,
     });
   });
 

@@ -5,7 +5,7 @@ export interface ListGamesQuery {
   search?: string;
   page: number;
   perPage: number;
-  sort?: 'title' | 'genre' | 'platform' | 'status' | 'releaseYear' | 'hoursPlayed';
+  sort?: 'title' | 'genre' | 'platform' | 'format' | 'status' | 'releaseYear' | 'hoursPlayed';
   dir: 'asc' | 'desc';
 }
 
@@ -20,4 +20,5 @@ export interface GameRepository {
   create(game: NewGame): Promise<Game>;
   update(id: number, game: GameUpdate): Promise<Game | null>;
   delete(id: number): Promise<Game | null>;
+  countByPlatform(userId: string, platformName: string): Promise<number>;
 }

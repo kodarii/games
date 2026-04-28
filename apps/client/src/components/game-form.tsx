@@ -1,4 +1,6 @@
+import { AddPlatformDialog } from '@/components/add-platform-dialog';
 import { Breadcrumb } from '@/components/breadcrumb';
+import { CoverColorPicker } from '@/components/cover-color-picker';
 import { FormField, FormFieldRow } from '@/components/form-field';
 import { FormCancelButton, FormFooter, FormSubmitButton } from '@/components/form-footer';
 import { GameCover } from '@/components/game-cover';
@@ -7,13 +9,15 @@ import { Icon } from '@/components/icons';
 import { PageHeader } from '@/components/page-header';
 import { PillSelect } from '@/components/pill-select';
 import { SectionHeader } from '@/components/section-header';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import type { CreateGameInput, UpdateGameInput } from '@/lib/api';
-import { useCreateGameMutation, useUpdateGameMutation } from '@/lib/queries';
-import type { Game, GameFormat, GamePlatform, GameStatus } from '@/types';
-import { useRef, useState } from 'react';
+import { COVER_COLORS, coverColorFor } from '@/lib/avatar';
+import { useCreateGameMutation, usePlatformsQuery, useUpdateGameMutation } from '@/lib/queries';
+import type { Game, GameFormat, GameStatus, Platform } from '@/types';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 type Mode = 'create' | 'edit';
@@ -23,12 +27,13 @@ type FormState = {
   developer: string;
   genre: string;
   releaseYear: string;
-  platform: GamePlatform | '';
+  platform: string;
   edition: string;
   hoursPlayed: string;
   status: GameStatus;
   format: GameFormat;
   notes: string;
+  coverColor: string;
 };
 
 const EMPTY: FormState = {
@@ -42,6 +47,7 @@ const EMPTY: FormState = {
   status: 'Backlog',
   format: 'digital',
   notes: '',
+  coverColor: COVER_COLORS[0],
 };
 
 function gameToFormState(g: Game): FormState {
@@ -56,10 +62,9 @@ function gameToFormState(g: Game): FormState {
     status: g.status,
     format: g.format,
     notes: '',
+    coverColor: coverColorFor(g),
   };
 }
-
-const PLATFORMS: GamePlatform[] = ['PS5', 'PS4', 'PS3', 'PC', 'Xbox', 'Switch'];
 
 const STATUS_OPTS = [
   { value: 'Playing' as const, color: '#4F6EF7' },
@@ -86,9 +91,10 @@ export function GameForm({
   const [form, setForm] = useState<FormState>(() =>
     initialGame ? gameToFormState(initialGame) : EMPTY,
   );
-  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [addPlatformOpen, setAddPlatformOpen] = useState(false);
   const createMutation = useCreateGameMutation();
   const updateMutation = useUpdateGameMutation();
+  const { data: platforms = [], isLoading: platformsLoading } = usePlatformsQuery();
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -101,11 +107,12 @@ export function GameForm({
       developer: form.developer.trim(),
       genre: form.genre.trim() || '',
       releaseYear: Number(form.releaseYear) || new Date().getFullYear(),
-      platform: form.platform as GamePlatform,
+      platform: form.platform,
       edition: form.edition.trim() || undefined,
       hoursPlayed: Number(form.hoursPlayed) || 0,
       status: form.status,
       format: form.format,
+      coverColor: form.coverColor,
     };
 
     if (isEdit && initialGame) {
@@ -150,11 +157,18 @@ export function GameForm({
           <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr]">
             <div className="flex items-center justify-center p-5 lg:border-r lg:border-apex-line-5 lg:p-6">
               <div className="w-full max-w-[260px] lg:max-w-none">
-                <CoverUpload
-                  name={form.title}
-                  src={coverUrl}
-                  onFileSelect={(f) => setCoverUrl(URL.createObjectURL(f))}
-                />
+                <div className="flex flex-col items-stretch gap-4">
+                  <GameCover name={form.title} color={form.coverColor} />
+                  <div>
+                    <div className="mb-[6px] text-[10px] font-semibold uppercase tracking-[0.08em] text-apex-hint">
+                      Cover Color
+                    </div>
+                    <CoverColorPicker
+                      value={form.coverColor}
+                      onChange={(c) => set('coverColor', c)}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -203,17 +217,45 @@ export function GameForm({
                 <SectionHeader title="Platform" description="Where you play this game." />
                 <FormFieldRow cols={3}>
                   <FormField label="Platform" required>
-                    <Select
-                      value={form.platform}
-                      onChange={(e) => set('platform', e.target.value as GamePlatform | '')}
-                    >
-                      <option value="">Select platform</option>
-                      {PLATFORMS.map((p) => (
-                        <option key={p} value={p}>
-                          {p}
-                        </option>
-                      ))}
-                    </Select>
+                    {platformsLoading ? (
+                      <Select disabled value="">
+                        <option value="">Loading…</option>
+                      </Select>
+                    ) : platforms.length === 0 ? (
+                      <div className="flex flex-col gap-2 rounded-[7px] border border-apex-line-1 bg-white px-3 py-3">
+                        <span className="text-[12px] text-apex-muted">No platforms — add one first</span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setAddPlatformOpen(true)}
+                        >
+                          <Icon.plus size={12} />
+                          Add platform
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <Select
+                          value={form.platform}
+                          onChange={(e) => set('platform', e.target.value)}
+                        >
+                          <option value="">Select platform</option>
+                          {platforms.map((p) => (
+                            <option key={p.id} value={p.name}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </Select>
+                        <button
+                          type="button"
+                          onClick={() => setAddPlatformOpen(true)}
+                          className="mt-1 text-[11px] text-apex-accent hover:underline"
+                        >
+                          + Add platform
+                        </button>
+                      </>
+                    )}
                   </FormField>
                   <FormField label="Edition">
                     <Input
@@ -278,41 +320,13 @@ export function GameForm({
         </FormSubmitButton>
       </FormFooter>
       {errorMessage && <div className="px-6 pb-4 text-sm text-red-600">{errorMessage}</div>}
+
+      <AddPlatformDialog
+        open={addPlatformOpen}
+        onOpenChange={setAddPlatformOpen}
+        onCreated={(p: Platform) => set('platform', p.name)}
+      />
     </>
   );
 }
 
-function CoverUpload({
-  name,
-  src,
-  onFileSelect,
-}: {
-  name: string;
-  src: string | null;
-  onFileSelect: (file: File) => void;
-}) {
-  const fileRef = useRef<HTMLInputElement>(null);
-  return (
-    <div className="flex flex-col items-stretch gap-3">
-      <GameCover name={name} src={src} />
-      <button
-        type="button"
-        onClick={() => fileRef.current?.click()}
-        className="w-full rounded-md bg-[#EEF2FF] px-3 py-2 text-[12px] font-medium text-apex-accent transition-colors hover:bg-[#dde5ff]"
-      >
-        {src ? 'Change cover' : 'Upload cover'}
-      </button>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) onFileSelect(f);
-        }}
-      />
-      <p className="text-center text-[11px] text-apex-faint">JPG, PNG up to 2MB</p>
-    </div>
-  );
-}

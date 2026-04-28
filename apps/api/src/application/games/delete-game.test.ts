@@ -53,6 +53,10 @@ class FakeGameRepository implements GameRepository {
     return game;
   }
 
+  async countByPlatform(_userId: string, _platformName: string): Promise<number> {
+    return 0;
+  }
+
   seed(game: Game): void {
     this.games.set(game.id, game);
   }

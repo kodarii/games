@@ -4,9 +4,12 @@ import {
   type CreateGameInput,
   type UpdateGameInput,
   createGame,
+  createPlatform,
   deleteGame,
+  deletePlatform,
   fetchGame,
   fetchGames,
+  fetchPlatforms,
   updateGame,
 } from './api';
 
@@ -74,5 +77,25 @@ export function useDeleteGameMutation() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['games'] });
     },
+  });
+}
+
+export function usePlatformsQuery() {
+  return useQuery({ queryKey: ['platforms'], queryFn: fetchPlatforms });
+}
+
+export function useCreatePlatform() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: createPlatform,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['platforms'] }),
+  });
+}
+
+export function useDeletePlatform() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deletePlatform,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['platforms'] }),
   });
 }

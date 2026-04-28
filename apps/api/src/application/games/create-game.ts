@@ -6,6 +6,7 @@ import {
   NewGame,
 } from '../../domain/games/game';
 import type { GameRepository } from '../../domain/games/game-repository';
+import type { PlatformRepository } from '../../domain/platforms/platform-repository';
 import { err, ok } from '../../domain/shared/result';
 import type { Result } from '../../domain/shared/result';
 
@@ -14,11 +15,17 @@ const CreateGameInputSchema = z.object({
   developer: z.string().min(1),
   genre: z.string().optional().default(''),
   releaseYear: z.coerce.number().min(1970).max(2100),
-  platform: z.enum(['PS3', 'PS4', 'PS5', 'PC', 'Xbox', 'Switch']),
+  platform: z.string().min(1),
   edition: z.string().optional().default(''),
   hoursPlayed: z.coerce.number().min(0).default(0),
-  status: z.enum(['Playing', 'Completed', 'Backlog', 'Dropped', 'Wishlist']).default('Backlog'),
+  status: z
+    .enum(['Playing', 'Completed', 'Backlog', 'Dropped', 'Wishlist'])
+    .default('Backlog'),
   format: z.enum(['physical', 'digital']).default('digital'),
+  coverColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
 });
 
 export type CreateGameInput = z.infer<typeof CreateGameInputSchema>;
@@ -28,9 +35,15 @@ export type CreateGameError =
   | { kind: 'domain'; error: GameValidationError };
 
 export class CreateGame {
-  constructor(private readonly repo: GameRepository) {}
+  constructor(
+    private readonly repo: GameRepository,
+    private readonly platformRepo: PlatformRepository,
+  ) {}
 
-  async execute(input: unknown, userId: string): Promise<Result<Game, CreateGameError>> {
+  async execute(
+    input: unknown,
+    userId: string,
+  ): Promise<Result<Game, CreateGameError>> {
     const parsed = CreateGameInputSchema.safeParse(input);
 
     if (!parsed.success) {
@@ -38,6 +51,11 @@ export class CreateGame {
     }
 
     const data = parsed.data;
+
+    const platform = await this.platformRepo.findByName(userId, data.platform);
+    if (!platform) {
+      return err({ kind: 'domain', error: { kind: 'platform_invalid', value: data.platform } });
+    }
 
     const props: GameProps = {
       userId,
@@ -50,6 +68,7 @@ export class CreateGame {
       hoursPlayed: data.hoursPlayed,
       status: data.status,
       format: data.format,
+      coverColor: data.coverColor,
     };
 
     const newGameResult = NewGame.create(props);

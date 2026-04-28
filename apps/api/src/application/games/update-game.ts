@@ -6,6 +6,7 @@ import {
   NewGame,
 } from '../../domain/games/game';
 import type { GameRepository } from '../../domain/games/game-repository';
+import type { PlatformRepository } from '../../domain/platforms/platform-repository';
 import { err, ok } from '../../domain/shared/result';
 import type { Result } from '../../domain/shared/result';
 
@@ -14,11 +15,15 @@ const UpdateGameInputSchema = z.object({
   developer: z.string().min(1),
   genre: z.string().optional().default(''),
   releaseYear: z.coerce.number().min(1970).max(2100),
-  platform: z.enum(['PS3', 'PS4', 'PS5', 'PC', 'Xbox', 'Switch']),
+  platform: z.string().min(1),
   edition: z.string().optional().default(''),
   hoursPlayed: z.coerce.number().min(0).default(0),
   status: z.enum(['Playing', 'Completed', 'Backlog', 'Dropped', 'Wishlist']).default('Backlog'),
   format: z.enum(['physical', 'digital']).default('digital'),
+  coverColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
 });
 
 export type UpdateGameInput = z.infer<typeof UpdateGameInputSchema>;
@@ -29,7 +34,10 @@ export type UpdateGameError =
   | { kind: 'not_found' };
 
 export class UpdateGame {
-  constructor(private readonly repo: GameRepository) {}
+  constructor(
+    private readonly repo: GameRepository,
+    private readonly platformRepo: PlatformRepository,
+  ) {}
 
   async execute(id: number, input: unknown, userId: string): Promise<Result<Game, UpdateGameError>> {
     const parsed = UpdateGameInputSchema.safeParse(input);
@@ -43,6 +51,12 @@ export class UpdateGame {
     }
 
     const data = parsed.data;
+
+    const platform = await this.platformRepo.findByName(userId, data.platform);
+    if (!platform) {
+      return err({ kind: 'domain', error: { kind: 'platform_invalid', value: data.platform } });
+    }
+
     const props: GameProps = {
       userId: existing.userId,
       title: data.title,
@@ -54,6 +68,7 @@ export class UpdateGame {
       hoursPlayed: data.hoursPlayed,
       status: data.status,
       format: data.format,
+      coverColor: data.coverColor,
     };
 
     const gameUpdateResult = NewGame.create(props);
