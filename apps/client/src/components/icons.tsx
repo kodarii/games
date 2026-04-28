@@ -281,6 +281,14 @@ export const Icon = {
       strokeLinejoin="round"
     />,
   ),
+  trash: svg(
+    <>
+      <path d="M3 4.5h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M5.5 4.5V3.5a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M4.5 4.5l.7 8a.5.5 0 00.5.5h4.6a.5.5 0 00.5-.5l.7-8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M7 7v3.5M9 7v3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </>,
+  ),
   logoMark: svg(
     <>
       <path

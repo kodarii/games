@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { user } from './auth-schema';
 
 export const games = sqliteTable(
@@ -25,3 +25,22 @@ export const games = sqliteTable(
 
 export type GameRow = typeof games.$inferSelect;
 export type NewGameRow = typeof games.$inferInsert;
+
+export const platforms = sqliteTable(
+  'platforms',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  },
+  (table) => [
+    index('platforms_user_id_idx').on(table.userId),
+    uniqueIndex('platforms_user_id_name_unq').on(table.userId, table.name),
+  ],
+);
+
+export type PlatformRow = typeof platforms.$inferSelect;
+export type NewPlatformRow = typeof platforms.$inferInsert;

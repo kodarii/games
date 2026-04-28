@@ -1,16 +1,15 @@
+import { AddPlatformDialog } from '@/components/add-platform-dialog';
 import { CoverColorPicker } from '@/components/cover-color-picker';
+import { Icon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { COVER_COLORS } from '@/lib/avatar';
-import { useCreateGameMutation } from '@/lib/queries';
+import { useCreateGameMutation, usePlatformsQuery } from '@/lib/queries';
 import { useUrlState } from '@/lib/url-state';
-import type { GamePlatform } from '@/types';
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-const PLATFORMS: GamePlatform[] = ['PS5', 'PS4', 'PS3', 'PC', 'Xbox', 'Switch'];
 
 export function AddGameDialog() {
   const { get, update } = useUrlState();
@@ -18,10 +17,12 @@ export function AddGameDialog() {
   const open = get('add') === '1';
 
   const [title, setTitle] = useState('');
-  const [platform, setPlatform] = useState<GamePlatform>('PS4');
+  const [platform, setPlatform] = useState('');
   const [color, setColor] = useState<string>(COVER_COLORS[0]);
+  const [addPlatformOpen, setAddPlatformOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const createMutation = useCreateGameMutation();
+  const { data: platforms = [], isLoading: platformsLoading } = usePlatformsQuery();
 
   const close = () => {
     update({ add: null }, { replace: true });
@@ -30,13 +31,19 @@ export function AddGameDialog() {
   useEffect(() => {
     if (!open) {
       setTitle('');
-      setPlatform('PS4');
+      setPlatform(platforms[0]?.name ?? '');
       setColor(COVER_COLORS[0]);
       createMutation.reset();
     }
   }, [open]);
 
-  const canSubmit = title.trim().length > 0 && !createMutation.isPending;
+  useEffect(() => {
+    if (platform === '' && platforms.length > 0) {
+      setPlatform(platforms[0].name);
+    }
+  }, [platforms]);
+
+  const canSubmit = title.trim().length > 0 && platform !== '' && !createMutation.isPending;
 
   const onSubmit = () => {
     if (!canSubmit) return;
@@ -62,6 +69,7 @@ export function AddGameDialog() {
   };
 
   return (
+    <>
     <AlertDialog.Root open={open} onOpenChange={(v) => !v && close()}>
       <AlertDialog.Portal>
         <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
@@ -98,16 +106,41 @@ export function AddGameDialog() {
 
           <div className="mt-4">
             <FieldLabel>Platform</FieldLabel>
-            <Select
-              value={platform}
-              onChange={(e) => setPlatform(e.target.value as GamePlatform)}
-            >
-              {PLATFORMS.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </Select>
+            {platformsLoading ? (
+              <Select disabled value="">
+                <option value="">Loading…</option>
+              </Select>
+            ) : platforms.length === 0 ? (
+              <div className="flex flex-col gap-2 rounded-[7px] border border-apex-line-1 bg-white px-3 py-3">
+                <span className="text-[12px] text-apex-muted">No platforms — add one first</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAddPlatformOpen(true)}
+                >
+                  <Icon.plus size={12} />
+                  Add platform
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Select value={platform} onChange={(e) => setPlatform(e.target.value)}>
+                  {platforms.map((p) => (
+                    <option key={p.id} value={p.name}>
+                      {p.name}
+                    </option>
+                  ))}
+                </Select>
+                <button
+                  type="button"
+                  onClick={() => setAddPlatformOpen(true)}
+                  className="mt-1 text-[11px] text-apex-accent hover:underline"
+                >
+                  + Add platform
+                </button>
+              </>
+            )}
           </div>
 
           <div className="mt-4">
@@ -146,6 +179,12 @@ export function AddGameDialog() {
         </AlertDialog.Content>
       </AlertDialog.Portal>
     </AlertDialog.Root>
+    <AddPlatformDialog
+      open={addPlatformOpen}
+      onOpenChange={setAddPlatformOpen}
+      onCreated={(p) => setPlatform(p.name)}
+    />
+    </>
   );
 }
 

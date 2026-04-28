@@ -136,4 +136,12 @@ export class DrizzleGameRepository implements GameRepository {
     if (!deleted) return null;
     return this.mapRowToGame(deleted);
   }
+
+  async countByPlatform(userId: string, platformName: string): Promise<number> {
+    const r = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(gamesTable)
+      .where(and(eq(gamesTable.userId, userId), eq(gamesTable.platform, platformName)));
+    return r[0]?.count ?? 0;
+  }
 }

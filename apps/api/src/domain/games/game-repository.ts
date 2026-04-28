@@ -20,4 +20,5 @@ export interface GameRepository {
   create(game: NewGame): Promise<Game>;
   update(id: number, game: GameUpdate): Promise<Game | null>;
   delete(id: number): Promise<Game | null>;
+  countByPlatform(userId: string, platformName: string): Promise<number>;
 }

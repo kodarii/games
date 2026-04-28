@@ -1,5 +1,5 @@
 export type GameStatus = 'Playing' | 'Completed' | 'Backlog' | 'Dropped' | 'Wishlist';
-export type GamePlatform = 'PS3' | 'PS4' | 'PS5' | 'PC' | 'Xbox' | 'Switch';
+export type GamePlatform = string;
 export const GAME_FORMATS = ['physical', 'digital'] as const;
 export type GameFormat = (typeof GAME_FORMATS)[number];
 
@@ -28,6 +28,12 @@ export const GAME_SORT_FIELDS = [
 ] as const;
 export type GameSortField = (typeof GAME_SORT_FIELDS)[number];
 export type SortDir = 'asc' | 'desc';
+
+export interface Platform {
+  id: number;
+  userId: string;
+  name: string;
+}
 
 export interface GamesResponse {
   items: Game[];

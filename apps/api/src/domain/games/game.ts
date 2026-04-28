@@ -1,11 +1,10 @@
 import { err, ok } from '../shared/result';
 import type { Result } from '../shared/result';
 
-export type GamePlatform = 'PS3' | 'PS4' | 'PS5' | 'PC' | 'Xbox' | 'Switch';
+export type GamePlatform = string;
 export type GameStatus = 'Playing' | 'Completed' | 'Backlog' | 'Dropped' | 'Wishlist';
 export type GameFormat = 'physical' | 'digital';
 
-export const GAME_PLATFORMS = ['PS3', 'PS4', 'PS5', 'PC', 'Xbox', 'Switch'] as const;
 export const GAME_STATUSES = ['Playing', 'Completed', 'Backlog', 'Dropped', 'Wishlist'] as const;
 export const GAME_FORMATS = ['physical', 'digital'] as const;
 
@@ -93,7 +92,8 @@ export class NewGame {
       return err({ kind: 'developer_empty' });
     }
 
-    if (!GAME_PLATFORMS.includes(props.platform)) {
+    const trimmedPlatform = props.platform?.trim();
+    if (!trimmedPlatform) {
       return err({ kind: 'platform_invalid', value: String(props.platform) });
     }
 
@@ -126,7 +126,7 @@ export class NewGame {
         trimmedDeveloper,
         genre,
         releaseYearResult.value,
-        props.platform,
+        trimmedPlatform,
         edition,
         hoursPlayedResult.value,
         props.status,

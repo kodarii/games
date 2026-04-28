@@ -1,22 +1,23 @@
+import { AddPlatformDialog } from '@/components/add-platform-dialog';
 import { CoverColorPicker } from '@/components/cover-color-picker';
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
 import { GameCover } from '@/components/game-cover';
 import { Icon } from '@/components/icons';
 import { SectionHeader } from '@/components/section-header';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { coverColorFor } from '@/lib/avatar';
 import {
   useDeleteGameMutation,
   useGameQuery,
+  usePlatformsQuery,
   useUpdateGameMutation,
 } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 import type { Game, GameFormat, GamePlatform, GameStatus } from '@/types';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-
-const PLATFORMS: GamePlatform[] = ['PS5', 'PS4', 'PS3', 'PC', 'Xbox', 'Switch'];
 const STATUS_OPTS: GameStatus[] = [
   'Playing',
   'Completed',
@@ -34,7 +35,7 @@ type DraftState = {
   developer: string;
   genre: string;
   releaseYear: string;
-  platform: GamePlatform | '';
+  platform: string;
   edition: string;
   hoursPlayed: string;
   status: GameStatus;
@@ -211,6 +212,8 @@ export function GameViewPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [draft, setDraft] = useState<DraftState | null>(null);
+  const [addPlatformOpen, setAddPlatformOpen] = useState(false);
+  const { data: platforms = [], isLoading: platformsLoading } = usePlatformsQuery();
 
   const set = <K extends keyof DraftState>(k: K, v: DraftState[K]) =>
     setDraft((d) => (d ? { ...d, [k]: v } : d));
@@ -421,18 +424,40 @@ export function GameViewPage() {
                     value={game.platform}
                     editMode={editMode}
                   >
-                    <Select
-                      value={draft?.platform ?? ''}
-                      onChange={(e) =>
-                        set('platform', e.target.value as GamePlatform)
-                      }
-                    >
-                      {PLATFORMS.map((p) => (
-                        <option key={p} value={p}>
-                          {p}
-                        </option>
-                      ))}
-                    </Select>
+                    {platformsLoading ? (
+                      <Select disabled value="">
+                        <option value="">Loading…</option>
+                      </Select>
+                    ) : platforms.length === 0 ? (
+                      <div className="flex flex-col gap-2 rounded-[7px] border border-apex-line-1 bg-white px-3 py-3">
+                        <span className="text-[12px] text-apex-muted">No platforms — add one first</span>
+                        <Button variant="outline" size="sm" onClick={() => setAddPlatformOpen(true)}>
+                          <Icon.plus size={12} />
+                          Add platform
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <Select
+                          value={draft?.platform ?? ''}
+                          onChange={(e) => set('platform', e.target.value)}
+                        >
+                          <option value="">Select platform</option>
+                          {platforms.map((p) => (
+                            <option key={p.id} value={p.name}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </Select>
+                        <button
+                          type="button"
+                          onClick={() => setAddPlatformOpen(true)}
+                          className="mt-1 text-[11px] text-apex-accent hover:underline"
+                        >
+                          + Add platform
+                        </button>
+                      </>
+                    )}
                   </FieldItem>
                   <FieldItem
                     label="Format"
@@ -518,6 +543,12 @@ export function GameViewPage() {
         gameTitle={game.title}
         isDeleting={deleteMutation.isPending}
         onConfirm={handleDelete}
+      />
+
+      <AddPlatformDialog
+        open={addPlatformOpen}
+        onOpenChange={setAddPlatformOpen}
+        onCreated={(p) => set('platform', p.name)}
       />
     </>
   );

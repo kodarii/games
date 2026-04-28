@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { auth } from './infrastructure/auth/auth';
 import { games } from './routes/games';
+import { platforms } from './routes/platforms';
 import { type AuthVariables, requireAuth } from './routes/middleware/require-auth';
 
 const app = new Hono<{ Variables: AuthVariables }>();
@@ -28,6 +29,9 @@ app.on(['POST', 'GET'], '/api/auth/**', (c) => auth.handler(c.req.raw));
 
 app.use('/api/games/*', requireAuth);
 app.route('/api/games', games);
+
+app.use('/api/platforms/*', requireAuth);
+app.route('/api/platforms', platforms);
 
 const port = Number(process.env.PORT ?? 3001);
 

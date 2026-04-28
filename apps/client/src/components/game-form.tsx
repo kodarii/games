@@ -1,3 +1,4 @@
+import { AddPlatformDialog } from '@/components/add-platform-dialog';
 import { Breadcrumb } from '@/components/breadcrumb';
 import { CoverColorPicker } from '@/components/cover-color-picker';
 import { FormField, FormFieldRow } from '@/components/form-field';
@@ -8,13 +9,14 @@ import { Icon } from '@/components/icons';
 import { PageHeader } from '@/components/page-header';
 import { PillSelect } from '@/components/pill-select';
 import { SectionHeader } from '@/components/section-header';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import type { CreateGameInput, UpdateGameInput } from '@/lib/api';
 import { COVER_COLORS, coverColorFor } from '@/lib/avatar';
-import { useCreateGameMutation, useUpdateGameMutation } from '@/lib/queries';
-import type { Game, GameFormat, GamePlatform, GameStatus } from '@/types';
+import { useCreateGameMutation, usePlatformsQuery, useUpdateGameMutation } from '@/lib/queries';
+import type { Game, GameFormat, GameStatus, Platform } from '@/types';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -25,7 +27,7 @@ type FormState = {
   developer: string;
   genre: string;
   releaseYear: string;
-  platform: GamePlatform | '';
+  platform: string;
   edition: string;
   hoursPlayed: string;
   status: GameStatus;
@@ -64,8 +66,6 @@ function gameToFormState(g: Game): FormState {
   };
 }
 
-const PLATFORMS: GamePlatform[] = ['PS5', 'PS4', 'PS3', 'PC', 'Xbox', 'Switch'];
-
 const STATUS_OPTS = [
   { value: 'Playing' as const, color: '#4F6EF7' },
   { value: 'Wishlist' as const, color: '#4F6EF7' },
@@ -91,8 +91,10 @@ export function GameForm({
   const [form, setForm] = useState<FormState>(() =>
     initialGame ? gameToFormState(initialGame) : EMPTY,
   );
+  const [addPlatformOpen, setAddPlatformOpen] = useState(false);
   const createMutation = useCreateGameMutation();
   const updateMutation = useUpdateGameMutation();
+  const { data: platforms = [], isLoading: platformsLoading } = usePlatformsQuery();
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -105,7 +107,7 @@ export function GameForm({
       developer: form.developer.trim(),
       genre: form.genre.trim() || '',
       releaseYear: Number(form.releaseYear) || new Date().getFullYear(),
-      platform: form.platform as GamePlatform,
+      platform: form.platform,
       edition: form.edition.trim() || undefined,
       hoursPlayed: Number(form.hoursPlayed) || 0,
       status: form.status,
@@ -215,17 +217,45 @@ export function GameForm({
                 <SectionHeader title="Platform" description="Where you play this game." />
                 <FormFieldRow cols={3}>
                   <FormField label="Platform" required>
-                    <Select
-                      value={form.platform}
-                      onChange={(e) => set('platform', e.target.value as GamePlatform | '')}
-                    >
-                      <option value="">Select platform</option>
-                      {PLATFORMS.map((p) => (
-                        <option key={p} value={p}>
-                          {p}
-                        </option>
-                      ))}
-                    </Select>
+                    {platformsLoading ? (
+                      <Select disabled value="">
+                        <option value="">Loading…</option>
+                      </Select>
+                    ) : platforms.length === 0 ? (
+                      <div className="flex flex-col gap-2 rounded-[7px] border border-apex-line-1 bg-white px-3 py-3">
+                        <span className="text-[12px] text-apex-muted">No platforms — add one first</span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setAddPlatformOpen(true)}
+                        >
+                          <Icon.plus size={12} />
+                          Add platform
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <Select
+                          value={form.platform}
+                          onChange={(e) => set('platform', e.target.value)}
+                        >
+                          <option value="">Select platform</option>
+                          {platforms.map((p) => (
+                            <option key={p.id} value={p.name}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </Select>
+                        <button
+                          type="button"
+                          onClick={() => setAddPlatformOpen(true)}
+                          className="mt-1 text-[11px] text-apex-accent hover:underline"
+                        >
+                          + Add platform
+                        </button>
+                      </>
+                    )}
                   </FormField>
                   <FormField label="Edition">
                     <Input
@@ -290,6 +320,12 @@ export function GameForm({
         </FormSubmitButton>
       </FormFooter>
       {errorMessage && <div className="px-6 pb-4 text-sm text-red-600">{errorMessage}</div>}
+
+      <AddPlatformDialog
+        open={addPlatformOpen}
+        onOpenChange={setAddPlatformOpen}
+        onCreated={(p: Platform) => set('platform', p.name)}
+      />
     </>
   );
 }
