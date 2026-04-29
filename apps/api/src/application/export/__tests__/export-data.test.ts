@@ -21,6 +21,9 @@ class FakeGameRepository implements GameRepository {
   async findById(_id: number): Promise<Game | null> {
     throw new Error('not used in this test');
   }
+  async findByExternalId(_userId: string, _externalId: string): Promise<Game | null> {
+    throw new Error('not used in this test');
+  }
   async create(_game: NewGame): Promise<Game> {
     throw new Error('not used in this test');
   }
@@ -48,6 +51,9 @@ class FakePlatformRepository implements PlatformRepository {
   async findByName(_userId: string, _name: string): Promise<Platform | null> {
     throw new Error('not used in this test');
   }
+  async findByExternalId(_userId: string, _externalId: string): Promise<Platform | null> {
+    throw new Error('not used in this test');
+  }
   async create(_platform: NewPlatform): Promise<Platform> {
     throw new Error('not used in this test');
   }
@@ -72,6 +78,7 @@ function makeGame(overrides: {
 }): Game {
   return Game.fromPersistence({
     id: overrides.id,
+    externalId: `ext-game-${overrides.id}`,
     userId: overrides.userId,
     title: overrides.title,
     developer: overrides.developer ?? 'Dev',
@@ -87,7 +94,7 @@ function makeGame(overrides: {
 }
 
 function makePlatform(id: number, userId: string, name: string): Platform {
-  return Platform.fromPersistence({ id, userId, name });
+  return Platform.fromPersistence({ id, externalId: `ext-platform-${id}`, userId, name });
 }
 
 const NOW = new Date('2026-01-15T10:00:00.000Z');
@@ -96,7 +103,7 @@ describe('toSnapshot', () => {
   it('returns empty snapshot for no games and no platforms', () => {
     const snapshot = toSnapshot([], [], NOW);
     expect(snapshot).toEqual({
-      version: 1,
+      version: 2,
       exportedAt: '2026-01-15T10:00:00.000Z',
       platforms: [],
       games: [],
@@ -192,9 +199,9 @@ describe('ExportData', () => {
 
     const snapshot = await useCase.execute('u1', NOW);
 
-    expect(snapshot.version).toBe(1);
+    expect(snapshot.version).toBe(2);
     expect(snapshot.exportedAt).toBe('2026-01-15T10:00:00.000Z');
-    expect(snapshot.platforms).toEqual([{ name: 'PC' }]);
+    expect(snapshot.platforms).toEqual([{ externalId: 'ext-platform-1', name: 'PC' }]);
     expect(snapshot.games).toHaveLength(2);
     expect(snapshot.games.map((g) => g.title)).toEqual(['GameA', 'GameB']);
   });

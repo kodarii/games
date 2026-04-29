@@ -1,13 +1,15 @@
 import type { Game } from '../../domain/games/game';
 import type { Platform } from '../../domain/platforms/platform';
 
-export const EXPORT_SCHEMA_VERSION = 1 as const;
+export const EXPORT_SCHEMA_VERSION = 2 as const;
 
 export interface ExportedPlatform {
+  externalId: string;
   name: string;
 }
 
 export interface ExportedGame {
+  externalId: string;
   title: string;
   developer: string;
   genre: string;
@@ -30,7 +32,7 @@ export interface ExportSnapshot {
 export function toSnapshot(games: Game[], platforms: Platform[], now: Date): ExportSnapshot {
   const sortedPlatforms = [...platforms]
     .sort((a, b) => a.name.localeCompare(b.name))
-    .map<ExportedPlatform>((p) => ({ name: p.name }));
+    .map<ExportedPlatform>((p) => ({ externalId: p.externalId, name: p.name }));
 
   const sortedGames = [...games]
     .sort((a, b) => {
@@ -39,6 +41,7 @@ export function toSnapshot(games: Game[], platforms: Platform[], now: Date): Exp
       return a.releaseYear.value - b.releaseYear.value;
     })
     .map<ExportedGame>((g) => ({
+      externalId: g.externalId,
       title: g.title,
       developer: g.developer,
       genre: g.genre,
