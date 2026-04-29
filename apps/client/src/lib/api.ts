@@ -1,3 +1,4 @@
+import type { ImportMode, ImportReport } from '@apex/shared';
 import type { Game, GameFormat, GamePlatform, GameStatus, GamesResponse, Platform } from '@/types';
 
 export async function fetchGames(params: URLSearchParams): Promise<GamesResponse> {
@@ -99,6 +100,23 @@ export async function deletePlatform(id: number): Promise<Platform> {
   if (!r.ok) {
     const body = await r.json().catch(() => ({}));
     const e = new Error(body?.error ?? `Failed to delete platform: ${r.status}`);
+    (e as any).status = r.status;
+    (e as any).body = body;
+    throw e;
+  }
+  return r.json();
+}
+
+export async function importData(snapshot: unknown, mode: ImportMode): Promise<ImportReport> {
+  const r = await fetch('/api/import', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode, snapshot }),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    const e = new Error(body?.error ?? `Failed to import: ${r.status}`);
     (e as any).status = r.status;
     (e as any).body = body;
     throw e;

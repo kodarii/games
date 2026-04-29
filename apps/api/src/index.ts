@@ -4,6 +4,7 @@ import { logger } from 'hono/logger';
 import { auth } from './infrastructure/auth/auth';
 import { exportRoute } from './routes/export';
 import { games } from './routes/games';
+import { importRoute } from './routes/import';
 import { platforms } from './routes/platforms';
 import { type AuthVariables, requireAuth } from './routes/middleware/require-auth';
 
@@ -36,6 +37,9 @@ app.route('/api/platforms', platforms);
 
 app.use('/api/export/*', requireAuth);
 app.route('/api/export', exportRoute);
+
+app.use('/api/import/*', requireAuth);
+app.route('/api/import', importRoute);
 
 const port = Number(process.env.PORT ?? 3001);
 

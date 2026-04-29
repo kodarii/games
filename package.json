@@ -2,7 +2,7 @@
   "name": "apex",
   "private": true,
   "type": "module",
-  "workspaces": ["apps/*"],
+  "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "dev": "bun run --filter '*' dev",
     "dev:api": "bun run --cwd apps/api dev",

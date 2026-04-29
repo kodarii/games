@@ -25,41 +25,43 @@ const bottomNav: NavEntry[] = [
 function NavRow({ entry }: { entry: NavEntry }) {
   const Svg = Icon[entry.icon];
   return (
-    <NavLink
-      to={entry.to}
-      className={({ isActive }) =>
-        cn(
-          'mx-[6px] flex items-center gap-[10px] rounded-[7px] px-4 py-[10px] text-[13.5px] transition-colors select-none',
-          isActive
-            ? 'bg-[oklch(95%_0.02_220)] font-semibold text-apex-accent'
-            : 'text-apex-ink-3 hover:bg-apex-surface-hover hover:text-apex-ink',
-        )
-      }
-    >
-      {({ isActive }) => (
-        <>
-          <span
-            className={cn(
-              'flex h-[17px] w-[17px] shrink-0 items-center justify-center',
-              isActive ? 'text-apex-accent' : 'opacity-55',
-            )}
-          >
-            <Svg size={14} />
-          </span>
-          <span className="flex-1">{entry.label}</span>
-          {entry.addTo && (
-            <Link
-              to={entry.addTo}
-              onClick={(e) => e.stopPropagation()}
-              className="ml-auto flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[4px] bg-apex-accent text-white transition-colors hover:bg-apex-accent/90"
-              aria-label="Add new"
+    <div className="relative mx-[6px]">
+      <NavLink
+        to={entry.to}
+        className={({ isActive }) =>
+          cn(
+            'flex items-center gap-[10px] rounded-[7px] px-4 py-[10px] text-[13.5px] transition-colors select-none',
+            isActive
+              ? 'bg-[oklch(95%_0.02_220)] font-semibold text-apex-accent'
+              : 'text-apex-ink-3 hover:bg-apex-surface-hover hover:text-apex-ink',
+          )
+        }
+      >
+        {({ isActive }) => (
+          <>
+            <span
+              className={cn(
+                'flex h-[17px] w-[17px] shrink-0 items-center justify-center',
+                isActive ? 'text-apex-accent' : 'opacity-55',
+              )}
             >
-              <Icon.plus size={11} />
-            </Link>
-          )}
-        </>
+              <Svg size={14} />
+            </span>
+            <span className="flex-1">{entry.label}</span>
+            {entry.addTo && <span className="w-[18px] shrink-0" />}
+          </>
+        )}
+      </NavLink>
+      {entry.addTo && (
+        <Link
+          to={entry.addTo}
+          className="absolute right-4 top-1/2 flex h-[18px] w-[18px] -translate-y-1/2 shrink-0 items-center justify-center rounded-[4px] bg-apex-accent text-white transition-colors hover:bg-apex-accent/90"
+          aria-label="Add new"
+        >
+          <Icon.plus size={11} />
+        </Link>
       )}
-    </NavLink>
+    </div>
   );
 }
 

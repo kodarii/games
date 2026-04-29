@@ -21,36 +21,39 @@ import {
 } from 'react-router-dom';
 import './index.css';
 
-const router = createBrowserRouter([
-  {
-    element: <AuthLayout />,
-    children: [
-      { path: '/login', element: <LoginPage /> },
-      { path: '/register', element: <RegisterPage /> },
-    ],
-  },
-  {
-    element: <ProtectedRoute />,
-    children: [
-      {
-        path: '/',
-        element: <AppLayout />,
-        children: [
-          { index: true, element: <Navigate to="/games" replace /> },
-          { path: 'games', element: <GamesPage /> },
-          { path: 'games/new', element: <GameNewPage /> },
-          { path: 'games/:id', element: <GameViewPage /> },
-          { path: 'games/:id/edit', element: <GameEditPage /> },
-          { path: 'settings', element: <Placeholder title="Settings" /> },
-          { path: 'support', element: <Placeholder title="Support" /> },
-          { path: 'data', element: <DataPage /> },
-          { path: 'dictionaries', element: <DictionariesPage /> },
-          { path: 'dictionaries/platforms', element: <DictionariesPlatformsPage /> },
-        ],
-      },
-    ],
-  },
-]);
+const router = createBrowserRouter(
+  [
+    {
+      element: <AuthLayout />,
+      children: [
+        { path: '/login', element: <LoginPage /> },
+        { path: '/register', element: <RegisterPage /> },
+      ],
+    },
+    {
+      element: <ProtectedRoute />,
+      children: [
+        {
+          path: '/',
+          element: <AppLayout />,
+          children: [
+            { index: true, element: <Navigate to="/games" replace /> },
+            { path: 'games', element: <GamesPage /> },
+            { path: 'games/new', element: <GameNewPage /> },
+            { path: 'games/:id', element: <GameViewPage /> },
+            { path: 'games/:id/edit', element: <GameEditPage /> },
+            { path: 'settings', element: <Placeholder title="Settings" /> },
+            { path: 'support', element: <Placeholder title="Support" /> },
+            { path: 'data', element: <DataPage /> },
+            { path: 'dictionaries', element: <DictionariesPage /> },
+            { path: 'dictionaries/platforms', element: <DictionariesPlatformsPage /> },
+          ],
+        },
+      ],
+    },
+  ],
+  { future: { v7_startTransition: true } },
+);
 
 function Placeholder({ title }: { title: string }) {
   return (

@@ -11,6 +11,7 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
+    "@apex/shared": "workspace:*",
     "better-auth": "^1.6.9",
     "better-sqlite3": "^12.9.0",
     "drizzle-orm": "^0.45.2",
