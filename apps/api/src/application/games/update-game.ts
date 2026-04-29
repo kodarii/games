@@ -18,8 +18,10 @@ const UpdateGameInputSchema = z.object({
   platform: z.string().min(1),
   edition: z.string().optional().default(''),
   hoursPlayed: z.coerce.number().min(0).default(0),
-  status: z.enum(['Playing', 'Completed', 'Backlog', 'Dropped', 'Wishlist']).default('Backlog'),
-  format: z.enum(['physical', 'digital']).default('digital'),
+  status: z
+    .enum(['Playing', 'Completed', 'Backlog', 'Dropped', 'Wishlist'])
+    .default('Backlog'),
+  format: z.enum(['physical', 'digital']).default('physical'),
   coverColor: z
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/)
@@ -39,7 +41,11 @@ export class UpdateGame {
     private readonly platformRepo: PlatformRepository,
   ) {}
 
-  async execute(id: number, input: unknown, userId: string): Promise<Result<Game, UpdateGameError>> {
+  async execute(
+    id: number,
+    input: unknown,
+    userId: string,
+  ): Promise<Result<Game, UpdateGameError>> {
     const parsed = UpdateGameInputSchema.safeParse(input);
     if (!parsed.success) {
       return err({ kind: 'invalid_input', issues: parsed.error.issues });
@@ -54,7 +60,10 @@ export class UpdateGame {
 
     const platform = await this.platformRepo.findByName(userId, data.platform);
     if (!platform) {
-      return err({ kind: 'domain', error: { kind: 'platform_invalid', value: data.platform } });
+      return err({
+        kind: 'domain',
+        error: { kind: 'platform_invalid', value: data.platform },
+      });
     }
 
     const props: GameProps = {

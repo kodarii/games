@@ -64,7 +64,7 @@ export function GamesPage() {
       {/* Top bar */}
       <div className="flex h-[63px] shrink-0 items-center gap-3 border-b border-apex-line-3 bg-white px-4 lg:px-5">
         <div className="flex shrink-0 items-center gap-[10px]">
-          <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] bg-apex-ink">
+          <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] bg-apex-ink text-white">
             <Icon.gamepad size={15} className="text-white" />
           </span>
           <span className="text-[15px] font-bold text-apex-ink">Games</span>
