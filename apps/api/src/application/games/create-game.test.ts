@@ -7,6 +7,7 @@ import { CreateGame } from './create-game';
 
 class FakeGameRepository implements GameRepository {
   list = async () => ({ items: [], total: 0 });
+  listAll = async (): Promise<Game[]> => [];
   findById = async () => null;
   delete = async () => null;
   update = async () => null;

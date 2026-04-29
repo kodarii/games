@@ -16,6 +16,7 @@ export interface ListGamesResult {
 
 export interface GameRepository {
   list(query: ListGamesQuery): Promise<ListGamesResult>;
+  listAll(userId: string): Promise<Game[]>;
   findById(id: number): Promise<Game | null>;
   create(game: NewGame): Promise<Game>;
   update(id: number, game: GameUpdate): Promise<Game | null>;

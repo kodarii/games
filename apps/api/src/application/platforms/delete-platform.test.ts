@@ -49,6 +49,10 @@ class FakeGameRepository implements GameRepository {
     return { items: [], total: 0 };
   }
 
+  async listAll(_userId: string): Promise<Game[]> {
+    return [];
+  }
+
   async findById(id: number): Promise<Game | null> {
     return this.store.get(id) ?? null;
   }

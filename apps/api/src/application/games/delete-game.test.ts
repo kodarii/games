@@ -7,6 +7,7 @@ class FakeGameRepository implements GameRepository {
   private games = new Map<number, Game>();
 
   list = async () => ({ items: [], total: 0 });
+  listAll = async (): Promise<Game[]> => [];
   create = async (g: GameUpdate) => {
     return Game.fromPersistence({
       id: Date.now(),

@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { auth } from './infrastructure/auth/auth';
+import { exportRoute } from './routes/export';
 import { games } from './routes/games';
 import { platforms } from './routes/platforms';
 import { type AuthVariables, requireAuth } from './routes/middleware/require-auth';
@@ -32,6 +33,9 @@ app.route('/api/games', games);
 
 app.use('/api/platforms/*', requireAuth);
 app.route('/api/platforms', platforms);
+
+app.use('/api/export/*', requireAuth);
+app.route('/api/export', exportRoute);
 
 const port = Number(process.env.PORT ?? 3001);
 

@@ -25,6 +25,7 @@ class FakeGameRepository implements GameRepository {
     throw new Error('not implemented');
   };
   countByPlatform = async (): Promise<number> => 0;
+  listAll = async (): Promise<Game[]> => [];
 }
 
 function makeGames(count: number, userId = 'user-A'): Game[] {
