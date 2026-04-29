@@ -213,7 +213,8 @@ export function GameViewPage() {
   const [editMode, setEditMode] = useState(false);
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [addPlatformOpen, setAddPlatformOpen] = useState(false);
-  const { data: platforms = [], isLoading: platformsLoading } = usePlatformsQuery();
+  const { data: platforms = [], isLoading: platformsLoading } =
+    usePlatformsQuery();
 
   const set = <K extends keyof DraftState>(k: K, v: DraftState[K]) =>
     setDraft((d) => (d ? { ...d, [k]: v } : d));
@@ -290,7 +291,7 @@ export function GameViewPage() {
       <div className="flex h-[63px] flex-shrink-0 items-center justify-between border-b border-[#eee] bg-white px-4 lg:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <div
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg"
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-white"
             style={{ background: liveCoverColor }}
           >
             <Icon.gamepad size={15} className="text-white/90" />
@@ -430,8 +431,14 @@ export function GameViewPage() {
                       </Select>
                     ) : platforms.length === 0 ? (
                       <div className="flex flex-col gap-2 rounded-[7px] border border-apex-line-1 bg-white px-3 py-3">
-                        <span className="text-[12px] text-apex-muted">No platforms — add one first</span>
-                        <Button variant="outline" size="sm" onClick={() => setAddPlatformOpen(true)}>
+                        <span className="text-[12px] text-apex-muted">
+                          No platforms — add one first
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setAddPlatformOpen(true)}
+                        >
                           <Icon.plus size={12} />
                           Add platform
                         </Button>
@@ -465,7 +472,7 @@ export function GameViewPage() {
                     editMode={editMode}
                   >
                     <Select
-                      value={draft?.format ?? 'digital'}
+                      value={draft?.format ?? 'physical'}
                       onChange={(e) =>
                         set('format', e.target.value as GameFormat)
                       }

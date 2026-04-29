@@ -21,7 +21,7 @@ const CreateGameInputSchema = z.object({
   status: z
     .enum(['Playing', 'Completed', 'Backlog', 'Dropped', 'Wishlist'])
     .default('Backlog'),
-  format: z.enum(['physical', 'digital']).default('digital'),
+  format: z.enum(['physical', 'digital']).default('physical'),
   coverColor: z
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/)
@@ -54,7 +54,10 @@ export class CreateGame {
 
     const platform = await this.platformRepo.findByName(userId, data.platform);
     if (!platform) {
-      return err({ kind: 'domain', error: { kind: 'platform_invalid', value: data.platform } });
+      return err({
+        kind: 'domain',
+        error: { kind: 'platform_invalid', value: data.platform },
+      });
     }
 
     const props: GameProps = {
