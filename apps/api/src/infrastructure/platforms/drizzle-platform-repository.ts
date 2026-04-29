@@ -9,6 +9,7 @@ export class DrizzlePlatformRepository implements PlatformRepository {
   private mapRowToPlatform(row: PlatformRow): Platform {
     return Platform.fromPersistence({
       id: row.id,
+      externalId: row.externalId,
       userId: row.userId,
       name: row.name,
     });
@@ -41,10 +42,19 @@ export class DrizzlePlatformRepository implements PlatformRepository {
     return row ? this.mapRowToPlatform(row) : null;
   }
 
+  async findByExternalId(userId: string, externalId: string): Promise<Platform | null> {
+    const [row] = await db
+      .select()
+      .from(platformsTable)
+      .where(and(eq(platformsTable.userId, userId), eq(platformsTable.externalId, externalId)))
+      .limit(1);
+    return row ? this.mapRowToPlatform(row) : null;
+  }
+
   async create(newPlatform: NewPlatform): Promise<Platform> {
     const [inserted] = await db
       .insert(platformsTable)
-      .values({ userId: newPlatform.userId, name: newPlatform.name })
+      .values({ externalId: newPlatform.externalId, userId: newPlatform.userId, name: newPlatform.name })
       .returning();
     return this.mapRowToPlatform(inserted);
   }

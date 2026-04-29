@@ -105,3 +105,15 @@ export async function deletePlatform(id: number): Promise<Platform> {
   }
   return r.json();
 }
+
+export async function exportData(): Promise<{ blob: Blob; filename: string }> {
+  const r = await fetch('/api/export', { credentials: 'include' });
+  if (!r.ok) {
+    throw new Error(`Failed to export: ${r.status}`);
+  }
+  const blob = await r.blob();
+  const cd = r.headers.get('Content-Disposition') ?? '';
+  const match = cd.match(/filename="([^"]+)"/);
+  const filename = match?.[1] ?? 'apex-export.json';
+  return { blob, filename };
+}

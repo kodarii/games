@@ -64,6 +64,7 @@ export class HoursPlayed {
 
 export class NewGame {
   private constructor(
+    private readonly _externalId: string,
     private readonly _userId: string,
     private readonly _title: string,
     private readonly _developer: string,
@@ -77,7 +78,10 @@ export class NewGame {
     private readonly _coverColor: string | undefined,
   ) {}
 
-  static create(props: GameProps): Result<NewGame, GameValidationError> {
+  static create(
+    props: GameProps,
+    idGenerator: () => string = () => crypto.randomUUID(),
+  ): Result<NewGame, GameValidationError> {
     if (!props.userId || !props.userId.trim()) {
       return err({ kind: 'missing_user_id' });
     }
@@ -118,9 +122,11 @@ export class NewGame {
     const genre = props.genre.trim();
     const edition = props.edition?.trim() || undefined;
     const coverColor = props.coverColor?.trim() || undefined;
+    const externalId = idGenerator();
 
     return ok(
       new NewGame(
+        externalId,
         props.userId.trim(),
         trimmedTitle,
         trimmedDeveloper,
@@ -136,6 +142,9 @@ export class NewGame {
     );
   }
 
+  get externalId(): string {
+    return this._externalId;
+  }
   get userId() {
     return this._userId;
   }
@@ -176,6 +185,7 @@ export type GameUpdate = NewGame;
 export class Game {
   private constructor(
     private readonly _id: number,
+    private readonly _externalId: string,
     private readonly _userId: string,
     private readonly _title: string,
     private readonly _developer: string,
@@ -191,6 +201,7 @@ export class Game {
 
   static fromPersistence(row: {
     id: number;
+    externalId: string;
     userId: string;
     title: string;
     developer: string;
@@ -203,8 +214,12 @@ export class Game {
     format: GameFormat;
     coverColor?: string | null;
   }): Game {
+    if (!row.externalId) {
+      throw new Error(`Game row ${row.id} has null externalId — run backfill first`);
+    }
     return new Game(
       row.id,
+      row.externalId,
       row.userId,
       row.title,
       row.developer,
@@ -221,6 +236,9 @@ export class Game {
 
   get id() {
     return this._id;
+  }
+  get externalId(): string {
+    return this._externalId;
   }
   get userId() {
     return this._userId;
@@ -259,6 +277,7 @@ export class Game {
   toJSON() {
     return {
       id: this._id,
+      externalId: this._externalId,
       userId: this._userId,
       title: this._title,
       developer: this._developer,

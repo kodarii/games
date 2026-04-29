@@ -15,6 +15,9 @@ class FakeGameRepository implements GameRepository {
   findById = async (): Promise<Game | null> => {
     throw new Error('not implemented');
   };
+  findByExternalId = async (): Promise<Game | null> => {
+    throw new Error('not implemented');
+  };
   create = async (_g: GameUpdate): Promise<Game> => {
     throw new Error('not implemented');
   };
@@ -25,12 +28,14 @@ class FakeGameRepository implements GameRepository {
     throw new Error('not implemented');
   };
   countByPlatform = async (): Promise<number> => 0;
+  listAll = async (): Promise<Game[]> => [];
 }
 
 function makeGames(count: number, userId = 'user-A'): Game[] {
   return Array.from({ length: count }, (_, i) =>
     Game.fromPersistence({
       id: i + 1,
+      externalId: `ext-game-${i + 1}`,
       userId,
       title: `Game ${i + 1}`,
       developer: 'Dev',

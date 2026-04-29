@@ -36,6 +36,20 @@
       "when": 1777381336452,
       "tag": "0004_neat_riptide",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1777490521786,
+      "tag": "0005_icy_the_renegades",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1777490564981,
+      "tag": "0006_heavy_joseph",
+      "breakpoints": true
     }
   ]
 }

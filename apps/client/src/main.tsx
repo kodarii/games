@@ -2,6 +2,7 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 import { AppLayout } from '@/components/layout/app-layout';
 import { AuthLayout } from '@/components/layout/auth-layout';
 import { queryClient } from '@/lib/query-client';
+import { DataPage } from '@/pages/data';
 import { DictionariesPage } from '@/pages/dictionaries';
 import { DictionariesPlatformsPage } from '@/pages/dictionaries-platforms';
 import { GameEditPage } from '@/pages/game-edit';
@@ -42,6 +43,7 @@ const router = createBrowserRouter([
           { path: 'games/:id/edit', element: <GameEditPage /> },
           { path: 'settings', element: <Placeholder title="Settings" /> },
           { path: 'support', element: <Placeholder title="Support" /> },
+          { path: 'data', element: <DataPage /> },
           { path: 'dictionaries', element: <DictionariesPage /> },
           { path: 'dictionaries/platforms', element: <DictionariesPlatformsPage /> },
         ],

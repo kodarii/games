@@ -7,9 +7,12 @@ class FakeGameRepository implements GameRepository {
   private games = new Map<number, Game>();
 
   list = async () => ({ items: [], total: 0 });
+  listAll = async (): Promise<Game[]> => [];
+  findByExternalId = async (): Promise<Game | null> => null;
   create = async (g: GameUpdate) => {
     return Game.fromPersistence({
       id: Date.now(),
+      externalId: g.externalId,
       userId: g.userId,
       title: g.title,
       developer: g.developer,
@@ -27,6 +30,7 @@ class FakeGameRepository implements GameRepository {
     if (!existing) return null;
     const updated = Game.fromPersistence({
       id: existing.id,
+      externalId: existing.externalId,
       userId: game.userId,
       title: game.title,
       developer: game.developer,
@@ -64,6 +68,7 @@ class FakeGameRepository implements GameRepository {
 
 const existingGame = Game.fromPersistence({
   id: 1,
+  externalId: 'ext-game-1',
   userId: 'user-A',
   title: 'Dark Souls',
   developer: 'FromSoftware',

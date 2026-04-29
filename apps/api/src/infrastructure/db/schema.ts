@@ -18,9 +18,13 @@ export const games = sqliteTable(
     status: text('status').notNull().default('Backlog'),
     format: text('format').notNull().default('digital'),
     coverColor: text('cover_color'),
+    externalId: text('external_id').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   },
-  (table) => [index('games_user_id_idx').on(table.userId)],
+  (table) => [
+    index('games_user_id_idx').on(table.userId),
+    uniqueIndex('games_user_id_external_id_unq').on(table.userId, table.externalId),
+  ],
 );
 
 export type GameRow = typeof games.$inferSelect;
@@ -34,11 +38,13 @@ export const platforms = sqliteTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
+    externalId: text('external_id').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   },
   (table) => [
     index('platforms_user_id_idx').on(table.userId),
     uniqueIndex('platforms_user_id_name_unq').on(table.userId, table.name),
+    uniqueIndex('platforms_user_id_external_id_unq').on(table.userId, table.externalId),
   ],
 );
 

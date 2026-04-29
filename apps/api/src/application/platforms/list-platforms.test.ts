@@ -19,8 +19,13 @@ class FakePlatformRepository implements PlatformRepository {
     return [...this.store.values()].find((p) => p.userId === userId && p.name === name) ?? null;
   }
 
+  async findByExternalId(_userId: string, _externalId: string): Promise<Platform | null> {
+    return null;
+  }
+
   async create(np: NewPlatform): Promise<Platform> {
-    const p = Platform.fromPersistence({ id: this.nextId++, userId: np.userId, name: np.name });
+    const p = Platform.fromPersistence({ id: this.nextId, externalId: `ext-p-${this.nextId}`, userId: np.userId, name: np.name });
+    this.nextId++;
     this.store.set(p.id, p);
     return p;
   }
@@ -33,7 +38,8 @@ class FakePlatformRepository implements PlatformRepository {
   }
 
   seed(userId: string, name: string): Platform {
-    const p = Platform.fromPersistence({ id: this.nextId++, userId, name });
+    const p = Platform.fromPersistence({ id: this.nextId, externalId: `ext-p-${this.nextId}`, userId, name });
+    this.nextId++;
     this.store.set(p.id, p);
     return p;
   }
