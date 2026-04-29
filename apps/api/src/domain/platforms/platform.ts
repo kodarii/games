@@ -29,11 +29,15 @@ export class PlatformName {
 
 export class NewPlatform {
   private constructor(
+    private readonly _externalId: string,
     private readonly _userId: string,
     private readonly _name: PlatformName,
   ) {}
 
-  static create(props: PlatformProps): Result<NewPlatform, PlatformValidationError> {
+  static create(
+    props: PlatformProps,
+    idGenerator: () => string = () => crypto.randomUUID(),
+  ): Result<NewPlatform, PlatformValidationError> {
     if (!props.userId || !props.userId.trim()) {
       return err({ kind: 'missing_user_id' });
     }
@@ -43,7 +47,12 @@ export class NewPlatform {
       return nameResult;
     }
 
-    return ok(new NewPlatform(props.userId.trim(), nameResult.value));
+    const externalId = idGenerator();
+    return ok(new NewPlatform(externalId, props.userId.trim(), nameResult.value));
+  }
+
+  get externalId(): string {
+    return this._externalId;
   }
 
   get userId(): string {
@@ -58,16 +67,24 @@ export class NewPlatform {
 export class Platform {
   private constructor(
     private readonly _id: number,
+    private readonly _externalId: string,
     private readonly _userId: string,
     private readonly _name: PlatformName,
   ) {}
 
-  static fromPersistence(row: { id: number; userId: string; name: string }): Platform {
-    return new Platform(row.id, row.userId, PlatformName.fromTrusted(row.name));
+  static fromPersistence(row: { id: number; externalId: string; userId: string; name: string }): Platform {
+    if (!row.externalId) {
+      throw new Error(`Platform row ${row.id} has null externalId — run backfill first`);
+    }
+    return new Platform(row.id, row.externalId, row.userId, PlatformName.fromTrusted(row.name));
   }
 
   get id(): number {
     return this._id;
+  }
+
+  get externalId(): string {
+    return this._externalId;
   }
 
   get userId(): string {
@@ -81,6 +98,7 @@ export class Platform {
   toJSON() {
     return {
       id: this._id,
+      externalId: this._externalId,
       userId: this._userId,
       name: this._name.value,
     };

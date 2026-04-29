@@ -9,6 +9,7 @@ class FakeGameRepository implements GameRepository {
   list = async () => ({ items: [], total: 0 });
   listAll = async (): Promise<Game[]> => [];
   findById = async () => null;
+  findByExternalId = async () => null;
   delete = async () => null;
   update = async () => null;
   countByPlatform = async () => 0;
@@ -16,6 +17,7 @@ class FakeGameRepository implements GameRepository {
   create = async (g: NewGame) => {
     return Game.fromPersistence({
       id: 1,
+      externalId: g.externalId,
       userId: g.userId,
       title: g.title,
       developer: g.developer,
@@ -46,8 +48,13 @@ class FakePlatformRepository implements PlatformRepository {
     return [...this.store.values()].find((p) => p.userId === userId && p.name === name) ?? null;
   }
 
+  async findByExternalId(_userId: string, _externalId: string): Promise<Platform | null> {
+    return null;
+  }
+
   async create(np: NewPlatform): Promise<Platform> {
-    const p = Platform.fromPersistence({ id: this.nextId++, userId: np.userId, name: np.name });
+    const p = Platform.fromPersistence({ id: this.nextId, externalId: `ext-p-${this.nextId}`, userId: np.userId, name: np.name });
+    this.nextId++;
     this.store.set(p.id, p);
     return p;
   }
@@ -60,7 +67,8 @@ class FakePlatformRepository implements PlatformRepository {
   }
 
   seed(userId: string, name: string): void {
-    const p = Platform.fromPersistence({ id: this.nextId++, userId, name });
+    const p = Platform.fromPersistence({ id: this.nextId, externalId: `ext-p-${this.nextId}`, userId, name });
+    this.nextId++;
     this.store.set(p.id, p);
   }
 }

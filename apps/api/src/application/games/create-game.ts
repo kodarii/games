@@ -21,7 +21,7 @@ const CreateGameInputSchema = z.object({
   status: z
     .enum(['Playing', 'Completed', 'Backlog', 'Dropped', 'Wishlist'])
     .default('Backlog'),
-  format: z.enum(['physical', 'digital']).default('physical'),
+  format: z.enum(['physical', 'digital']).default('digital'),
   coverColor: z
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/)

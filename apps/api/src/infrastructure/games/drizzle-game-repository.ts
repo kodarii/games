@@ -19,6 +19,7 @@ export class DrizzleGameRepository implements GameRepository {
   private mapRowToGame(row: GameRow): Game {
     return Game.fromPersistence({
       id: row.id,
+      externalId: row.externalId,
       userId: row.userId,
       title: row.title,
       developer: row.developer,
@@ -87,10 +88,20 @@ export class DrizzleGameRepository implements GameRepository {
     return this.mapRowToGame(result[0]);
   }
 
+  async findByExternalId(userId: string, externalId: string): Promise<Game | null> {
+    const [row] = await db
+      .select()
+      .from(gamesTable)
+      .where(and(eq(gamesTable.userId, userId), eq(gamesTable.externalId, externalId)))
+      .limit(1);
+    return row ? this.mapRowToGame(row) : null;
+  }
+
   async create(newGame: NewGame): Promise<Game> {
     const [inserted] = await db
       .insert(gamesTable)
       .values({
+        externalId: newGame.externalId,
         userId: newGame.userId,
         title: newGame.title,
         developer: newGame.developer,

@@ -82,8 +82,9 @@ describe('NewPlatform.create', () => {
 
 describe('Platform.fromPersistence', () => {
   it('restores from valid row and toJSON returns correct shape', () => {
-    const platform = Platform.fromPersistence({ id: 1, userId: 'user-A', name: 'Wii U' });
+    const platform = Platform.fromPersistence({ id: 1, externalId: 'test-uuid-p1', userId: 'user-A', name: 'Wii U' });
     expect(platform.id).toBe(1);
-    expect(platform.toJSON()).toEqual({ id: 1, userId: 'user-A', name: 'Wii U' });
+    expect(platform.externalId).toBe('test-uuid-p1');
+    expect(platform.toJSON()).toEqual({ id: 1, externalId: 'test-uuid-p1', userId: 'user-A', name: 'Wii U' });
   });
 });

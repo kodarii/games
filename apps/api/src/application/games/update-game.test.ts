@@ -11,10 +11,12 @@ class FakeGameRepository implements GameRepository {
   list = async (_q: ListGamesQuery): Promise<ListGamesResult> => ({ items: [], total: 0 });
   listAll = async (): Promise<Game[]> => [];
   countByPlatform = async () => 0;
+  findByExternalId = async (): Promise<Game | null> => null;
 
   create = async (g: GameUpdate) => {
     return Game.fromPersistence({
       id: Date.now(),
+      externalId: g.externalId,
       userId: g.userId,
       title: g.title,
       developer: g.developer,
@@ -37,6 +39,7 @@ class FakeGameRepository implements GameRepository {
     if (!existing) return null;
     const updated = Game.fromPersistence({
       id: existing.id,
+      externalId: existing.externalId,
       userId: game.userId,
       title: game.title,
       developer: game.developer,
@@ -80,8 +83,13 @@ class FakePlatformRepository implements PlatformRepository {
     return [...this.store.values()].find((p) => p.userId === userId && p.name === name) ?? null;
   }
 
+  async findByExternalId(_userId: string, _externalId: string): Promise<Platform | null> {
+    return null;
+  }
+
   async create(np: NewPlatform): Promise<Platform> {
-    const p = Platform.fromPersistence({ id: this.nextId++, userId: np.userId, name: np.name });
+    const p = Platform.fromPersistence({ id: this.nextId, externalId: `ext-p-${this.nextId}`, userId: np.userId, name: np.name });
+    this.nextId++;
     this.store.set(p.id, p);
     return p;
   }
@@ -94,7 +102,8 @@ class FakePlatformRepository implements PlatformRepository {
   }
 
   seed(userId: string, name: string): void {
-    const p = Platform.fromPersistence({ id: this.nextId++, userId, name });
+    const p = Platform.fromPersistence({ id: this.nextId, externalId: `ext-p-${this.nextId}`, userId, name });
+    this.nextId++;
     this.store.set(p.id, p);
   }
 }
@@ -113,6 +122,7 @@ const validInput = {
 
 const existingGame = Game.fromPersistence({
   id: 1,
+  externalId: 'ext-game-1',
   userId: 'user-A',
   title: 'Dark Souls',
   developer: 'FromSoftware',

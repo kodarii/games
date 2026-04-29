@@ -3,6 +3,7 @@ import { Game, type GameProps, HoursPlayed, NewGame, ReleaseYear } from '../game
 
 const validRow = {
   id: 1,
+  externalId: 'test-uuid-1',
   userId: 'user-123',
   title: 'Elden Ring',
   developer: 'FromSoftware',
@@ -229,6 +230,7 @@ describe('Game.fromPersistence', () => {
     const json = game.toJSON();
     expect(json).toEqual({
       id: 1,
+      externalId: 'test-uuid-1',
       userId: 'user-123',
       title: 'Elden Ring',
       developer: 'FromSoftware',
