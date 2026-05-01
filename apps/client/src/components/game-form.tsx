@@ -6,7 +6,7 @@ import { FormCancelButton, FormFooter, FormSubmitButton } from '@/components/for
 import { GameCover } from '@/components/game-cover';
 import { IconButton } from '@/components/icon-button';
 import { Icon } from '@/components/icons';
-import { PageHeader } from '@/components/page-header';
+import { AppHeader } from '@/components/layout/app-header';
 import { PillSelect } from '@/components/pill-select';
 import { SectionHeader } from '@/components/section-header';
 import { Button } from '@/components/ui/button';
@@ -128,7 +128,7 @@ export function GameForm({
     });
   };
 
-  const headerIcon = isEdit ? <Icon.gamepad size={22} /> : <Icon.plus size={22} />;
+  const headerIcon = isEdit ? <Icon.gamepad size={15} className="text-white" /> : <Icon.plus size={15} className="text-white" />;
   const headerTitle = isEdit ? 'Edit Game' : 'Add New Game';
   const headerDescription = isEdit
     ? 'Update details for this game.'
@@ -139,16 +139,20 @@ export function GameForm({
 
   return (
     <>
-      <PageHeader
-        icon={headerIcon}
-        title={headerTitle}
-        description={headerDescription}
-        actions={
+      <AppHeader>
+        <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] bg-apex-ink text-white">
+          {headerIcon}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[15px] font-bold text-apex-ink">{headerTitle}</div>
+          <div className="text-[12px] text-apex-muted">{headerDescription}</div>
+        </div>
+        <div className="ml-auto flex items-center">
           <IconButton aria-label="Notifications">
             <Icon.bell size={18} />
           </IconButton>
-        }
-      />
+        </div>
+      </AppHeader>
 
       <Breadcrumb items={[{ label: 'Games', to: '/games' }, { label: breadcrumbLast }]} />
 

@@ -1,11 +1,16 @@
 import { Icon } from '@/components/icons';
-import { PageHeader } from '@/components/page-header';
+import { AppHeader } from '@/components/layout/app-header';
 import { Link } from 'react-router-dom';
 
 export function DictionariesPage() {
   return (
     <>
-      <PageHeader icon={<Icon.rows size={20} />} title="Dictionaries" />
+      <AppHeader>
+        <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] bg-apex-ink text-white">
+          <Icon.rows size={15} className="text-white" />
+        </span>
+        <span className="text-[15px] font-bold text-apex-ink">Dictionaries</span>
+      </AppHeader>
       <div className="flex-1 overflow-y-auto bg-[#fafafa] px-5 pb-4 pt-4">
         <div className="max-w-2xl">
           <Link

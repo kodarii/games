@@ -4,7 +4,7 @@ import { DataTable } from '@/components/data-table';
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
 import { platformsColumns } from '@/components/dictionaries-platforms-columns';
 import { Icon } from '@/components/icons';
-import { PageHeader } from '@/components/page-header';
+import { AppHeader } from '@/components/layout/app-header';
 import { Toolbar, ToolbarSpacer } from '@/components/toolbar';
 import { Button } from '@/components/ui/button';
 import { useDeletePlatform, usePlatformsQuery } from '@/lib/queries';
@@ -51,10 +51,12 @@ export function DictionariesPlatformsPage() {
 
   return (
     <>
-      <PageHeader
-        icon={<Icon.zap size={20} />}
-        title="Platforms"
-      />
+      <AppHeader>
+        <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] bg-apex-ink text-white">
+          <Icon.zap size={15} className="text-white" />
+        </span>
+        <span className="text-[15px] font-bold text-apex-ink">Platforms</span>
+      </AppHeader>
       <Breadcrumb
         items={[
           { label: 'Dictionaries', to: '/dictionaries' },
