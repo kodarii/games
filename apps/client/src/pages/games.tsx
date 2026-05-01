@@ -81,7 +81,7 @@ export function GamesPage() {
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           placeholder="Search games..."
-          containerClassName="w-[220px] lg:w-[300px]"
+          containerClassName="order-last w-full md:order-none md:w-[220px] lg:w-[300px]"
         />
 
         <div className="ml-auto flex items-center gap-2">
