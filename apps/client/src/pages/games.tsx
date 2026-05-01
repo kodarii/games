@@ -182,7 +182,7 @@ export function GamesPage() {
             onClick={() => updateUrl({ add: '1' })}
           >
             <Icon.plus size={13} />
-            Add game ++
+            Add game
           </Button>
         </div>
       </div>
