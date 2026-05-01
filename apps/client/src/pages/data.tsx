@@ -2,7 +2,7 @@ import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { Icon } from '@/components/icons';
-import { PageHeader } from '@/components/page-header';
+import { AppHeader } from '@/components/layout/app-header';
 import { useExport } from '@/hooks/use-export';
 import { useImport } from '@/hooks/use-import';
 import type { ImportMode } from '@apex/shared';
@@ -11,7 +11,12 @@ import type { Platform } from '@/types';
 export function DataPage() {
   return (
     <>
-      <PageHeader icon={<Icon.rows size={20} />} title="Data" />
+      <AppHeader>
+        <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] bg-apex-ink text-white">
+          <Icon.rows size={15} className="text-white" />
+        </span>
+        <span className="text-[15px] font-bold text-apex-ink">Data</span>
+      </AppHeader>
       <div className="flex-1 overflow-y-auto bg-[#fafafa] px-5 pb-4 pt-4">
         <div className="grid max-w-4xl grid-cols-1 gap-4 md:grid-cols-2">
           <ExportCard />

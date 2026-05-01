@@ -1,9 +1,19 @@
 import { Icon, type IconName } from '@/components/icons';
+import {
+  Sidebar as ShadcnSidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from '@/components/ui/sidebar';
 import { signOut, useSession } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useQueryClient } from '@tanstack/react-query';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 
 type NavEntry = {
   label: string;
@@ -24,44 +34,50 @@ const bottomNav: NavEntry[] = [
 
 function NavRow({ entry }: { entry: NavEntry }) {
   const Svg = Icon[entry.icon];
+  const { pathname } = useLocation();
+  const active = pathname.startsWith(entry.to);
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const closeMobile = () => {
+    if (isMobile) setOpenMobile(false);
+  };
+
   return (
-    <div className="relative mx-[6px]">
-      <NavLink
-        to={entry.to}
-        className={({ isActive }) =>
-          cn(
-            'flex items-center gap-[10px] rounded-[7px] px-4 py-[10px] text-[13.5px] transition-colors select-none',
-            isActive
-              ? 'bg-[oklch(95%_0.02_220)] font-semibold text-apex-accent'
-              : 'text-apex-ink-3 hover:bg-apex-surface-hover hover:text-apex-ink',
-          )
-        }
-      >
-        {({ isActive }) => (
-          <>
-            <span
-              className={cn(
-                'flex h-[17px] w-[17px] shrink-0 items-center justify-center',
-                isActive ? 'text-apex-accent' : 'opacity-55',
-              )}
-            >
-              <Svg size={14} />
-            </span>
-            <span className="flex-1">{entry.label}</span>
-            {entry.addTo && <span className="w-[18px] shrink-0" />}
-          </>
+    <SidebarMenuItem className="relative mx-[6px]">
+      <SidebarMenuButton
+        asChild
+        isActive={active}
+        className={cn(
+          'h-auto rounded-[7px] px-4 py-[10px] text-[13.5px] select-none',
+          active
+            ? 'bg-[oklch(95%_0.02_220)] font-semibold text-apex-accent'
+            : 'text-apex-ink-3 hover:bg-apex-surface-hover hover:text-apex-ink',
         )}
-      </NavLink>
+      >
+        <NavLink to={entry.to} onClick={closeMobile}>
+          <span
+            className={cn(
+              'flex h-[17px] w-[17px] shrink-0 items-center justify-center',
+              active ? 'text-apex-accent' : 'opacity-55',
+            )}
+          >
+            <Svg size={14} />
+          </span>
+          <span className="flex-1">{entry.label}</span>
+          {entry.addTo && <span className="w-[18px] shrink-0" />}
+        </NavLink>
+      </SidebarMenuButton>
       {entry.addTo && (
         <Link
           to={entry.addTo}
-          className="absolute right-4 top-1/2 flex h-[18px] w-[18px] -translate-y-1/2 shrink-0 items-center justify-center rounded-[4px] bg-apex-accent text-white transition-colors hover:bg-apex-accent/90"
+          onClick={closeMobile}
+          className="absolute right-4 top-1/2 flex h-[18px] w-[18px] -translate-y-1/2 items-center justify-center rounded-[4px] bg-apex-accent text-white hover:bg-apex-accent/90"
           aria-label="Add new"
         >
           <Icon.plus size={11} />
         </Link>
       )}
-    </div>
+    </SidebarMenuItem>
   );
 }
 
@@ -150,37 +166,41 @@ function UserCard() {
 
 export function Sidebar() {
   return (
-    <aside className="relative flex w-[248px] min-w-[248px] flex-col overflow-visible border-r border-apex-line-3 bg-white text-[13.5px]">
-      <div className="flex items-center gap-[10px] border-b border-apex-line-5 px-4 pb-[14px] pt-4">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[7px] bg-apex-ink">
-          <Icon.logoMark size={18} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-[14px] font-semibold leading-[1.25] text-apex-ink">
-            Apex
+    <ShadcnSidebar collapsible="offcanvas">
+      <SidebarHeader className="h-auto border-b border-apex-line-5 px-4 pb-[14px] pt-4">
+        <div className="flex items-center gap-[10px]">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[7px] bg-apex-ink">
+            <Icon.logoMark size={18} />
           </div>
-          <div className="text-[10.5px] leading-[1.3] text-apex-muted">
-            Finance App Technology
+          <div className="min-w-0 flex-1">
+            <div className="text-[14px] font-semibold leading-[1.25] text-apex-ink">
+              Apex
+            </div>
+            <div className="text-[10.5px] leading-[1.3] text-apex-muted">
+              Finance App Technology
+            </div>
           </div>
         </div>
-      </div>
+      </SidebarHeader>
 
-      <SectionLabel>Main</SectionLabel>
-      <nav className="flex flex-col">
-        {mainNav.map((n) => (
-          <NavRow key={n.label} entry={n} />
-        ))}
-      </nav>
+      <SidebarContent>
+        <SectionLabel>Main</SectionLabel>
+        <SidebarMenu>
+          {mainNav.map((n) => (
+            <NavRow key={n.label} entry={n} />
+          ))}
+        </SidebarMenu>
+      </SidebarContent>
 
-      <div className="flex-1" />
-
-      <div className="pb-1">
-        {bottomNav.map((n) => (
-          <NavRow key={n.label} entry={n} />
-        ))}
+      <SidebarFooter className="pb-1">
+        <SidebarMenu>
+          {bottomNav.map((n) => (
+            <NavRow key={n.label} entry={n} />
+          ))}
+        </SidebarMenu>
         <div className="mx-[14px] mb-1 mt-[6px] h-px bg-apex-line-4" />
         <UserCard />
-      </div>
-    </aside>
+      </SidebarFooter>
+    </ShadcnSidebar>
   );
 }

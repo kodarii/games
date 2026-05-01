@@ -1,5 +1,6 @@
 import { DataTable } from '@/components/data-table';
 import { Icon } from '@/components/icons';
+import { AppHeader } from '@/components/layout/app-header';
 import { InfiniteScrollFooter } from '@/components/infinite-scroll-footer';
 import { SearchInput } from '@/components/search-input';
 import { Button } from '@/components/ui/button';
@@ -62,7 +63,7 @@ export function GamesPage() {
   return (
     <>
       {/* Top bar */}
-      <div className="flex h-[63px] shrink-0 items-center gap-3 border-b border-apex-line-3 bg-white px-4 lg:px-5">
+      <AppHeader>
         <div className="flex shrink-0 items-center gap-[10px]">
           <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] bg-apex-ink text-white">
             <Icon.gamepad size={15} className="text-white" />
@@ -185,7 +186,7 @@ export function GamesPage() {
             Add game
           </Button>
         </div>
-      </div>
+      </AppHeader>
 
       {/* Table */}
       <div className="scroll-thin flex-1 overflow-y-auto bg-[#fafafa] px-5 pb-4 pt-4">
