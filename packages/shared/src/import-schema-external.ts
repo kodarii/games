@@ -6,7 +6,7 @@ const HexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 
 export const ImportedGameExternal = z.object({
   title: z.string().min(1),
-  releaseYear: z.number().int().min(1970).max(2100),
+  releaseYear: z.number().int().min(1970).max(2100).nullish(),
   platform: z.string().min(1),
   format: Format,
   coverColor: HexColor.optional(),

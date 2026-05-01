@@ -75,7 +75,7 @@ class FakeGameRepository implements GameRepository {
       title: g.title,
       developer: g.developer,
       genre: g.genre,
-      releaseYear: g.releaseYear.value,
+      releaseYear: g.releaseYear?.value ?? null,
       platform: g.platform,
       edition: g.edition ?? null,
       hoursPlayed: g.hoursPlayed.value,

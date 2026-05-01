@@ -11,7 +11,7 @@ export const games = sqliteTable(
     title: text('title').notNull(),
     developer: text('developer').notNull(),
     genre: text('genre').notNull(),
-    releaseYear: integer('release_year').notNull(),
+    releaseYear: integer('release_year'),
     platform: text('platform').notNull(),
     edition: text('edition'),
     hoursPlayed: integer('hours_played').notNull().default(0),

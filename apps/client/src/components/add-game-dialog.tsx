@@ -54,7 +54,6 @@ export function AddGameDialog() {
         title: title.trim(),
         developer: 'Unknown',
         genre: '',
-        releaseYear: new Date().getFullYear(),
         platform,
         hoursPlayed: 0,
         status: 'Backlog',

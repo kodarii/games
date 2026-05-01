@@ -22,7 +22,7 @@ class FakeGameRepository implements GameRepository {
       title: g.title,
       developer: g.developer,
       genre: g.genre,
-      releaseYear: g.releaseYear.value,
+      releaseYear: g.releaseYear?.value ?? null,
       platform: g.platform,
       edition: g.edition ?? null,
       hoursPlayed: g.hoursPlayed.value,
@@ -158,5 +158,11 @@ describe('CreateGame', () => {
         expect(result.error.error.kind).toBe('platform_invalid');
       }
     }
+  });
+
+  it('creates game without releaseYear', async () => {
+    const { releaseYear: _releaseYear, ...inputWithoutYear } = validInput;
+    const result = await useCase.execute(inputWithoutYear, 'user-A');
+    expect(result.ok).toBe(true);
   });
 });

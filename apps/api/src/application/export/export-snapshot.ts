@@ -13,7 +13,7 @@ export interface ExportedGame {
   title: string;
   developer: string;
   genre: string;
-  releaseYear: number;
+  releaseYear: number | null;
   platform: string;
   hoursPlayed: number;
   status: 'Playing' | 'Completed' | 'Backlog' | 'Dropped' | 'Wishlist';
@@ -38,14 +38,14 @@ export function toSnapshot(games: Game[], platforms: Platform[], now: Date): Exp
     .sort((a, b) => {
       const byTitle = a.title.localeCompare(b.title);
       if (byTitle !== 0) return byTitle;
-      return a.releaseYear.value - b.releaseYear.value;
+      return (a.releaseYear?.value ?? Infinity) - (b.releaseYear?.value ?? Infinity);
     })
     .map<ExportedGame>((g) => ({
       externalId: g.externalId,
       title: g.title,
       developer: g.developer,
       genre: g.genre,
-      releaseYear: g.releaseYear.value,
+      releaseYear: g.releaseYear?.value ?? null,
       platform: g.platform,
       hoursPlayed: g.hoursPlayed.value,
       status: g.status,

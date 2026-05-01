@@ -12,7 +12,7 @@ export function externalToCurrent(
     title: g.title,
     developer: g.developer ?? 'Unknown',
     genre: g.genre ?? '',
-    releaseYear: g.releaseYear,
+    releaseYear: g.releaseYear ?? undefined,
     platform: g.platform,
     hoursPlayed: g.hoursPlayed ?? 0,
     status: g.status ?? ('Backlog' as const),

@@ -79,7 +79,7 @@ export class ImportData {
           title: g.title,
           developer: g.developer,
           genre: g.genre,
-          releaseYear: g.releaseYear,
+          releaseYear: g.releaseYear ?? undefined,
           platform: g.platform,
           hoursPlayed: g.hoursPlayed,
           status: g.status,
