@@ -52,7 +52,7 @@ const router = createBrowserRouter(
       ],
     },
   ],
-  { future: { v7_startTransition: true } },
+  {},
 );
 
 function Placeholder({ title }: { title: string }) {
