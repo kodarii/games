@@ -69,3 +69,11 @@
     border-radius: 4px;
   }
 }
+
+/* Prevent iOS Safari from auto-zooming on input focus (triggered when font-size < 16px).
+   Must be outside @layer so it wins over Tailwind utility classes (text-sm = 14px). */
+@supports (-webkit-touch-callout: none) {
+  input, textarea, select {
+    font-size: max(16px, 1em) !important;
+  }
+}
