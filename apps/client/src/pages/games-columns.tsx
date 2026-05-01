@@ -43,12 +43,14 @@ export const gamesColumns = [
     ),
     meta: { minWidth: 110 },
   }),
-  columnHelper.display({
-    id: 'price',
-    header: 'Price',
-    cell: () => <span className="text-[13px] text-apex-hint">—</span>,
-    enableSorting: false,
-    meta: { minWidth: 100 },
+  columnHelper.accessor('releaseYear', {
+    header: 'Release Year',
+    cell: ({ row }) => (
+      <span className="text-[13px] text-apex-ink">
+        {row.original.releaseYear ?? <span className="text-apex-hint">—</span>}
+      </span>
+    ),
+    meta: { minWidth: 110 },
   }),
   // columnHelper.accessor('status', {
   //   header: 'Status',
