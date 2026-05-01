@@ -17,8 +17,9 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { gamesColumns } from './games-columns';
 import { GamesGrid } from './games-grid';
+import { GamesMobileList } from './games-mobile-list';
 
-const PER_PAGE = 7;
+const PER_PAGE = 10;
 
 export function GamesPage() {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -84,7 +85,7 @@ export function GamesPage() {
         />
 
         <div className="ml-auto flex items-center gap-2">
-          <div className="flex overflow-hidden rounded-[7px] border border-[#eee]">
+          <div className="hidden md:flex overflow-hidden rounded-[7px] border border-[#eee]">
             <button
               type="button"
               onClick={() => setViewMode('list')}
@@ -190,15 +191,23 @@ export function GamesPage() {
 
       {/* Table */}
       <div className="scroll-thin flex-1 overflow-y-auto bg-[#fafafa] px-5 pb-4 pt-4">
-        {viewMode === 'grid' ? (
-          <GamesGrid items={items} />
-        ) : (
-          <DataTable
-            table={table}
-            variant="cards"
-            onRowClick={(row) => navigate(`/games/${row.original.id}`)}
-          />
-        )}
+        {/* Mobile: always expandable cards */}
+        <div className="md:hidden">
+          <GamesMobileList items={items} />
+        </div>
+
+        {/* Desktop: grid or list unchanged */}
+        <div className="hidden md:block">
+          {viewMode === 'grid' ? (
+            <GamesGrid items={items} />
+          ) : (
+            <DataTable
+              table={table}
+              variant="cards"
+              onRowClick={(row) => navigate(`/games/${row.original.id}`)}
+            />
+          )}
+        </div>
         <InfiniteScrollFooter
           isLoading={isLoading}
           isFetchingNextPage={isFetchingNextPage}
