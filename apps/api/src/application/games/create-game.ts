@@ -14,7 +14,7 @@ const CreateGameInputSchema = z.object({
   title: z.string().min(1),
   developer: z.string().min(1),
   genre: z.string().optional().default(''),
-  releaseYear: z.coerce.number().min(1970).max(2100),
+  releaseYear: z.coerce.number().int().min(1970).max(2100).optional(),
   platform: z.string().min(1),
   edition: z.string().optional().default(''),
   hoursPlayed: z.coerce.number().min(0).default(0),

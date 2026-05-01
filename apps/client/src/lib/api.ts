@@ -21,7 +21,7 @@ export interface CreateGameInput {
   title: string;
   developer: string;
   genre: string;
-  releaseYear: number;
+  releaseYear?: number;
   platform: GamePlatform;
   edition?: string;
   hoursPlayed: number;

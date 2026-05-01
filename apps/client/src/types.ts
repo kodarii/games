@@ -8,7 +8,7 @@ export interface Game {
   title: string;
   developer: string;
   genre: string;
-  releaseYear: number;
+  releaseYear: number | null;
   platform: GamePlatform;
   edition?: string;
   hoursPlayed: number;

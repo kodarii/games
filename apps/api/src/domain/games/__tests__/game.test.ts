@@ -97,7 +97,7 @@ describe('NewGame.create', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.title).toBe('Elden Ring');
-      expect(result.value.releaseYear.value).toBe(2022);
+      expect(result.value.releaseYear?.value).toBe(2022);
       expect(result.value.hoursPlayed.value).toBe(120);
     }
   });
@@ -214,6 +214,15 @@ describe('NewGame.create', () => {
     }
   });
 
+  it('creates NewGame without releaseYear', () => {
+    const props = { ...validProps(), releaseYear: undefined };
+    const result = NewGame.create(props);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.releaseYear).toBeNull();
+    }
+  });
+
   it('exposes userId on created NewGame', () => {
     const result = NewGame.create(validProps());
     expect(result.ok).toBe(true);
@@ -249,6 +258,13 @@ describe('Game.fromPersistence', () => {
     const rowWithNullEdition = { ...validRow, edition: null };
     const game = Game.fromPersistence(rowWithNullEdition);
     expect(game.edition).toBeUndefined();
+  });
+
+  it('creates Game from persistence with null releaseYear', () => {
+    const row = { ...validRow, releaseYear: null };
+    const game = Game.fromPersistence(row);
+    expect(game.releaseYear).toBeNull();
+    expect(game.toJSON().releaseYear).toBeNull();
   });
 
   it('exposes userId from persistence row', () => {

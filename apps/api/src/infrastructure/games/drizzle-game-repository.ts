@@ -71,8 +71,14 @@ export class DrizzleGameRepository implements GameRepository {
     const offset = (page - 1) * perPage;
 
     let baseQuery = db.select().from(gamesTable).where(whereClause).$dynamic();
-    if (sortColumn)
-      baseQuery = baseQuery.orderBy(dir === 'desc' ? desc(sortColumn) : asc(sortColumn));
+    if (sortColumn) {
+      const isReleaseYear = sort === 'releaseYear';
+      const order =
+        dir === 'desc'
+          ? isReleaseYear ? sql`${gamesTable.releaseYear} DESC NULLS LAST` : desc(sortColumn)
+          : asc(sortColumn);
+      baseQuery = baseQuery.orderBy(order);
+    }
     const items = await baseQuery.limit(perPage).offset(offset);
 
     return { items: items.map((row) => this.mapRowToGame(row)), total };
@@ -106,7 +112,7 @@ export class DrizzleGameRepository implements GameRepository {
         title: newGame.title,
         developer: newGame.developer,
         genre: newGame.genre,
-        releaseYear: newGame.releaseYear.value,
+        releaseYear: newGame.releaseYear?.value ?? null,
         platform: newGame.platform,
         edition: newGame.edition ?? null,
         hoursPlayed: newGame.hoursPlayed.value,
@@ -126,7 +132,7 @@ export class DrizzleGameRepository implements GameRepository {
         title: game.title,
         developer: game.developer,
         genre: game.genre,
-        releaseYear: game.releaseYear.value,
+        releaseYear: game.releaseYear?.value ?? null,
         platform: game.platform,
         edition: game.edition ?? null,
         hoursPlayed: game.hoursPlayed.value,

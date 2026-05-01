@@ -10,7 +10,7 @@ export const ImportedGameV1 = z.object({
   title: z.string().min(1),
   developer: z.string().min(1),
   genre: z.string(),
-  releaseYear: z.number().int().min(1970).max(2100),
+  releaseYear: z.number().int().min(1970).max(2100).nullish(),
   platform: z.string().min(1),
   hoursPlayed: z.number().min(0),
   status: Status,

@@ -23,7 +23,7 @@ export type GameProps = {
   title: string;
   developer: string;
   genre: string;
-  releaseYear: number;
+  releaseYear?: number;
   platform: GamePlatform;
   edition?: string;
   hoursPlayed: number;
@@ -69,7 +69,7 @@ export class NewGame {
     private readonly _title: string,
     private readonly _developer: string,
     private readonly _genre: string,
-    private readonly _releaseYear: ReleaseYear,
+    private readonly _releaseYear: ReleaseYear | null,
     private readonly _platform: GamePlatform,
     private readonly _edition: string | undefined,
     private readonly _hoursPlayed: HoursPlayed,
@@ -109,9 +109,13 @@ export class NewGame {
       return err({ kind: 'format_invalid', value: String(props.format) });
     }
 
-    const releaseYearResult = ReleaseYear.create(props.releaseYear);
-    if (!releaseYearResult.ok) {
-      return releaseYearResult;
+    let releaseYear: ReleaseYear | null = null;
+    if (props.releaseYear != null) {
+      const releaseYearResult = ReleaseYear.create(props.releaseYear);
+      if (!releaseYearResult.ok) {
+        return releaseYearResult;
+      }
+      releaseYear = releaseYearResult.value;
     }
 
     const hoursPlayedResult = HoursPlayed.create(props.hoursPlayed);
@@ -131,7 +135,7 @@ export class NewGame {
         trimmedTitle,
         trimmedDeveloper,
         genre,
-        releaseYearResult.value,
+        releaseYear,
         trimmedPlatform,
         edition,
         hoursPlayedResult.value,
@@ -157,7 +161,7 @@ export class NewGame {
   get genre() {
     return this._genre;
   }
-  get releaseYear(): ReleaseYear {
+  get releaseYear(): ReleaseYear | null {
     return this._releaseYear;
   }
   get platform(): GamePlatform {
@@ -190,7 +194,7 @@ export class Game {
     private readonly _title: string,
     private readonly _developer: string,
     private readonly _genre: string,
-    private readonly _releaseYear: ReleaseYear,
+    private readonly _releaseYear: ReleaseYear | null,
     private readonly _platform: GamePlatform,
     private readonly _edition: string | undefined,
     private readonly _hoursPlayed: HoursPlayed,
@@ -206,7 +210,7 @@ export class Game {
     title: string;
     developer: string;
     genre: string;
-    releaseYear: number;
+    releaseYear: number | null;
     platform: GamePlatform;
     edition: string | null;
     hoursPlayed: number;
@@ -224,7 +228,7 @@ export class Game {
       row.title,
       row.developer,
       row.genre,
-      ReleaseYear.fromTrusted(row.releaseYear),
+      row.releaseYear != null ? ReleaseYear.fromTrusted(row.releaseYear) : null,
       row.platform,
       row.edition ?? undefined,
       HoursPlayed.fromTrusted(row.hoursPlayed),
@@ -252,7 +256,7 @@ export class Game {
   get genre() {
     return this._genre;
   }
-  get releaseYear(): ReleaseYear {
+  get releaseYear(): ReleaseYear | null {
     return this._releaseYear;
   }
   get platform(): GamePlatform {
@@ -282,7 +286,7 @@ export class Game {
       title: this._title,
       developer: this._developer,
       genre: this._genre,
-      releaseYear: this._releaseYear.value,
+      releaseYear: this._releaseYear?.value ?? null,
       platform: this._platform,
       edition: this._edition,
       hoursPlayed: this._hoursPlayed.value,

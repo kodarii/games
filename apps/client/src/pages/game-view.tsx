@@ -48,7 +48,7 @@ function gameToDraft(g: Game): DraftState {
     title: g.title,
     developer: g.developer,
     genre: g.genre,
-    releaseYear: String(g.releaseYear),
+    releaseYear: g.releaseYear != null ? String(g.releaseYear) : '',
     platform: g.platform,
     edition: g.edition ?? '',
     hoursPlayed: String(g.hoursPlayed),
@@ -240,7 +240,7 @@ export function GameViewPage() {
           title: draft.title.trim(),
           developer: draft.developer.trim(),
           genre: draft.genre.trim(),
-          releaseYear: Number(draft.releaseYear) || game.releaseYear,
+          releaseYear: draft.releaseYear ? Number(draft.releaseYear) : undefined,
           platform: draft.platform as GamePlatform,
           edition: draft.edition.trim() || undefined,
           hoursPlayed: Number(draft.hoursPlayed) || 0,
@@ -411,7 +411,7 @@ export function GameViewPage() {
                   </FieldItem>
                   <FieldItem
                     label="Release Year"
-                    value={String(game.releaseYear)}
+                    value={game.releaseYear != null ? String(game.releaseYear) : '—'}
                     editMode={editMode}
                   >
                     <Input

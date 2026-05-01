@@ -21,7 +21,7 @@ class FakeGameRepository implements GameRepository {
       title: g.title,
       developer: g.developer,
       genre: g.genre,
-      releaseYear: g.releaseYear.value,
+      releaseYear: g.releaseYear?.value ?? null,
       platform: g.platform,
       edition: g.edition ?? null,
       hoursPlayed: g.hoursPlayed.value,
@@ -44,7 +44,7 @@ class FakeGameRepository implements GameRepository {
       title: game.title,
       developer: game.developer,
       genre: game.genre,
-      releaseYear: game.releaseYear.value,
+      releaseYear: game.releaseYear?.value ?? null,
       platform: game.platform,
       edition: game.edition ?? null,
       hoursPlayed: game.hoursPlayed.value,
@@ -273,5 +273,12 @@ describe('UpdateGame', () => {
         expect(result.error.error.kind).toBe('platform_invalid');
       }
     }
+  });
+
+  it('updates game clearing releaseYear', async () => {
+    repo.seed(existingGame);
+    const { releaseYear: _releaseYear, ...inputWithoutYear } = validInput;
+    const result = await useCase.execute(1, inputWithoutYear, 'user-A');
+    expect(result.ok).toBe(true);
   });
 });
