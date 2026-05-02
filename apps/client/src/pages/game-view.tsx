@@ -5,6 +5,7 @@ import { GameCover } from '@/components/game-cover';
 import { Icon } from '@/components/icons';
 import { SectionHeader } from '@/components/section-header';
 import { Button } from '@/components/ui/button';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { coverColorFor } from '@/lib/avatar';
@@ -290,6 +291,7 @@ export function GameViewPage() {
       {/* Header */}
       <div className="flex h-[63px] flex-shrink-0 items-center justify-between border-b border-[#eee] bg-white px-4 lg:px-6">
         <div className="flex min-w-0 items-center gap-3">
+          <SidebarTrigger className="shrink-0 text-apex-ink-3 hover:text-apex-ink" />
           <div
             className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-white"
             style={{ background: liveCoverColor }}

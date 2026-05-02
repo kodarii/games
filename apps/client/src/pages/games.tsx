@@ -80,6 +80,7 @@ export function GamesPage() {
         <SearchInput
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
+          onClear={() => setSearchInput("")}
           placeholder="Search games..."
           containerClassName="order-last w-full md:order-none md:w-[220px] lg:w-[300px]"
         />
