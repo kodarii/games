@@ -31,6 +31,7 @@ export class DrizzleGameRepository implements GameRepository {
       status: row.status as GameStatus,
       format: row.format as GameFormat,
       coverColor: row.coverColor,
+      coverImage: row.coverImage,
     });
   }
 
@@ -119,6 +120,7 @@ export class DrizzleGameRepository implements GameRepository {
         status: newGame.status,
         format: newGame.format,
         coverColor: newGame.coverColor ?? null,
+        coverImage: newGame.coverImage ?? null,
       })
       .returning();
 
@@ -139,6 +141,7 @@ export class DrizzleGameRepository implements GameRepository {
         status: game.status,
         format: game.format,
         coverColor: game.coverColor ?? null,
+        coverImage: game.coverImage ?? null,
       })
       .where(eq(gamesTable.id, id))
       .returning();
@@ -169,5 +172,13 @@ export class DrizzleGameRepository implements GameRepository {
       .from(gamesTable)
       .where(and(eq(gamesTable.userId, userId), eq(gamesTable.platform, platformName)));
     return r[0]?.count ?? 0;
+  }
+
+  async findAllCoverImages(): Promise<string[]> {
+    const rows = await db
+      .select({ coverImage: gamesTable.coverImage })
+      .from(gamesTable)
+      .where(sql`${gamesTable.coverImage} IS NOT NULL`);
+    return rows.map((r) => r.coverImage).filter((u): u is string => u != null);
   }
 }

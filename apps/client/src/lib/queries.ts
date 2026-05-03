@@ -9,8 +9,10 @@ import {
   deletePlatform,
   fetchGame,
   fetchGames,
+  fetchMyPermissions,
   fetchPlatforms,
   updateGame,
+  uploadCover,
 } from './api';
 
 export type InfiniteGamesParams = {
@@ -97,5 +99,19 @@ export function useDeletePlatform() {
   return useMutation({
     mutationFn: deletePlatform,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['platforms'] }),
+  });
+}
+
+export function useMyPermissions() {
+  return useQuery({
+    queryKey: ['me', 'permissions'],
+    queryFn: fetchMyPermissions,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useUploadCoverMutation() {
+  return useMutation({
+    mutationFn: (file: File) => uploadCover(file),
   });
 }

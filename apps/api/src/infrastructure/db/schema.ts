@@ -18,6 +18,7 @@ export const games = sqliteTable(
     status: text('status').notNull().default('Backlog'),
     format: text('format').notNull().default('digital'),
     coverColor: text('cover_color'),
+    coverImage: text('cover_image'),
     externalId: text('external_id').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   },

@@ -3,7 +3,17 @@ import { Game, type GameUpdate } from '../../domain/games/game';
 import type { GameRepository, ListGamesQuery, ListGamesResult } from '../../domain/games/game-repository';
 import { Platform, type NewPlatform } from '../../domain/platforms/platform';
 import type { PlatformRepository } from '../../domain/platforms/platform-repository';
+import type { CoverStorage } from '../cover-storage/cover-storage';
 import { UpdateGame } from './update-game';
+
+class FakeCoverStorage implements CoverStorage {
+  deleted: string[] = [];
+  upload = async () => ({ url: 'https://fake/uploaded' });
+  delete = async (url: string) => {
+    this.deleted.push(url);
+  };
+  listOlderThan = async () => [];
+}
 
 class FakeGameRepository implements GameRepository {
   private games = new Map<number, Game>();
@@ -11,6 +21,7 @@ class FakeGameRepository implements GameRepository {
   list = async (_q: ListGamesQuery): Promise<ListGamesResult> => ({ items: [], total: 0 });
   listAll = async (): Promise<Game[]> => [];
   countByPlatform = async () => 0;
+  findAllCoverImages = async (): Promise<string[]> => [];
   findByExternalId = async (): Promise<Game | null> => null;
 
   create = async (g: GameUpdate) => {
@@ -50,6 +61,7 @@ class FakeGameRepository implements GameRepository {
       hoursPlayed: game.hoursPlayed.value,
       status: game.status,
       format: game.format,
+      coverImage: game.coverImage ?? null,
     });
     this.games.set(id, updated);
     return updated;
@@ -138,14 +150,16 @@ const existingGame = Game.fromPersistence({
 describe('UpdateGame', () => {
   let repo: FakeGameRepository;
   let platformRepo: FakePlatformRepository;
+  let coverStorage: FakeCoverStorage;
   let useCase: UpdateGame;
 
   beforeEach(() => {
     repo = new FakeGameRepository();
     platformRepo = new FakePlatformRepository();
+    coverStorage = new FakeCoverStorage();
     platformRepo.seed('user-A', 'PS5');
     platformRepo.seed('user-A', 'PS3');
-    useCase = new UpdateGame(repo, platformRepo);
+    useCase = new UpdateGame(repo, platformRepo, coverStorage);
   });
 
   it('updates game and returns ok', async () => {
@@ -280,5 +294,75 @@ describe('UpdateGame', () => {
     const { releaseYear: _releaseYear, ...inputWithoutYear } = validInput;
     const result = await useCase.execute(1, inputWithoutYear, 'user-A');
     expect(result.ok).toBe(true);
+  });
+
+  it('deletes old cover from storage when coverImage changes', async () => {
+    const seeded = Game.fromPersistence({
+      id: 1,
+      externalId: 'ext-game-1',
+      userId: 'user-A',
+      title: 'Dark Souls',
+      developer: 'FromSoftware',
+      genre: 'ARPG',
+      releaseYear: 2011,
+      platform: 'PS3',
+      edition: null,
+      hoursPlayed: 50,
+      status: 'Completed',
+      format: 'physical',
+      coverImage: 'https://utfs.io/f/old-key',
+    });
+    repo.seed(seeded);
+
+    await useCase.execute(1, { ...validInput, coverImage: 'https://utfs.io/f/new-key' }, 'user-A');
+
+    await Promise.resolve();
+    expect(coverStorage.deleted).toEqual(['https://utfs.io/f/old-key']);
+  });
+
+  it('does not delete when coverImage unchanged', async () => {
+    const seeded = Game.fromPersistence({
+      id: 1,
+      externalId: 'ext-game-1',
+      userId: 'user-A',
+      title: 'Dark Souls',
+      developer: 'FromSoftware',
+      genre: 'ARPG',
+      releaseYear: 2011,
+      platform: 'PS3',
+      edition: null,
+      hoursPlayed: 50,
+      status: 'Completed',
+      format: 'physical',
+      coverImage: 'https://utfs.io/f/same',
+    });
+    repo.seed(seeded);
+
+    await useCase.execute(1, { ...validInput, coverImage: 'https://utfs.io/f/same' }, 'user-A');
+    await Promise.resolve();
+    expect(coverStorage.deleted).toEqual([]);
+  });
+
+  it('deletes old cover when user clears coverImage (sets null)', async () => {
+    const seeded = Game.fromPersistence({
+      id: 1,
+      externalId: 'ext-game-1',
+      userId: 'user-A',
+      title: 'Dark Souls',
+      developer: 'FromSoftware',
+      genre: 'ARPG',
+      releaseYear: 2011,
+      platform: 'PS3',
+      edition: null,
+      hoursPlayed: 50,
+      status: 'Completed',
+      format: 'physical',
+      coverImage: 'https://utfs.io/f/will-go',
+    });
+    repo.seed(seeded);
+
+    await useCase.execute(1, { ...validInput, coverImage: null }, 'user-A');
+    await Promise.resolve();
+    expect(coverStorage.deleted).toEqual(['https://utfs.io/f/will-go']);
   });
 });

@@ -28,6 +28,7 @@ export interface CreateGameInput {
   status: GameStatus;
   format: GameFormat;
   coverColor?: string;
+  coverImage?: string | null;
 }
 
 export async function createGame(input: CreateGameInput): Promise<Game> {
@@ -121,6 +122,29 @@ export async function importData(snapshot: unknown, mode: ImportMode): Promise<I
     (e as any).body = body;
     throw e;
   }
+  return r.json();
+}
+
+export async function uploadCover(file: File): Promise<{ url: string }> {
+  const fd = new FormData();
+  fd.append('file', file);
+  const r = await fetch('/api/upload/cover', {
+    method: 'POST',
+    credentials: 'include',
+    body: fd,
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    const e = new Error(body?.error ?? `upload_failed`);
+    (e as any).status = r.status;
+    throw e;
+  }
+  return r.json();
+}
+
+export async function fetchMyPermissions(): Promise<{ canUploadCovers: boolean }> {
+  const r = await fetch('/api/me/permissions', { credentials: 'include' });
+  if (!r.ok) throw new Error(`Failed to fetch permissions: ${r.status}`);
   return r.json();
 }
 

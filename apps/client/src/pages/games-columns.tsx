@@ -14,6 +14,7 @@ export const gamesColumns = [
           size={40}
           name={row.original.title}
           color={row.original.coverColor}
+          src={row.original.coverImage}
         />
         <div>
           <div className="text-[13.5px] font-semibold leading-[1.35] text-apex-ink">

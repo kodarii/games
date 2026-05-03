@@ -15,6 +15,7 @@ export interface Game {
   status: GameStatus;
   format: GameFormat;
   coverColor?: string | null;
+  coverImage?: string | null;
 }
 
 export const GAME_SORT_FIELDS = [

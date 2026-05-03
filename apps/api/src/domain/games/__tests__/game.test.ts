@@ -251,6 +251,7 @@ describe('Game.fromPersistence', () => {
       status: 'Completed',
       format: 'digital',
       coverColor: undefined,
+      coverImage: null,
     });
   });
 

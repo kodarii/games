@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { UploadCoverButton } from '@/components/upload-cover-button';
 import type { CreateGameInput, UpdateGameInput } from '@/lib/api';
 import { COVER_COLORS, coverColorFor } from '@/lib/avatar';
 import { useCreateGameMutation, usePlatformsQuery, useUpdateGameMutation } from '@/lib/queries';
@@ -34,6 +35,7 @@ type FormState = {
   format: GameFormat;
   notes: string;
   coverColor: string;
+  coverImage: string | null;
 };
 
 const EMPTY: FormState = {
@@ -48,6 +50,7 @@ const EMPTY: FormState = {
   format: 'digital',
   notes: '',
   coverColor: COVER_COLORS[0],
+  coverImage: null,
 };
 
 function gameToFormState(g: Game): FormState {
@@ -63,6 +66,7 @@ function gameToFormState(g: Game): FormState {
     format: g.format,
     notes: '',
     coverColor: coverColorFor(g),
+    coverImage: g.coverImage ?? null,
   };
 }
 
@@ -113,6 +117,7 @@ export function GameForm({
       status: form.status,
       format: form.format,
       coverColor: form.coverColor,
+      coverImage: form.coverImage,
     };
 
     if (isEdit && initialGame) {
@@ -162,7 +167,7 @@ export function GameForm({
             <div className="flex items-center justify-center p-5 lg:border-r lg:border-apex-line-5 lg:p-6">
               <div className="w-full max-w-[260px] lg:max-w-none">
                 <div className="flex flex-col items-stretch gap-4">
-                  <GameCover name={form.title} color={form.coverColor} />
+                  <GameCover name={form.title} color={form.coverColor} src={form.coverImage} />
                   <div>
                     <div className="mb-[6px] text-[10px] font-semibold uppercase tracking-[0.08em] text-apex-hint">
                       Cover Color
@@ -172,6 +177,10 @@ export function GameForm({
                       onChange={(c) => set('coverColor', c)}
                     />
                   </div>
+                  <UploadCoverButton
+                    value={form.coverImage}
+                    onChange={(url) => set('coverImage', url)}
+                  />
                 </div>
               </div>
             </div>

@@ -23,4 +23,8 @@ export interface GameRepository {
   update(id: number, game: GameUpdate): Promise<Game | null>;
   delete(id: number): Promise<Game | null>;
   countByPlatform(userId: string, platformName: string): Promise<number>;
+  /**
+   * Used by orphan-cleanup cron — returns all non-null cover URLs across all users.
+   */
+  findAllCoverImages(): Promise<string[]>;
 }

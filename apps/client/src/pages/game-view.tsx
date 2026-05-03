@@ -1,5 +1,6 @@
 import { AddPlatformDialog } from '@/components/add-platform-dialog';
 import { CoverColorPicker } from '@/components/cover-color-picker';
+import { UploadCoverButton } from '@/components/upload-cover-button';
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
 import { GameCover } from '@/components/game-cover';
 import { Icon } from '@/components/icons';
@@ -42,6 +43,7 @@ type DraftState = {
   status: GameStatus;
   format: GameFormat;
   coverColor: string;
+  coverImage: string | null;
 };
 
 function gameToDraft(g: Game): DraftState {
@@ -56,6 +58,7 @@ function gameToDraft(g: Game): DraftState {
     status: g.status,
     format: g.format,
     coverColor: coverColorFor(g),
+    coverImage: g.coverImage ?? null,
   };
 }
 
@@ -248,6 +251,7 @@ export function GameViewPage() {
           status: draft.status,
           format: draft.format,
           coverColor: draft.coverColor,
+          coverImage: draft.coverImage,
         },
       },
       {
@@ -362,7 +366,11 @@ export function GameViewPage() {
               {/* Cover */}
               <div className="flex-shrink-0">
                 <div className="w-[120px] lg:w-[180px]">
-                  <GameCover name={liveTitle} color={liveCoverColor} />
+                  <GameCover
+                    name={liveTitle}
+                    color={liveCoverColor}
+                    src={editMode && draft ? draft.coverImage : (game.coverImage ?? null)}
+                  />
                 </div>
                 {editMode && draft && (
                   <div className="mt-4">
@@ -373,6 +381,12 @@ export function GameViewPage() {
                       value={draft.coverColor}
                       onChange={(c) => set('coverColor', c)}
                     />
+                    <div className="mt-3">
+                      <UploadCoverButton
+                        value={draft.coverImage}
+                        onChange={(url) => set('coverImage', url)}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
