@@ -104,6 +104,10 @@ class FakeGameRepository implements GameRepository {
     ).length;
   }
 
+  async findAllCoverImages(): Promise<string[]> {
+    return [];
+  }
+
   seedGame(userId: string, platformName: string): Game {
     const game = Game.fromPersistence({
       id: this.nextId,

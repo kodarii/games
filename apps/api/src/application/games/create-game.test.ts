@@ -13,6 +13,7 @@ class FakeGameRepository implements GameRepository {
   delete = async () => null;
   update = async () => null;
   countByPlatform = async () => 0;
+  findAllCoverImages = async (): Promise<string[]> => [];
 
   create = async (g: NewGame) => {
     return Game.fromPersistence({

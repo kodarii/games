@@ -5,17 +5,16 @@ import { GetGame } from '../application/games/get-game';
 import { ListGames } from '../application/games/list-games';
 import { UpdateGame } from '../application/games/update-game';
 import type { Game } from '../domain/games/game';
-import { DrizzleGameRepository } from '../infrastructure/games/drizzle-game-repository';
 import { DrizzlePlatformRepository } from '../infrastructure/platforms/drizzle-platform-repository';
+import { coverStorage, gameRepository } from '../wiring';
 import type { AuthVariables } from './middleware/require-auth';
 
-const repo = new DrizzleGameRepository();
 const platformRepo = new DrizzlePlatformRepository();
-const createGame = new CreateGame(repo, platformRepo);
-const deleteGame = new DeleteGame(repo);
-const listGames = new ListGames(repo);
-const getGame = new GetGame(repo);
-const updateGame = new UpdateGame(repo, platformRepo);
+const createGame = new CreateGame(gameRepository, platformRepo);
+const deleteGame = new DeleteGame(gameRepository, coverStorage);
+const listGames = new ListGames(gameRepository);
+const getGame = new GetGame(gameRepository);
+const updateGame = new UpdateGame(gameRepository, platformRepo, coverStorage);
 
 export const games = new Hono<{ Variables: AuthVariables }>();
 

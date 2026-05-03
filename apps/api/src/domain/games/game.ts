@@ -30,6 +30,7 @@ export type GameProps = {
   status: GameStatus;
   format: GameFormat;
   coverColor?: string;
+  coverImage?: string;
 };
 
 export class ReleaseYear {
@@ -76,6 +77,7 @@ export class NewGame {
     private readonly _status: GameStatus,
     private readonly _format: GameFormat,
     private readonly _coverColor: string | undefined,
+    private readonly _coverImage: string | undefined,
   ) {}
 
   static create(
@@ -126,6 +128,7 @@ export class NewGame {
     const genre = props.genre.trim();
     const edition = props.edition?.trim() || undefined;
     const coverColor = props.coverColor?.trim() || undefined;
+    const coverImage = props.coverImage?.trim() || undefined;
     const externalId = idGenerator();
 
     return ok(
@@ -142,6 +145,7 @@ export class NewGame {
         props.status,
         props.format,
         coverColor,
+        coverImage,
       ),
     );
   }
@@ -182,6 +186,9 @@ export class NewGame {
   get coverColor(): string | undefined {
     return this._coverColor;
   }
+  get coverImage(): string | undefined {
+    return this._coverImage;
+  }
 }
 
 export type GameUpdate = NewGame;
@@ -201,6 +208,7 @@ export class Game {
     private readonly _status: GameStatus,
     private readonly _format: GameFormat,
     private readonly _coverColor: string | undefined,
+    private readonly _coverImage: string | undefined,
   ) {}
 
   static fromPersistence(row: {
@@ -217,6 +225,7 @@ export class Game {
     status: GameStatus;
     format: GameFormat;
     coverColor?: string | null;
+    coverImage?: string | null;
   }): Game {
     if (!row.externalId) {
       throw new Error(`Game row ${row.id} has null externalId — run backfill first`);
@@ -235,6 +244,7 @@ export class Game {
       row.status,
       row.format,
       row.coverColor ?? undefined,
+      row.coverImage ?? undefined,
     );
   }
 
@@ -277,6 +287,9 @@ export class Game {
   get coverColor(): string | undefined {
     return this._coverColor;
   }
+  get coverImage(): string | undefined {
+    return this._coverImage;
+  }
 
   toJSON() {
     return {
@@ -293,6 +306,7 @@ export class Game {
       status: this._status,
       format: this._format,
       coverColor: this._coverColor,
+      coverImage: this._coverImage ?? null,
     };
   }
 }

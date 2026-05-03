@@ -40,6 +40,7 @@ class FakeGameRepository implements GameRepository {
   async update(_id: number, _game: GameUpdate): Promise<Game | null> { return null; }
   async delete(_id: number): Promise<Game | null> { return null; }
   async countByPlatform(_userId: string, _platformName: string): Promise<number> { return 0; }
+  async findAllCoverImages(): Promise<string[]> { return []; }
 }
 
 function makeUseCase(opts: { platforms?: Platform[]; importRepo?: FakeImportRepository; idGen?: () => string } = {}) {

@@ -33,6 +33,7 @@ export function GamesMobileList({ items }: { items: Game[] }) {
                 size={40}
                 name={game.title}
                 color={game.coverColor}
+                src={game.coverImage}
               />
               <div className="flex-1 min-w-0">
                 <div className="text-[13.5px] font-semibold leading-[1.35] text-apex-ink truncate">

@@ -1,0 +1,1 @@
+ALTER TABLE `games` ADD `cover_image` text;

@@ -9,6 +9,7 @@ import type { GameRepository } from '../../domain/games/game-repository';
 import type { PlatformRepository } from '../../domain/platforms/platform-repository';
 import { err, ok } from '../../domain/shared/result';
 import type { Result } from '../../domain/shared/result';
+import type { CoverStorage } from '../cover-storage/cover-storage';
 
 const UpdateGameInputSchema = z.object({
   title: z.string().min(1),
@@ -26,6 +27,7 @@ const UpdateGameInputSchema = z.object({
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/)
     .optional(),
+  coverImage: z.string().url().nullable().optional(),
 });
 
 export type UpdateGameInput = z.infer<typeof UpdateGameInputSchema>;
@@ -39,6 +41,7 @@ export class UpdateGame {
   constructor(
     private readonly repo: GameRepository,
     private readonly platformRepo: PlatformRepository,
+    private readonly coverStorage: CoverStorage,
   ) {}
 
   async execute(
@@ -78,6 +81,7 @@ export class UpdateGame {
       status: data.status,
       format: data.format,
       coverColor: data.coverColor,
+      coverImage: data.coverImage ?? undefined,
     };
 
     const gameUpdateResult = NewGame.create(props);
@@ -88,6 +92,14 @@ export class UpdateGame {
     const updated = await this.repo.update(id, gameUpdateResult.value);
     if (!updated) {
       return err({ kind: 'not_found' });
+    }
+
+    const oldUrl = existing.coverImage;
+    const newUrl = updated.coverImage;
+    if (oldUrl && oldUrl !== newUrl) {
+      void this.coverStorage.delete(oldUrl).catch((err) => {
+        console.warn('[update-game] cover cleanup failed', { id, oldUrl, err });
+      });
     }
 
     return ok(updated);

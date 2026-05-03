@@ -57,6 +57,13 @@
       "when": 1777670356617,
       "tag": "0007_lowly_patriot",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1777760756179,
+      "tag": "0008_shallow_hitman",
+      "breakpoints": true
     }
   ]
 }

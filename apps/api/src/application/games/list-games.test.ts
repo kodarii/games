@@ -28,6 +28,7 @@ class FakeGameRepository implements GameRepository {
     throw new Error('not implemented');
   };
   countByPlatform = async (): Promise<number> => 0;
+  findAllCoverImages = async (): Promise<string[]> => [];
   listAll = async (): Promise<Game[]> => [];
 }
 

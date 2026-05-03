@@ -26,6 +26,7 @@ const CreateGameInputSchema = z.object({
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/)
     .optional(),
+  coverImage: z.string().url().nullable().optional(),
 });
 
 export type CreateGameInput = z.infer<typeof CreateGameInputSchema>;
@@ -72,6 +73,7 @@ export class CreateGame {
       status: data.status,
       format: data.format,
       coverColor: data.coverColor,
+      coverImage: data.coverImage ?? undefined,
     };
 
     const newGameResult = NewGame.create(props);

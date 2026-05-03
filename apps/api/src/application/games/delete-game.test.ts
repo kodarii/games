@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'bun:test';
 import { Game, type GameUpdate } from '../../domain/games/game';
 import type { GameRepository } from '../../domain/games/game-repository';
+import type { CoverStorage } from '../cover-storage/cover-storage';
 import { DeleteGame } from './delete-game';
+
+class FakeCoverStorage implements CoverStorage {
+  deleted: string[] = [];
+  upload = async () => ({ url: 'https://fake/uploaded' });
+  delete = async (url: string) => {
+    this.deleted.push(url);
+  };
+  listOlderThan = async () => [];
+}
 
 class FakeGameRepository implements GameRepository {
   private games = new Map<number, Game>();
@@ -61,6 +71,10 @@ class FakeGameRepository implements GameRepository {
     return 0;
   }
 
+  async findAllCoverImages(): Promise<string[]> {
+    return [];
+  }
+
   seed(game: Game): void {
     this.games.set(game.id, game);
   }
@@ -85,7 +99,8 @@ describe('DeleteGame', () => {
   it('deletes game and returns ok', async () => {
     const repo = new FakeGameRepository();
     repo.seed(existingGame);
-    const useCase = new DeleteGame(repo);
+    const coverStorage = new FakeCoverStorage();
+    const useCase = new DeleteGame(repo, coverStorage);
 
     const result = await useCase.execute(1, 'user-A');
 
@@ -98,7 +113,8 @@ describe('DeleteGame', () => {
 
   it('returns not_found when game does not exist', async () => {
     const repo = new FakeGameRepository();
-    const useCase = new DeleteGame(repo);
+    const coverStorage = new FakeCoverStorage();
+    const useCase = new DeleteGame(repo, coverStorage);
 
     const result = await useCase.execute(99, 'user-A');
 
@@ -111,7 +127,8 @@ describe('DeleteGame', () => {
   it('returns not_found and leaves game intact when user does not own it (IDOR)', async () => {
     const repo = new FakeGameRepository();
     repo.seed(existingGame);
-    const useCase = new DeleteGame(repo);
+    const coverStorage = new FakeCoverStorage();
+    const useCase = new DeleteGame(repo, coverStorage);
 
     const result = await useCase.execute(1, 'user-B');
 
@@ -121,5 +138,42 @@ describe('DeleteGame', () => {
     }
     const stillExists = await repo.findById(1);
     expect(stillExists).not.toBeNull();
+  });
+
+  it('deletes cover from storage when game with cover is deleted', async () => {
+    const repo = new FakeGameRepository();
+    const gameWithCover = Game.fromPersistence({
+      id: 1,
+      externalId: 'ext-game-1',
+      userId: 'user-A',
+      title: 'Dark Souls',
+      developer: 'FromSoftware',
+      genre: 'ARPG',
+      releaseYear: 2011,
+      platform: 'PS3',
+      edition: null,
+      hoursPlayed: 50,
+      status: 'Completed',
+      format: 'digital',
+      coverImage: 'https://utfs.io/f/some-key',
+    });
+    repo.seed(gameWithCover);
+    const coverStorage = new FakeCoverStorage();
+    const useCase = new DeleteGame(repo, coverStorage);
+
+    await useCase.execute(1, 'user-A');
+    await Promise.resolve();
+    expect(coverStorage.deleted).toEqual(['https://utfs.io/f/some-key']);
+  });
+
+  it('does not call storage when game has no cover', async () => {
+    const repo = new FakeGameRepository();
+    repo.seed(existingGame);
+    const coverStorage = new FakeCoverStorage();
+    const useCase = new DeleteGame(repo, coverStorage);
+
+    await useCase.execute(1, 'user-A');
+    await Promise.resolve();
+    expect(coverStorage.deleted).toEqual([]);
   });
 });
