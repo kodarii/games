@@ -25,7 +25,7 @@ class FakeGameRepository implements GameRepository {
   findByExternalId = async (): Promise<Game | null> => null;
 
   create = async (g: GameUpdate) => {
-    return Game.fromPersistence({
+    const created = Game.fromPersistence({
       id: Date.now(),
       externalId: g.externalId,
       userId: g.userId,
@@ -38,7 +38,11 @@ class FakeGameRepository implements GameRepository {
       hoursPlayed: g.hoursPlayed.value,
       status: g.status,
       format: g.format,
+      price: g.price?.value ?? null,
+      purchasedAt: g.purchasedAt?.value ?? null,
     });
+    this.games.set(created.id, created);
+    return created;
   };
 
   async findById(id: number): Promise<Game | null> {
@@ -62,6 +66,8 @@ class FakeGameRepository implements GameRepository {
       status: game.status,
       format: game.format,
       coverImage: game.coverImage ?? null,
+      price: game.price?.value ?? null,
+      purchasedAt: game.purchasedAt?.value ?? null,
     });
     this.games.set(id, updated);
     return updated;
@@ -341,6 +347,140 @@ describe('UpdateGame', () => {
     await useCase.execute(1, { ...validInput, coverImage: 'https://utfs.io/f/same' }, 'user-A');
     await Promise.resolve();
     expect(coverStorage.deleted).toEqual([]);
+  });
+
+  it('accepts price and purchasedAt on update', async () => {
+    repo.seed(existingGame);
+    const result = await useCase.execute(
+      1,
+      { ...validInput, price: 12999, purchasedAt: '2024-06-15' },
+      'user-A',
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.toJSON().price).toBe(12999);
+      expect(result.value.toJSON().purchasedAt).toBe('2024-06-15');
+    }
+  });
+
+  it('returns invalid_input for negative price on update', async () => {
+    repo.seed(existingGame);
+    const result = await useCase.execute(1, { ...validInput, price: -1 }, 'user-A');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid_input');
+      if (result.error.kind === 'invalid_input') {
+        expect(result.error.issues.some((i) => i.path[0] === 'price')).toBe(true);
+      }
+    }
+  });
+
+  it('returns invalid_input for bad purchasedAt format on update', async () => {
+    repo.seed(existingGame);
+    const result = await useCase.execute(
+      1,
+      { ...validInput, purchasedAt: '2024/06/15' },
+      'user-A',
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid_input');
+      if (result.error.kind === 'invalid_input') {
+        expect(result.error.issues.some((i) => i.path[0] === 'purchasedAt')).toBe(true);
+      }
+    }
+  });
+
+  it('returns domain purchased_at_in_future on update', async () => {
+    repo.seed(existingGame);
+    const result = await useCase.execute(
+      1,
+      { ...validInput, purchasedAt: '2099-01-01' },
+      'user-A',
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('domain');
+      if (result.error.kind === 'domain') {
+        expect(result.error.error.kind).toBe('purchased_at_in_future');
+      }
+    }
+  });
+
+  it('clears price when null is sent', async () => {
+    const seeded = Game.fromPersistence({
+      id: 1,
+      externalId: 'ext-game-1',
+      userId: 'user-A',
+      title: 'Dark Souls',
+      developer: 'FromSoftware',
+      genre: 'ARPG',
+      releaseYear: 2011,
+      platform: 'PS3',
+      edition: null,
+      hoursPlayed: 50,
+      status: 'Completed',
+      format: 'physical',
+      price: 12999,
+    });
+    repo.seed(seeded);
+    const result = await useCase.execute(1, { ...validInput, price: null }, 'user-A');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.toJSON().price).toBeNull();
+    }
+  });
+
+  it('clears purchasedAt when null is sent', async () => {
+    const seeded = Game.fromPersistence({
+      id: 1,
+      externalId: 'ext-game-1',
+      userId: 'user-A',
+      title: 'Dark Souls',
+      developer: 'FromSoftware',
+      genre: 'ARPG',
+      releaseYear: 2011,
+      platform: 'PS3',
+      edition: null,
+      hoursPlayed: 50,
+      status: 'Completed',
+      format: 'physical',
+      purchasedAt: '2020-01-01',
+    });
+    repo.seed(seeded);
+    const result = await useCase.execute(
+      1,
+      { ...validInput, purchasedAt: null },
+      'user-A',
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.toJSON().purchasedAt).toBeNull();
+    }
+  });
+
+  it('clears price when key omitted (replace pattern)', async () => {
+    const seeded = Game.fromPersistence({
+      id: 1,
+      externalId: 'ext-game-1',
+      userId: 'user-A',
+      title: 'Dark Souls',
+      developer: 'FromSoftware',
+      genre: 'ARPG',
+      releaseYear: 2011,
+      platform: 'PS3',
+      edition: null,
+      hoursPlayed: 50,
+      status: 'Completed',
+      format: 'physical',
+      price: 5000,
+    });
+    repo.seed(seeded);
+    const result = await useCase.execute(1, validInput, 'user-A');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.toJSON().price).toBeNull();
+    }
   });
 
   it('deletes old cover when user clears coverImage (sets null)', async () => {

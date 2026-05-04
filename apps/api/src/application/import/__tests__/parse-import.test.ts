@@ -85,7 +85,7 @@ describe('parseImport', () => {
     const result = parseImport(JSON.stringify(ext), idGen, now);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.version).toBe(2);
+      expect(result.value.version).toBe(3);
       expect(result.value.exportedAt).toBe('2026-04-29T00:00:00.000Z');
       expect(result.value.platforms.map((p) => p.name)).toEqual(['PS4', 'Switch']);
       expect(result.value.platforms[0]?.externalId).toBe('id-1');
@@ -123,27 +123,27 @@ describe('parseImport', () => {
     if (!result.ok) expect(result.error.kind).toBe('invalid_shape');
   });
 
-  it('returns ok for valid v2 input', () => {
+  it('returns ok for valid v2 input and migrates to v3', () => {
     const result = parseImport(JSON.stringify(validV2));
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.version).toBe(2);
+      expect(result.value.version).toBe(3);
       expect(result.value.platforms[0]?.name).toBe('PS5');
     }
   });
 
-  it('migrates v1 to v2 with deterministic idGenerator', () => {
+  it('migrates v1 to v3 with deterministic idGenerator', () => {
     const gen = () => 'fixed-uuid';
     const result = parseImport(JSON.stringify(validV1), gen);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.version).toBe(2);
+      expect(result.value.version).toBe(3);
       result.value.platforms.forEach((p) => expect(p.externalId).toBe('fixed-uuid'));
       result.value.games.forEach((g) => expect(g.externalId).toBe('fixed-uuid'));
     }
   });
 
-  it('migrates v1 to v2 assigning unique UUIDs per record with counter', () => {
+  it('migrates v1 to v3 assigning unique UUIDs per record with counter', () => {
     let n = 0;
     const gen = () => `uuid-${++n}`;
     const result = parseImport(JSON.stringify(validV1), gen);
@@ -154,6 +154,61 @@ describe('parseImport', () => {
       expect(result.value.games[0]?.externalId).toBe('uuid-3');
       expect(result.value.games[1]?.externalId).toBe('uuid-4');
       expect(result.value.games[2]?.externalId).toBe('uuid-5');
+    }
+  });
+
+  it('accepts v3 with price and purchasedAt', () => {
+    const v3 = {
+      version: 3,
+      exportedAt: '2024-01-01T00:00:00.000Z',
+      platforms: [{ externalId: 'p-1', name: 'PS5' }],
+      games: [
+        {
+          externalId: 'g-1',
+          title: 'God of War',
+          developer: 'Santa Monica',
+          genre: 'Action',
+          releaseYear: 2018,
+          platform: 'PS5',
+          hoursPlayed: 30,
+          status: 'Completed' as const,
+          format: 'digital' as const,
+          price: 12999,
+          purchasedAt: '2024-06-15',
+        },
+      ],
+    };
+    const result = parseImport(JSON.stringify(v3));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.version).toBe(3);
+      expect(result.value.games[0]?.price).toBe(12999);
+      expect(result.value.games[0]?.purchasedAt).toBe('2024-06-15');
+    }
+  });
+
+  it('migrates v2 by setting price/purchasedAt to null', () => {
+    const result = parseImport(JSON.stringify(validV2));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.version).toBe(3);
+      result.value.games.forEach((g) => {
+        expect(g.price).toBeNull();
+        expect(g.purchasedAt).toBeNull();
+      });
+    }
+  });
+
+  it('migrates v1 by setting price/purchasedAt to null', () => {
+    const gen = () => 'fixed-uuid';
+    const result = parseImport(JSON.stringify(validV1), gen);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.version).toBe(3);
+      result.value.games.forEach((g) => {
+        expect(g.price).toBeNull();
+        expect(g.purchasedAt).toBeNull();
+      });
     }
   });
 });

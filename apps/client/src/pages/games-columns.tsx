@@ -1,4 +1,5 @@
 import { Avatar } from '@/components/avatar';
+import { formatPriceZl } from '@/lib/money';
 import type { Game } from '@/types';
 import { createColumnHelper } from '@tanstack/react-table';
 
@@ -40,6 +41,17 @@ export const gamesColumns = [
     cell: ({ row }) => (
       <span className="text-[13px] text-apex-ink">
         {row.original.format === 'physical' ? 'Physical' : 'Digital'}
+      </span>
+    ),
+    meta: { minWidth: 110 },
+  }),
+  columnHelper.accessor('price', {
+    header: 'Price',
+    cell: ({ row }) => (
+      <span className="text-[13px] text-apex-ink tabular-nums">
+        {row.original.price != null
+          ? formatPriceZl(row.original.price)
+          : <span className="text-apex-hint">—</span>}
       </span>
     ),
     meta: { minWidth: 110 },

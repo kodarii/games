@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar } from '@/components/avatar';
 import { Icon } from '@/components/icons';
+import { formatPriceZl } from '@/lib/money';
 import type { Game } from '@/types';
 
 export function GamesMobileList({ items }: { items: Game[] }) {
@@ -40,7 +41,9 @@ export function GamesMobileList({ items }: { items: Game[] }) {
                   {game.title}
                 </div>
                 <div className="text-[11.5px] leading-[1.35] text-apex-faint truncate">
-                  {game.platform}{game.releaseYear != null ? ` | ${game.releaseYear}` : ''}
+                  {game.platform}
+                  {game.releaseYear != null ? ` | ${game.releaseYear}` : ''}
+                  {game.price != null ? ` | ${formatPriceZl(game.price)}` : ''}
                 </div>
               </div>
               <button
@@ -64,6 +67,10 @@ export function GamesMobileList({ items }: { items: Game[] }) {
                   value={game.format === 'physical' ? 'Physical' : 'Digital'}
                 />
                 <DetailRow label="Release Year" value={game.releaseYear} />
+                <DetailRow
+                  label="Price"
+                  value={game.price != null ? formatPriceZl(game.price) : null}
+                />
               </div>
             )}
           </div>

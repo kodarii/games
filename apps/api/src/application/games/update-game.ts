@@ -28,6 +28,16 @@ const UpdateGameInputSchema = z.object({
     .regex(/^#[0-9a-fA-F]{6}$/)
     .optional(),
   coverImage: z.string().url().nullable().optional(),
+  price: z.number().int().min(0).nullable().optional(),
+  purchasedAt: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine((s) => {
+      const d = new Date(s);
+      return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+    }, 'invalid date')
+    .nullable()
+    .optional(),
 });
 
 export type UpdateGameInput = z.infer<typeof UpdateGameInputSchema>;
@@ -82,6 +92,8 @@ export class UpdateGame {
       format: data.format,
       coverColor: data.coverColor,
       coverImage: data.coverImage ?? undefined,
+      price: data.price ?? undefined,
+      purchasedAt: data.purchasedAt ?? undefined,
     };
 
     const gameUpdateResult = NewGame.create(props);

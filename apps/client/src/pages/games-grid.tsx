@@ -2,6 +2,7 @@ import { GameCover } from '@/components/game-cover';
 import { StatusBadge } from '@/components/status-badge';
 import { coverColorFor } from '@/lib/avatar';
 import { statusFor } from '@/lib/game-status';
+import { formatPriceZl } from '@/lib/money';
 import type { Game } from '@/types';
 import { Link } from 'react-router-dom';
 
@@ -40,6 +41,9 @@ function GameCard({ game }: { game: Game }) {
         </div>
         <div className="truncate text-[11px] leading-[1.35] text-apex-faint">
           {game.platform}
+        </div>
+        <div className="truncate text-[11px] leading-[1.35] text-apex-faint tabular-nums">
+          {game.price != null ? formatPriceZl(game.price) : '—'}
         </div>
         <div className="mt-auto flex items-center justify-between gap-2 pt-1.5">
           <StatusBadge {...status} />

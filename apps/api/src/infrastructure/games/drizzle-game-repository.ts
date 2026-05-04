@@ -32,6 +32,8 @@ export class DrizzleGameRepository implements GameRepository {
       format: row.format as GameFormat,
       coverColor: row.coverColor,
       coverImage: row.coverImage,
+      price: row.price,
+      purchasedAt: row.purchasedAt,
     });
   }
 
@@ -121,6 +123,8 @@ export class DrizzleGameRepository implements GameRepository {
         format: newGame.format,
         coverColor: newGame.coverColor ?? null,
         coverImage: newGame.coverImage ?? null,
+        price: newGame.price?.value ?? null,
+        purchasedAt: newGame.purchasedAt?.value ?? null,
       })
       .returning();
 
@@ -142,6 +146,8 @@ export class DrizzleGameRepository implements GameRepository {
         format: game.format,
         coverColor: game.coverColor ?? null,
         coverImage: game.coverImage ?? null,
+        price: game.price?.value ?? null,
+        purchasedAt: game.purchasedAt?.value ?? null,
       })
       .where(eq(gamesTable.id, id))
       .returning();

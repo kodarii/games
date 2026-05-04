@@ -11,6 +11,12 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { coverColorFor } from '@/lib/avatar';
 import {
+  formatPriceZl,
+  formatPurchasedAt,
+  groszeToZl,
+  zlToGrosze,
+} from '@/lib/money';
+import {
   useDeleteGameMutation,
   useGameQuery,
   usePlatformsQuery,
@@ -44,6 +50,8 @@ type DraftState = {
   format: GameFormat;
   coverColor: string;
   coverImage: string | null;
+  priceZl: string;
+  purchasedAt: string;
 };
 
 function gameToDraft(g: Game): DraftState {
@@ -59,6 +67,8 @@ function gameToDraft(g: Game): DraftState {
     format: g.format,
     coverColor: coverColorFor(g),
     coverImage: g.coverImage ?? null,
+    priceZl: g.price != null ? groszeToZl(g.price) : '',
+    purchasedAt: g.purchasedAt ?? '',
   };
 }
 
@@ -252,6 +262,8 @@ export function GameViewPage() {
           format: draft.format,
           coverColor: draft.coverColor,
           coverImage: draft.coverImage,
+          price: draft.priceZl.trim() ? (zlToGrosze(draft.priceZl) ?? null) : null,
+          purchasedAt: draft.purchasedAt ? draft.purchasedAt : null,
         },
       },
       {
@@ -538,6 +550,31 @@ export function GameViewPage() {
                       type="number"
                       value={draft?.hoursPlayed ?? ''}
                       onChange={(e) => set('hoursPlayed', e.target.value)}
+                    />
+                  </FieldItem>
+                  <FieldItem
+                    label="Price"
+                    value={formatPriceZl(game.price)}
+                    editMode={editMode}
+                  >
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="e.g. 129.99"
+                      value={draft?.priceZl ?? ''}
+                      onChange={(e) => set('priceZl', e.target.value)}
+                    />
+                  </FieldItem>
+                  <FieldItem
+                    label="Purchased"
+                    value={formatPurchasedAt(game.purchasedAt)}
+                    editMode={editMode}
+                  >
+                    <Input
+                      type="date"
+                      value={draft?.purchasedAt ?? ''}
+                      onChange={(e) => set('purchasedAt', e.target.value)}
                     />
                   </FieldItem>
                 </dl>

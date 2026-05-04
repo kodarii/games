@@ -29,6 +29,8 @@ class FakeGameRepository implements GameRepository {
       hoursPlayed: g.hoursPlayed.value,
       status: g.status,
       format: g.format,
+      price: g.price?.value ?? null,
+      purchasedAt: g.purchasedAt?.value ?? null,
     });
   };
 }
@@ -165,5 +167,76 @@ describe('CreateGame', () => {
     const { releaseYear: _releaseYear, ...inputWithoutYear } = validInput;
     const result = await useCase.execute(inputWithoutYear, 'user-A');
     expect(result.ok).toBe(true);
+  });
+
+  it('accepts price and purchasedAt', async () => {
+    const result = await useCase.execute(
+      { ...validInput, price: 12999, purchasedAt: '2024-06-15' },
+      'user-A',
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.toJSON().price).toBe(12999);
+      expect(result.value.toJSON().purchasedAt).toBe('2024-06-15');
+    }
+  });
+
+  it('omits price/purchasedAt when not provided', async () => {
+    const result = await useCase.execute(validInput, 'user-A');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.toJSON().price).toBeNull();
+      expect(result.value.toJSON().purchasedAt).toBeNull();
+    }
+  });
+
+  it('returns invalid_input for negative price', async () => {
+    const result = await useCase.execute({ ...validInput, price: -1 }, 'user-A');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid_input');
+      if (result.error.kind === 'invalid_input') {
+        expect(result.error.issues.some((i) => i.path[0] === 'price')).toBe(true);
+      }
+    }
+  });
+
+  it('returns invalid_input for bad purchasedAt format', async () => {
+    const result = await useCase.execute(
+      { ...validInput, purchasedAt: '2024/06/15' },
+      'user-A',
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid_input');
+      if (result.error.kind === 'invalid_input') {
+        expect(result.error.issues.some((i) => i.path[0] === 'purchasedAt')).toBe(true);
+      }
+    }
+  });
+
+  it('returns domain price_too_large for huge price', async () => {
+    const result = await useCase.execute({ ...validInput, price: 999_999_999 }, 'user-A');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('domain');
+      if (result.error.kind === 'domain') {
+        expect(result.error.error.kind).toBe('price_too_large');
+      }
+    }
+  });
+
+  it('returns domain purchased_at_in_future', async () => {
+    const result = await useCase.execute(
+      { ...validInput, purchasedAt: '2099-01-01' },
+      'user-A',
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('domain');
+      if (result.error.kind === 'domain') {
+        expect(result.error.error.kind).toBe('purchased_at_in_future');
+      }
+    }
   });
 });

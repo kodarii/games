@@ -29,6 +29,8 @@ export interface CreateGameInput {
   format: GameFormat;
   coverColor?: string;
   coverImage?: string | null;
+  price?: number | null;
+  purchasedAt?: string | null;
 }
 
 export async function createGame(input: CreateGameInput): Promise<Game> {

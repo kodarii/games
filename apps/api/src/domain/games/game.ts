@@ -16,7 +16,13 @@ export type GameValidationError =
   | { kind: 'hours_played_negative'; value: number }
   | { kind: 'platform_invalid'; value: string }
   | { kind: 'status_invalid'; value: string }
-  | { kind: 'format_invalid'; value: string };
+  | { kind: 'format_invalid'; value: string }
+  | { kind: 'price_negative'; value: number }
+  | { kind: 'price_too_large'; value: number }
+  | { kind: 'price_not_integer'; value: number }
+  | { kind: 'purchased_at_invalid_format'; value: string }
+  | { kind: 'purchased_at_invalid_date'; value: string }
+  | { kind: 'purchased_at_in_future' };
 
 export type GameProps = {
   userId: string;
@@ -31,6 +37,8 @@ export type GameProps = {
   format: GameFormat;
   coverColor?: string;
   coverImage?: string;
+  price?: number;
+  purchasedAt?: string;
 };
 
 export class ReleaseYear {
@@ -63,6 +71,58 @@ export class HoursPlayed {
   }
 }
 
+export class Price {
+  private constructor(public readonly value: number) {}
+
+  static create(raw: number): Result<Price, GameValidationError> {
+    if (!Number.isInteger(raw)) {
+      return err({ kind: 'price_not_integer', value: raw });
+    }
+    if (raw < 0) {
+      return err({ kind: 'price_negative', value: raw });
+    }
+    if (raw >= 100_000_000) {
+      return err({ kind: 'price_too_large', value: raw });
+    }
+    return ok(new Price(raw));
+  }
+
+  static fromTrusted(value: number): Price {
+    return new Price(value);
+  }
+}
+
+const PURCHASED_AT_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+function isoToday(now: Date = new Date()): string {
+  return now.toISOString().slice(0, 10);
+}
+
+export class PurchasedAt {
+  private constructor(public readonly value: string) {}
+
+  static create(
+    raw: string,
+    today: string = isoToday(),
+  ): Result<PurchasedAt, GameValidationError> {
+    if (!PURCHASED_AT_REGEX.test(raw)) {
+      return err({ kind: 'purchased_at_invalid_format', value: raw });
+    }
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== raw) {
+      return err({ kind: 'purchased_at_invalid_date', value: raw });
+    }
+    if (raw > today) {
+      return err({ kind: 'purchased_at_in_future' });
+    }
+    return ok(new PurchasedAt(raw));
+  }
+
+  static fromTrusted(value: string): PurchasedAt {
+    return new PurchasedAt(value);
+  }
+}
+
 export class NewGame {
   private constructor(
     private readonly _externalId: string,
@@ -78,6 +138,8 @@ export class NewGame {
     private readonly _format: GameFormat,
     private readonly _coverColor: string | undefined,
     private readonly _coverImage: string | undefined,
+    private readonly _price: Price | null,
+    private readonly _purchasedAt: PurchasedAt | null,
   ) {}
 
   static create(
@@ -125,6 +187,24 @@ export class NewGame {
       return hoursPlayedResult;
     }
 
+    let price: Price | null = null;
+    if (props.price != null) {
+      const priceResult = Price.create(props.price);
+      if (!priceResult.ok) {
+        return priceResult;
+      }
+      price = priceResult.value;
+    }
+
+    let purchasedAt: PurchasedAt | null = null;
+    if (props.purchasedAt != null) {
+      const purchasedAtResult = PurchasedAt.create(props.purchasedAt);
+      if (!purchasedAtResult.ok) {
+        return purchasedAtResult;
+      }
+      purchasedAt = purchasedAtResult.value;
+    }
+
     const genre = props.genre.trim();
     const edition = props.edition?.trim() || undefined;
     const coverColor = props.coverColor?.trim() || undefined;
@@ -146,6 +226,8 @@ export class NewGame {
         props.format,
         coverColor,
         coverImage,
+        price,
+        purchasedAt,
       ),
     );
   }
@@ -189,6 +271,12 @@ export class NewGame {
   get coverImage(): string | undefined {
     return this._coverImage;
   }
+  get price(): Price | null {
+    return this._price;
+  }
+  get purchasedAt(): PurchasedAt | null {
+    return this._purchasedAt;
+  }
 }
 
 export type GameUpdate = NewGame;
@@ -209,6 +297,8 @@ export class Game {
     private readonly _format: GameFormat,
     private readonly _coverColor: string | undefined,
     private readonly _coverImage: string | undefined,
+    private readonly _price: Price | null,
+    private readonly _purchasedAt: PurchasedAt | null,
   ) {}
 
   static fromPersistence(row: {
@@ -226,6 +316,8 @@ export class Game {
     format: GameFormat;
     coverColor?: string | null;
     coverImage?: string | null;
+    price?: number | null;
+    purchasedAt?: string | null;
   }): Game {
     if (!row.externalId) {
       throw new Error(`Game row ${row.id} has null externalId — run backfill first`);
@@ -245,6 +337,8 @@ export class Game {
       row.format,
       row.coverColor ?? undefined,
       row.coverImage ?? undefined,
+      row.price != null ? Price.fromTrusted(row.price) : null,
+      row.purchasedAt != null ? PurchasedAt.fromTrusted(row.purchasedAt) : null,
     );
   }
 
@@ -290,6 +384,12 @@ export class Game {
   get coverImage(): string | undefined {
     return this._coverImage;
   }
+  get price(): Price | null {
+    return this._price;
+  }
+  get purchasedAt(): PurchasedAt | null {
+    return this._purchasedAt;
+  }
 
   toJSON() {
     return {
@@ -307,6 +407,8 @@ export class Game {
       format: this._format,
       coverColor: this._coverColor,
       coverImage: this._coverImage ?? null,
+      price: this._price?.value ?? null,
+      purchasedAt: this._purchasedAt?.value ?? null,
     };
   }
 }

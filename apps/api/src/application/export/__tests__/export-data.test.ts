@@ -79,6 +79,8 @@ function makeGame(overrides: {
   status?: GameStatus;
   format?: GameFormat;
   coverColor?: string | null;
+  price?: number | null;
+  purchasedAt?: string | null;
 }): Game {
   return Game.fromPersistence({
     id: overrides.id,
@@ -94,6 +96,8 @@ function makeGame(overrides: {
     status: overrides.status ?? 'Backlog',
     format: overrides.format ?? 'digital',
     coverColor: overrides.coverColor ?? null,
+    price: overrides.price ?? null,
+    purchasedAt: overrides.purchasedAt ?? null,
   });
 }
 
@@ -107,7 +111,7 @@ describe('toSnapshot', () => {
   it('returns empty snapshot for no games and no platforms', () => {
     const snapshot = toSnapshot([], [], NOW);
     expect(snapshot).toEqual({
-      version: 2,
+      version: 3,
       exportedAt: '2026-01-15T10:00:00.000Z',
       platforms: [],
       games: [],
@@ -182,6 +186,26 @@ describe('toSnapshot', () => {
     expect(keys).not.toContain('userId');
     expect(keys).not.toContain('createdAt');
   });
+
+  it('exports price and purchasedAt for v3', () => {
+    const game = makeGame({
+      id: 1,
+      userId: 'u1',
+      title: 'Alpha',
+      price: 5000,
+      purchasedAt: '2024-01-01',
+    });
+    const snapshot = toSnapshot([game], [], NOW);
+    expect(snapshot.games[0].price).toBe(5000);
+    expect(snapshot.games[0].purchasedAt).toBe('2024-01-01');
+  });
+
+  it('exports null for missing price and purchasedAt', () => {
+    const game = makeGame({ id: 1, userId: 'u1', title: 'Alpha' });
+    const snapshot = toSnapshot([game], [], NOW);
+    expect(snapshot.games[0].price).toBeNull();
+    expect(snapshot.games[0].purchasedAt).toBeNull();
+  });
 });
 
 describe('ExportData', () => {
@@ -203,7 +227,7 @@ describe('ExportData', () => {
 
     const snapshot = await useCase.execute('u1', NOW);
 
-    expect(snapshot.version).toBe(2);
+    expect(snapshot.version).toBe(3);
     expect(snapshot.exportedAt).toBe('2026-01-15T10:00:00.000Z');
     expect(snapshot.platforms).toEqual([{ externalId: 'ext-platform-1', name: 'PC' }]);
     expect(snapshot.games).toHaveLength(2);

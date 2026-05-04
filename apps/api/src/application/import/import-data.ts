@@ -86,6 +86,8 @@ export class ImportData {
           format: g.format,
           edition: g.edition,
           coverColor: g.coverColor,
+          price: g.price ?? undefined,
+          purchasedAt: g.purchasedAt ?? undefined,
         },
         () => g.externalId,
       );

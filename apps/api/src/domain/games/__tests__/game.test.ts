@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'bun:test';
-import { Game, type GameProps, HoursPlayed, NewGame, ReleaseYear } from '../game';
+import {
+  Game,
+  type GameProps,
+  HoursPlayed,
+  NewGame,
+  Price,
+  PurchasedAt,
+  ReleaseYear,
+} from '../game';
 
 const validRow = {
   id: 1,
@@ -252,6 +260,8 @@ describe('Game.fromPersistence', () => {
       format: 'digital',
       coverColor: undefined,
       coverImage: null,
+      price: null,
+      purchasedAt: null,
     });
   });
 
@@ -281,5 +291,162 @@ describe('Game.toJSON serialization', () => {
     expect(typeof json.releaseYear).toBe('number');
     expect(typeof json.hoursPlayed).toBe('number');
     expect(JSON.parse(JSON.stringify(game))).toEqual(json);
+  });
+});
+
+describe('Price', () => {
+  it('creates valid price 12999 grosze', () => {
+    const result = Price.create(12999);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.value).toBe(12999);
+    }
+  });
+
+  it('creates valid price 0 (free game)', () => {
+    const result = Price.create(0);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.value).toBe(0);
+    }
+  });
+
+  it('returns error for negative price', () => {
+    const result = Price.create(-1);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('price_negative');
+      const e = result.error as { kind: string; value: number };
+      expect(e.value).toBe(-1);
+    }
+  });
+
+  it('returns error for too large price', () => {
+    const result = Price.create(100_000_000);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('price_too_large');
+      const e = result.error as { kind: string; value: number };
+      expect(e.value).toBe(100_000_000);
+    }
+  });
+
+  it('returns error for non-integer price', () => {
+    const result = Price.create(12.5);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('price_not_integer');
+      const e = result.error as { kind: string; value: number };
+      expect(e.value).toBe(12.5);
+    }
+  });
+});
+
+describe('PurchasedAt', () => {
+  it('creates valid past date', () => {
+    const result = PurchasedAt.create('2024-06-15', '2026-05-03');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.value).toBe('2024-06-15');
+    }
+  });
+
+  it('returns error for slash format', () => {
+    const result = PurchasedAt.create('2024/06/15', '2026-05-03');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('purchased_at_invalid_format');
+      const e = result.error as { kind: string; value: string };
+      expect(e.value).toBe('2024/06/15');
+    }
+  });
+
+  it('returns error for short format', () => {
+    const result = PurchasedAt.create('24-6-15', '2026-05-03');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('purchased_at_invalid_format');
+    }
+  });
+
+  it('returns error for non-existent date', () => {
+    const result = PurchasedAt.create('2026-02-30', '2026-05-03');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('purchased_at_invalid_date');
+      const e = result.error as { kind: string; value: string };
+      expect(e.value).toBe('2026-02-30');
+    }
+  });
+
+  it('accepts today (raw === today)', () => {
+    const result = PurchasedAt.create('2026-05-03', '2026-05-03');
+    expect(result.ok).toBe(true);
+  });
+
+  it('returns error for date one day in future', () => {
+    const result = PurchasedAt.create('2026-05-04', '2026-05-03');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('purchased_at_in_future');
+    }
+  });
+});
+
+describe('NewGame.create with price and purchasedAt', () => {
+  it('accepts both price and purchasedAt', () => {
+    const result = NewGame.create({
+      ...validProps(),
+      price: 5999,
+      purchasedAt: '2024-01-01',
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.price?.value).toBe(5999);
+      expect(result.value.purchasedAt?.value).toBe('2024-01-01');
+    }
+  });
+
+  it('defaults to null when fields not provided', () => {
+    const result = NewGame.create(validProps());
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.price).toBeNull();
+      expect(result.value.purchasedAt).toBeNull();
+    }
+  });
+
+  it('returns error for negative price', () => {
+    const result = NewGame.create({ ...validProps(), price: -1 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('price_negative');
+    }
+  });
+
+  it('returns error for purchasedAt in the future', () => {
+    const result = NewGame.create({ ...validProps(), purchasedAt: '2099-01-01' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('purchased_at_in_future');
+    }
+  });
+});
+
+describe('Game.fromPersistence with price and purchasedAt', () => {
+  it('maps null price and purchasedAt', () => {
+    const row = { ...validRow, price: null, purchasedAt: null };
+    const game = Game.fromPersistence(row);
+    const json = game.toJSON();
+    expect(json.price).toBeNull();
+    expect(json.purchasedAt).toBeNull();
+  });
+
+  it('maps non-null price and purchasedAt', () => {
+    const row = { ...validRow, price: 12999, purchasedAt: '2024-06-15' };
+    const game = Game.fromPersistence(row);
+    const json = game.toJSON();
+    expect(json.price).toBe(12999);
+    expect(json.purchasedAt).toBe('2024-06-15');
   });
 });

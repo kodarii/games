@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { UploadCoverButton } from '@/components/upload-cover-button';
 import type { CreateGameInput, UpdateGameInput } from '@/lib/api';
 import { COVER_COLORS, coverColorFor } from '@/lib/avatar';
+import { groszeToZl, zlToGrosze } from '@/lib/money';
 import { useCreateGameMutation, usePlatformsQuery, useUpdateGameMutation } from '@/lib/queries';
 import type { Game, GameFormat, GameStatus, Platform } from '@/types';
 import { useState } from 'react';
@@ -36,6 +37,8 @@ type FormState = {
   notes: string;
   coverColor: string;
   coverImage: string | null;
+  priceZl: string;
+  purchasedAt: string;
 };
 
 const EMPTY: FormState = {
@@ -51,6 +54,8 @@ const EMPTY: FormState = {
   notes: '',
   coverColor: COVER_COLORS[0],
   coverImage: null,
+  priceZl: '',
+  purchasedAt: '',
 };
 
 function gameToFormState(g: Game): FormState {
@@ -67,6 +72,8 @@ function gameToFormState(g: Game): FormState {
     notes: '',
     coverColor: coverColorFor(g),
     coverImage: g.coverImage ?? null,
+    priceZl: g.price != null ? groszeToZl(g.price) : '',
+    purchasedAt: g.purchasedAt ?? '',
   };
 }
 
@@ -118,6 +125,8 @@ export function GameForm({
       format: form.format,
       coverColor: form.coverColor,
       coverImage: form.coverImage,
+      price: form.priceZl.trim() ? (zlToGrosze(form.priceZl) ?? undefined) : undefined,
+      purchasedAt: form.purchasedAt ? form.purchasedAt : undefined,
     };
 
     if (isEdit && initialGame) {
@@ -221,6 +230,25 @@ export function GameForm({
                       placeholder="e.g. 2022"
                       value={form.releaseYear}
                       onChange={(e) => set('releaseYear', e.target.value)}
+                    />
+                  </FormField>
+                </FormFieldRow>
+                <FormFieldRow cols={2}>
+                  <FormField label="Price (PLN)">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="e.g. 129.99"
+                      value={form.priceZl}
+                      onChange={(e) => set('priceZl', e.target.value)}
+                    />
+                  </FormField>
+                  <FormField label="Purchase Date">
+                    <Input
+                      type="date"
+                      value={form.purchasedAt}
+                      onChange={(e) => set('purchasedAt', e.target.value)}
                     />
                   </FormField>
                 </FormFieldRow>
