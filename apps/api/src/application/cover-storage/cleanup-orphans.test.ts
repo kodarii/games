@@ -52,6 +52,21 @@ describe('CleanupOrphans', () => {
     expect(r.deleted).toBe(0);
   });
 
+  it('matches files by key even when URL domains differ', async () => {
+    // storage returns utfs.io URLs, DB has ufs.sh URLs — same file key, different domain
+    const storage = new FakeStorage([
+      'https://utfs.io/f/key-abc',
+      'https://utfs.io/f/key-orphan',
+    ]);
+    const repo = new FakeGameRepository(['https://xxxx.ufs.sh/f/key-abc']);
+    const cleanup = new CleanupOrphans(storage, repo);
+
+    const r = await cleanup.run();
+
+    expect(storage.deleted).toEqual(['https://utfs.io/f/key-orphan']);
+    expect(r).toEqual({ listed: 2, inDb: 1, orphans: 1, deleted: 1, failed: 0 });
+  });
+
   it('handles empty storage', async () => {
     const storage = new FakeStorage([]);
     const repo = new FakeGameRepository(['url-A']);
