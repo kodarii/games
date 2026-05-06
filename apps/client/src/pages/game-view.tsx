@@ -19,6 +19,7 @@ import {
 import {
   useDeleteGameMutation,
   useGameQuery,
+  useMoveToCollectionMutation,
   usePlatformsQuery,
   useUpdateGameMutation,
 } from '@/lib/queries';
@@ -31,7 +32,6 @@ const STATUS_OPTS: GameStatus[] = [
   'Completed',
   'Backlog',
   'Dropped',
-  'Wishlist',
 ];
 const FORMAT_OPTS: { value: GameFormat; label: string }[] = [
   { value: 'physical', label: 'Physical' },
@@ -46,7 +46,7 @@ type DraftState = {
   platform: string;
   edition: string;
   hoursPlayed: string;
-  status: GameStatus;
+  status: GameStatus | null;
   format: GameFormat;
   coverColor: string;
   coverImage: string | null;
@@ -57,12 +57,12 @@ type DraftState = {
 function gameToDraft(g: Game): DraftState {
   return {
     title: g.title,
-    developer: g.developer,
+    developer: g.developer ?? '',
     genre: g.genre,
     releaseYear: g.releaseYear != null ? String(g.releaseYear) : '',
     platform: g.platform,
     edition: g.edition ?? '',
-    hoursPlayed: String(g.hoursPlayed),
+    hoursPlayed: g.hoursPlayed != null ? String(g.hoursPlayed) : '',
     status: g.status,
     format: g.format,
     coverColor: coverColorFor(g),
@@ -193,7 +193,7 @@ function FieldItem({
   children,
 }: {
   label: string;
-  value?: string;
+  value?: string | null;
   editMode?: boolean;
   children?: ReactNode;
 }) {
@@ -222,6 +222,7 @@ export function GameViewPage() {
   const { data: game, error } = useGameQuery(id);
   const updateMutation = useUpdateGameMutation();
   const deleteMutation = useDeleteGameMutation();
+  const moveMutation = useMoveToCollectionMutation();
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -247,23 +248,25 @@ export function GameViewPage() {
 
   const saveEdit = () => {
     if (!draft || !game || !draft.platform) return;
+    const isWishlist = game.kind === 'wishlist';
     updateMutation.mutate(
       {
         id: game.id,
         input: {
+          kind: game.kind,
           title: draft.title.trim(),
-          developer: draft.developer.trim(),
+          developer: draft.developer.trim() || undefined,
           genre: draft.genre.trim(),
           releaseYear: draft.releaseYear ? Number(draft.releaseYear) : undefined,
           platform: draft.platform as GamePlatform,
           edition: draft.edition.trim() || undefined,
-          hoursPlayed: Number(draft.hoursPlayed) || 0,
-          status: draft.status,
+          hoursPlayed: isWishlist ? undefined : (draft.status != null ? (Number(draft.hoursPlayed) || 0) : undefined),
+          status: isWishlist ? undefined : (draft.status ?? undefined),
           format: draft.format,
           coverColor: draft.coverColor,
           coverImage: draft.coverImage,
           price: draft.priceZl.trim() ? (zlToGrosze(draft.priceZl) ?? null) : null,
-          purchasedAt: draft.purchasedAt ? draft.purchasedAt : null,
+          purchasedAt: isWishlist ? null : (draft.purchasedAt ? draft.purchasedAt : null),
         },
       },
       {
@@ -279,10 +282,17 @@ export function GameViewPage() {
     if (!game) return;
     try {
       await deleteMutation.mutateAsync(game.id);
-      navigate('/games');
+      navigate(game.kind === 'wishlist' ? '/wishlist' : '/games');
     } catch (e) {
       alert(`Failed to delete: ${e}`);
     }
+  };
+
+  const handleMove = () => {
+    if (!game) return;
+    moveMutation.mutate(game.externalId, {
+      onSuccess: () => navigate(`/games/${game.id}`),
+    });
   };
 
   if (error) {
@@ -319,7 +329,7 @@ export function GameViewPage() {
               {liveTitle}
             </div>
             <div className="truncate text-[11px] text-[#aaa]">
-              {liveDeveloper} · {livePlatform}
+              {liveDeveloper ? `${liveDeveloper} · ` : ''}{livePlatform}
             </div>
           </div>
         </div>
@@ -343,7 +353,18 @@ export function GameViewPage() {
             </button>
           </div>
         ) : (
-          <div className="flex-shrink-0 pl-4">
+          <div className="flex flex-shrink-0 items-center gap-2 pl-4">
+            {game.kind === 'wishlist' && (
+              <button
+                type="button"
+                onClick={handleMove}
+                disabled={moveMutation.isPending}
+                className="flex cursor-pointer items-center gap-1.5 rounded-[7px] bg-[#4361ee] px-[14px] py-[7px] text-[13px] font-semibold text-white hover:opacity-90 disabled:opacity-50"
+              >
+                <Icon.arrowRight size={14} />
+                {moveMutation.isPending ? 'Moving…' : 'Move to collection'}
+              </button>
+            )}
             <ActionsDropdown
               onEdit={startEdit}
               onDelete={() => setDeleteDialogOpen(true)}
@@ -356,10 +377,10 @@ export function GameViewPage() {
       <div className="flex h-[36px] flex-shrink-0 items-center gap-1.5 border-b border-[#f0f0f0] bg-white px-4 lg:px-6">
         <button
           type="button"
-          onClick={() => navigate('/games')}
+          onClick={() => navigate(game.kind === 'wishlist' ? '/wishlist' : '/games')}
           className="cursor-pointer border-none bg-transparent text-[12px] font-medium text-[#4361ee] hover:underline"
         >
-          Games
+          {game.kind === 'wishlist' ? 'Wishlist' : 'Games'}
         </button>
         <span className="text-[12px] text-[#ccc]">›</span>
         <span className="truncate text-[12px] text-[#888]">{game.title}</span>
@@ -416,16 +437,18 @@ export function GameViewPage() {
                       onChange={(e) => set('title', e.target.value)}
                     />
                   </FieldItem>
-                  <FieldItem
-                    label="Developer"
-                    value={game.developer}
-                    editMode={editMode}
-                  >
-                    <Input
-                      value={draft?.developer ?? ''}
-                      onChange={(e) => set('developer', e.target.value)}
-                    />
-                  </FieldItem>
+                  {game.developer != null && (
+                    <FieldItem
+                      label="Developer"
+                      value={game.developer}
+                      editMode={editMode}
+                    >
+                      <Input
+                        value={draft?.developer ?? ''}
+                        onChange={(e) => set('developer', e.target.value)}
+                      />
+                    </FieldItem>
+                  )}
                   <FieldItem
                     label="Genre"
                     value={game.genre || '—'}
@@ -523,35 +546,39 @@ export function GameViewPage() {
                       onChange={(e) => set('edition', e.target.value)}
                     />
                   </FieldItem>
-                  <FieldItem
-                    label="Status"
-                    value={game.status}
-                    editMode={editMode}
-                  >
-                    <Select
-                      value={draft?.status ?? 'Backlog'}
-                      onChange={(e) =>
-                        set('status', e.target.value as GameStatus)
-                      }
+                  {game.kind === 'owned' && game.status != null && (
+                    <FieldItem
+                      label="Status"
+                      value={game.status}
+                      editMode={editMode}
                     >
-                      {STATUS_OPTS.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </Select>
-                  </FieldItem>
-                  <FieldItem
-                    label="Hours Played"
-                    value={`${game.hoursPlayed} h`}
-                    editMode={editMode}
-                  >
-                    <Input
-                      type="number"
-                      value={draft?.hoursPlayed ?? ''}
-                      onChange={(e) => set('hoursPlayed', e.target.value)}
-                    />
-                  </FieldItem>
+                      <Select
+                        value={draft?.status ?? 'Backlog'}
+                        onChange={(e) =>
+                          set('status', e.target.value as GameStatus)
+                        }
+                      >
+                        {STATUS_OPTS.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </Select>
+                    </FieldItem>
+                  )}
+                  {game.kind === 'owned' && game.hoursPlayed != null && (
+                    <FieldItem
+                      label="Hours Played"
+                      value={`${game.hoursPlayed} h`}
+                      editMode={editMode}
+                    >
+                      <Input
+                        type="number"
+                        value={draft?.hoursPlayed ?? ''}
+                        onChange={(e) => set('hoursPlayed', e.target.value)}
+                      />
+                    </FieldItem>
+                  )}
                   <FieldItem
                     label="Price"
                     value={formatPriceZl(game.price)}
@@ -566,17 +593,19 @@ export function GameViewPage() {
                       onChange={(e) => set('priceZl', e.target.value)}
                     />
                   </FieldItem>
-                  <FieldItem
-                    label="Purchased"
-                    value={formatPurchasedAt(game.purchasedAt)}
-                    editMode={editMode}
-                  >
-                    <Input
-                      type="date"
-                      value={draft?.purchasedAt ?? ''}
-                      onChange={(e) => set('purchasedAt', e.target.value)}
-                    />
-                  </FieldItem>
+                  {game.kind === 'owned' && (
+                    <FieldItem
+                      label="Purchased"
+                      value={formatPurchasedAt(game.purchasedAt)}
+                      editMode={editMode}
+                    >
+                      <Input
+                        type="date"
+                        value={draft?.purchasedAt ?? ''}
+                        onChange={(e) => set('purchasedAt', e.target.value)}
+                      />
+                    </FieldItem>
+                  )}
                 </dl>
               </div>
             </div>

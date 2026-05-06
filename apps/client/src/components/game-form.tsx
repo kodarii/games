@@ -22,7 +22,8 @@ import type { Game, GameFormat, GameStatus, Platform } from '@/types';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-type Mode = 'create' | 'edit';
+type FormAction = 'create' | 'edit';
+type GameMode = 'owned' | 'wishlist';
 
 type FormState = {
   title: string;
@@ -61,13 +62,13 @@ const EMPTY: FormState = {
 function gameToFormState(g: Game): FormState {
   return {
     title: g.title,
-    developer: g.developer,
+    developer: g.developer ?? '',
     genre: g.genre,
     releaseYear: g.releaseYear != null ? String(g.releaseYear) : '',
     platform: g.platform,
     edition: g.edition ?? '',
-    hoursPlayed: String(g.hoursPlayed),
-    status: g.status,
+    hoursPlayed: g.hoursPlayed != null ? String(g.hoursPlayed) : '',
+    status: g.status ?? 'Backlog',
     format: g.format,
     notes: '',
     coverColor: coverColorFor(g),
@@ -79,7 +80,6 @@ function gameToFormState(g: Game): FormState {
 
 const STATUS_OPTS = [
   { value: 'Playing' as const, color: '#4F6EF7' },
-  { value: 'Wishlist' as const, color: '#4F6EF7' },
   { value: 'Backlog' as const, color: '#f59e0b' },
   { value: 'Completed' as const, color: '#10b981' },
   { value: 'Dropped' as const, color: '#ef4444' },
@@ -91,14 +91,17 @@ const FORMAT_OPTS: { value: GameFormat; label: string }[] = [
 ];
 
 export function GameForm({
+  action,
   mode,
   initialGame,
 }: {
-  mode: Mode;
+  action: FormAction;
+  mode: GameMode;
   initialGame?: Game;
 }) {
   const navigate = useNavigate();
-  const isEdit = mode === 'edit';
+  const isEdit = action === 'edit';
+  const isWishlist = mode === 'wishlist';
   const [form, setForm] = useState<FormState>(() =>
     initialGame ? gameToFormState(initialGame) : EMPTY,
   );
@@ -113,32 +116,35 @@ export function GameForm({
   const canSubmit = Boolean(form.title.trim() && form.developer.trim() && form.platform);
 
   const onSubmit = () => {
-    const payload = {
+    const payload: CreateGameInput = {
+      kind: isWishlist ? 'wishlist' : 'owned',
       title: form.title.trim(),
       developer: form.developer.trim(),
       genre: form.genre.trim() || '',
       releaseYear: form.releaseYear ? Number(form.releaseYear) : undefined,
       platform: form.platform,
       edition: form.edition.trim() || undefined,
-      hoursPlayed: Number(form.hoursPlayed) || 0,
-      status: form.status,
+      hoursPlayed: isWishlist ? undefined : (Number(form.hoursPlayed) || 0),
+      status: isWishlist ? undefined : form.status,
       format: form.format,
       coverColor: form.coverColor,
       coverImage: form.coverImage,
       price: form.priceZl.trim() ? (zlToGrosze(form.priceZl) ?? undefined) : undefined,
-      purchasedAt: form.purchasedAt ? form.purchasedAt : undefined,
+      purchasedAt: isWishlist ? undefined : (form.purchasedAt ? form.purchasedAt : undefined),
     };
+
+    const successPath = isWishlist ? '/wishlist' : '/games';
 
     if (isEdit && initialGame) {
       updateMutation.mutate(
         { id: initialGame.id, input: payload satisfies UpdateGameInput },
-        { onSuccess: (g) => navigate(`/games/${g.id}`) },
+        { onSuccess: (g) => navigate(`${successPath}/${g.id}`) },
       );
       return;
     }
 
     createMutation.mutate(payload satisfies CreateGameInput, {
-      onSuccess: (g) => navigate(`/games/${g.id}`),
+      onSuccess: (g) => navigate(`${successPath}/${g.id}`),
     });
   };
 
@@ -149,6 +155,8 @@ export function GameForm({
     : 'Fill in the details to add a game to your collection.';
   const breadcrumbLast = isEdit ? (initialGame?.title ?? 'Edit Game') : 'Add New Game';
   const submitLabel = isEdit ? 'Save Changes' : 'Add Game';
+  const parentLabel = isWishlist ? 'Wishlist' : 'Games';
+  const parentPath = isWishlist ? '/wishlist' : '/games';
   const errorMessage = createMutation.error?.message || updateMutation.error?.message || null;
 
   return (
@@ -168,7 +176,7 @@ export function GameForm({
         </div>
       </AppHeader>
 
-      <Breadcrumb items={[{ label: 'Games', to: '/games' }, { label: breadcrumbLast }]} />
+      <Breadcrumb items={[{ label: parentLabel, to: parentPath }, { label: breadcrumbLast }]} />
 
       <div className="scroll-thin flex-1 overflow-y-auto bg-white px-5 pb-6 pt-3 lg:px-8">
         <div className="overflow-hidden rounded-[14px] border border-apex-line-1 bg-white">
@@ -244,13 +252,15 @@ export function GameForm({
                       onChange={(e) => set('priceZl', e.target.value)}
                     />
                   </FormField>
-                  <FormField label="Purchase Date">
-                    <Input
-                      type="date"
-                      value={form.purchasedAt}
-                      onChange={(e) => set('purchasedAt', e.target.value)}
-                    />
-                  </FormField>
+                  {!isWishlist && (
+                    <FormField label="Purchase Date">
+                      <Input
+                        type="date"
+                        value={form.purchasedAt}
+                        onChange={(e) => set('purchasedAt', e.target.value)}
+                      />
+                    </FormField>
+                  )}
                 </FormFieldRow>
               </div>
 
@@ -305,14 +315,16 @@ export function GameForm({
                       onChange={(e) => set('edition', e.target.value)}
                     />
                   </FormField>
-                  <FormField label="Hours Played">
-                    <Input
-                      type="number"
-                      placeholder="e.g. 42"
-                      value={form.hoursPlayed}
-                      onChange={(e) => set('hoursPlayed', e.target.value)}
-                    />
-                  </FormField>
+                  {!isWishlist && (
+                    <FormField label="Hours Played">
+                      <Input
+                        type="number"
+                        placeholder="e.g. 42"
+                        value={form.hoursPlayed}
+                        onChange={(e) => set('hoursPlayed', e.target.value)}
+                      />
+                    </FormField>
+                  )}
                 </FormFieldRow>
                 <FormFieldRow cols={1}>
                   <FormField label="Format" required>
@@ -325,14 +337,16 @@ export function GameForm({
                 </FormFieldRow>
               </div>
 
-              <div className="border-t border-apex-line-5 p-5 lg:p-6">
-                <SectionHeader title="Status" description="Set the current status for this game." />
-                <PillSelect
-                  value={form.status}
-                  options={STATUS_OPTS}
-                  onChange={(v) => set('status', v)}
-                />
-              </div>
+              {!isWishlist && (
+                <div className="border-t border-apex-line-5 p-5 lg:p-6">
+                  <SectionHeader title="Status" description="Set the current status for this game." />
+                  <PillSelect
+                    value={form.status}
+                    options={STATUS_OPTS}
+                    onChange={(v) => set('status', v)}
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -351,7 +365,7 @@ export function GameForm({
       </div>
 
       <FormFooter>
-        <FormCancelButton onClick={() => navigate('/games')} />
+        <FormCancelButton onClick={() => navigate(parentPath)} />
         <FormSubmitButton
           disabled={!canSubmit || createMutation.isPending || updateMutation.isPending}
           onClick={onSubmit}

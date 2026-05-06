@@ -1,8 +1,9 @@
-import type { Game, GameUpdate, NewGame } from './game';
+import type { Game, GameKind, GameUpdate, NewGame } from './game';
 
 export interface ListGamesQuery {
   userId: string;
   search?: string;
+  kind?: GameKind;
   page: number;
   perPage: number;
   sort?: 'title' | 'genre' | 'platform' | 'format' | 'status' | 'releaseYear' | 'hoursPlayed';

@@ -85,6 +85,7 @@ function makeGame(overrides: {
   return Game.fromPersistence({
     id: overrides.id,
     externalId: `ext-game-${overrides.id}`,
+    kind: 'owned',
     userId: overrides.userId,
     title: overrides.title,
     developer: overrides.developer ?? 'Dev',

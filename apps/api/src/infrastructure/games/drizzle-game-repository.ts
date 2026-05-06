@@ -2,6 +2,7 @@ import { and, asc, desc, eq, like, or, sql } from 'drizzle-orm';
 import {
   Game,
   type GameFormat,
+  type GameKind,
   type GamePlatform,
   type GameStatus,
   type NewGame,
@@ -20,6 +21,7 @@ export class DrizzleGameRepository implements GameRepository {
     return Game.fromPersistence({
       id: row.id,
       externalId: row.externalId,
+      kind: row.kind as GameKind,
       userId: row.userId,
       title: row.title,
       developer: row.developer,
@@ -28,7 +30,7 @@ export class DrizzleGameRepository implements GameRepository {
       platform: row.platform as GamePlatform,
       edition: row.edition,
       hoursPlayed: row.hoursPlayed,
-      status: row.status as GameStatus,
+      status: row.status as GameStatus | null,
       format: row.format as GameFormat,
       coverColor: row.coverColor,
       coverImage: row.coverImage,
@@ -38,20 +40,19 @@ export class DrizzleGameRepository implements GameRepository {
   }
 
   async list(query: ListGamesQuery): Promise<ListGamesResult> {
-    const { userId, search, page, perPage, sort, dir } = query;
+    const { userId, search, kind, page, perPage, sort, dir } = query;
 
     const userFilter = eq(gamesTable.userId, userId);
-    const whereClause = search
-      ? and(
-          userFilter,
-          or(
-            like(gamesTable.title, `%${search}%`),
-            like(gamesTable.developer, `%${search}%`),
-            like(gamesTable.genre, `%${search}%`),
-            like(gamesTable.platform, `%${search}%`),
-          ),
+    const kindFilter = kind ? eq(gamesTable.kind, kind) : undefined;
+    const searchFilter = search
+      ? or(
+          like(gamesTable.title, `%${search}%`),
+          like(gamesTable.developer, `%${search}%`),
+          like(gamesTable.genre, `%${search}%`),
+          like(gamesTable.platform, `%${search}%`),
         )
-      : userFilter;
+      : undefined;
+    const whereClause = and(userFilter, kindFilter, searchFilter);
 
     const totalResult = await db
       .select({ count: sql<number>`count(*)` })
@@ -111,15 +112,16 @@ export class DrizzleGameRepository implements GameRepository {
       .insert(gamesTable)
       .values({
         externalId: newGame.externalId,
+        kind: newGame.kind,
         userId: newGame.userId,
         title: newGame.title,
-        developer: newGame.developer,
+        developer: newGame.developer ?? null,
         genre: newGame.genre,
         releaseYear: newGame.releaseYear?.value ?? null,
         platform: newGame.platform,
         edition: newGame.edition ?? null,
-        hoursPlayed: newGame.hoursPlayed.value,
-        status: newGame.status,
+        hoursPlayed: newGame.hoursPlayed?.value ?? null,
+        status: newGame.status ?? null,
         format: newGame.format,
         coverColor: newGame.coverColor ?? null,
         coverImage: newGame.coverImage ?? null,
@@ -135,14 +137,15 @@ export class DrizzleGameRepository implements GameRepository {
     const [updated] = await db
       .update(gamesTable)
       .set({
+        kind: game.kind,
         title: game.title,
-        developer: game.developer,
+        developer: game.developer ?? null,
         genre: game.genre,
         releaseYear: game.releaseYear?.value ?? null,
         platform: game.platform,
         edition: game.edition ?? null,
-        hoursPlayed: game.hoursPlayed.value,
-        status: game.status,
+        hoursPlayed: game.hoursPlayed?.value ?? null,
+        status: game.status ?? null,
         format: game.format,
         coverColor: game.coverColor ?? null,
         coverImage: game.coverImage ?? null,

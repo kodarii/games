@@ -8,14 +8,15 @@ export const games = sqliteTable(
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull().default('owned'),
     title: text('title').notNull(),
-    developer: text('developer').notNull(),
+    developer: text('developer'),
     genre: text('genre').notNull(),
     releaseYear: integer('release_year'),
     platform: text('platform').notNull(),
     edition: text('edition'),
-    hoursPlayed: integer('hours_played').notNull().default(0),
-    status: text('status').notNull().default('Backlog'),
+    hoursPlayed: integer('hours_played'),
+    status: text('status'),
     format: text('format').notNull().default('digital'),
     coverColor: text('cover_color'),
     coverImage: text('cover_image'),

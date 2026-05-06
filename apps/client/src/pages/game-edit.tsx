@@ -1,9 +1,10 @@
 import { GameForm } from '@/components/game-form';
 import { useGameQuery } from '@/lib/queries';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 
 export function GameEditPage() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const { data: game, error } = useGameQuery(id);
 
   if (error) {
@@ -15,5 +16,7 @@ export function GameEditPage() {
   }
   if (!game) return null;
 
-  return <GameForm key={game.id} mode="edit" initialGame={game} />;
+  const mode = game.kind ?? (location.pathname.startsWith('/wishlist/') ? 'wishlist' : 'owned');
+
+  return <GameForm key={game.id} action="edit" mode={mode} initialGame={game} />;
 }

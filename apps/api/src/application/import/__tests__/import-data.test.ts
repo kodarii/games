@@ -270,7 +270,7 @@ describe('ImportData.execute', () => {
       expect(bloodborne.title).toBe('Bloodborne');
       expect(bloodborne.developer).toBe('Unknown');
       expect(bloodborne.status).toBe('Backlog');
-      expect(bloodborne.hoursPlayed.value).toBe(0);
+      expect(bloodborne.hoursPlayed?.value).toBe(0);
       expect(bloodborne.coverColor).toBe('#f4a261');
     }
   });
@@ -290,21 +290,16 @@ describe('ImportData.execute', () => {
     expect(importRepo.lastCall?.plan.platforms[0]?.externalId).toBe('user-ps4');
   });
 
-  it('returns domain_error for game with whitespace-only developer', async () => {
-    const bad = snap2({
+  it('treats whitespace-only developer as null (developer is now nullable)', async () => {
+    const snap = snap2({
       games: [
         { externalId: 'g-1', title: 'God of War', developer: '   ', genre: 'Action', releaseYear: 2018, platform: 'PS5', hoursPlayed: 30, status: 'Completed', format: 'digital' },
       ],
     });
-    const result = await makeUseCase().uc.execute('user-1', bad, 'merge');
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.kind).toBe('domain_error');
-      if (result.error.kind === 'domain_error') {
-        expect(result.error.scope).toBe('games');
-        expect(result.error.index).toBe(0);
-        expect((result.error.error as { kind: string }).kind).toBe('developer_empty');
-      }
+    const result = await makeUseCase().uc.execute('user-1', snap, 'merge');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.games.created).toBe(1);
     }
   });
 });

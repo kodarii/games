@@ -1,11 +1,36 @@
 import { Avatar } from '@/components/avatar';
-import { formatPriceZl } from '@/lib/money';
+import { IconButton } from '@/components/icon-button';
+import { Icon } from '@/components/icons';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useMoveToCollectionMutation } from '@/lib/queries';
 import type { Game } from '@/types';
 import { createColumnHelper } from '@tanstack/react-table';
 
 const columnHelper = createColumnHelper<Game>();
 
-export const gamesColumns = [
+function MoveToCollectionButton({ externalId }: { externalId: string }) {
+  const mut = useMoveToCollectionMutation();
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <IconButton
+          variant="ghost-sm"
+          disabled={mut.isPending}
+          onClick={(e) => {
+            e.stopPropagation();
+            mut.mutate(externalId);
+          }}
+          aria-label="Move to collection"
+        >
+          <Icon.arrowRight size={15} />
+        </IconButton>
+      </TooltipTrigger>
+      <TooltipContent>Move to collection</TooltipContent>
+    </Tooltip>
+  );
+}
+
+export const wishlistColumns = [
   columnHelper.accessor('title', {
     header: 'Title',
     cell: ({ row }) => (
@@ -31,30 +56,8 @@ export const gamesColumns = [
   }),
   columnHelper.accessor('platform', {
     header: 'Platform',
-    cell: ({ row }) => (
-      <span className="text-[13px] text-apex-ink">{row.original.platform}</span>
-    ),
+    cell: ({ row }) => <span className="text-[13px] text-apex-ink">{row.original.platform}</span>,
     meta: { minWidth: 120 },
-  }),
-  columnHelper.accessor('format', {
-    header: 'Format',
-    cell: ({ row }) => (
-      <span className="text-[13px] text-apex-ink">
-        {row.original.format === 'physical' ? 'Physical' : 'Digital'}
-      </span>
-    ),
-    meta: { minWidth: 110 },
-  }),
-  columnHelper.accessor('price', {
-    header: 'Price',
-    cell: ({ row }) => (
-      <span className="text-[13px] text-apex-ink tabular-nums">
-        {row.original.price != null
-          ? formatPriceZl(row.original.price)
-          : <span className="text-apex-hint">—</span>}
-      </span>
-    ),
-    meta: { minWidth: 110 },
   }),
   columnHelper.accessor('releaseYear', {
     header: 'Release Year',
@@ -65,9 +68,10 @@ export const gamesColumns = [
     ),
     meta: { minWidth: 110 },
   }),
-  // columnHelper.accessor('status', {
-  //   header: 'Status',
-  //   cell: ({ row }) => <StatusBadge {...statusFor(row.original.status)} />,
-  //   meta: { minWidth: 140 },
-  // }),
+  columnHelper.display({
+    id: 'actions',
+    header: '',
+    cell: ({ row }) => <MoveToCollectionButton externalId={row.original.externalId} />,
+    size: 48,
+  }),
 ];

@@ -3,6 +3,7 @@ import { CreateGame } from '../application/games/create-game';
 import { DeleteGame } from '../application/games/delete-game';
 import { GetGame } from '../application/games/get-game';
 import { ListGames } from '../application/games/list-games';
+import { MoveToCollection } from '../application/games/move-to-collection';
 import { UpdateGame } from '../application/games/update-game';
 import type { Game } from '../domain/games/game';
 import { DrizzlePlatformRepository } from '../infrastructure/platforms/drizzle-platform-repository';
@@ -15,6 +16,7 @@ const deleteGame = new DeleteGame(gameRepository, coverStorage);
 const listGames = new ListGames(gameRepository);
 const getGame = new GetGame(gameRepository);
 const updateGame = new UpdateGame(gameRepository, platformRepo, coverStorage);
+const moveToCollection = new MoveToCollection(gameRepository);
 
 export const games = new Hono<{ Variables: AuthVariables }>();
 
@@ -23,6 +25,7 @@ games.get('/', async (c) => {
   const result = await listGames.execute(
     {
       search: c.req.query('search'),
+      kind: c.req.query('kind'),
       page: c.req.query('page'),
       perPage: c.req.query('perPage'),
       sort: c.req.query('sort'),
@@ -88,6 +91,18 @@ games.post('/', async (c) => {
 
   const game: Game = result.value;
   return c.json(game, 201);
+});
+
+games.post('/:externalId/move-to-collection', async (c) => {
+  const userId = c.get('user').id;
+  const externalId = c.req.param('externalId');
+  const result = await moveToCollection.execute(externalId, userId);
+  if (!result.ok) {
+    if (result.error.kind === 'not_found') return c.json({ error: 'not_found' }, 404);
+    if (result.error.kind === 'already_owned') return c.json({ error: 'already_owned' }, 409);
+    return c.json({ error: 'invalid', details: result.error.error }, 422);
+  }
+  return c.json({ game: result.value.toJSON() }, 200);
 });
 
 games.delete('/:id', async (c) => {

@@ -11,17 +11,26 @@ import { err, ok } from '../../domain/shared/result';
 import type { Result } from '../../domain/shared/result';
 import type { CoverStorage } from '../cover-storage/cover-storage';
 
-const UpdateGameInputSchema = z.object({
+const purchasedAtSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((s) => {
+    const d = new Date(s);
+    return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+  }, 'invalid date')
+  .nullable()
+  .optional();
+
+const OwnedSchema = z.object({
+  kind: z.literal('owned'),
   title: z.string().min(1),
-  developer: z.string().min(1),
+  developer: z.string().optional().nullable(),
   genre: z.string().optional().default(''),
   releaseYear: z.coerce.number().int().min(1970).max(2100).optional(),
   platform: z.string().min(1),
   edition: z.string().optional().default(''),
   hoursPlayed: z.coerce.number().min(0).default(0),
-  status: z
-    .enum(['Playing', 'Completed', 'Backlog', 'Dropped', 'Wishlist'])
-    .default('Backlog'),
+  status: z.enum(['Playing', 'Completed', 'Backlog', 'Dropped']).default('Backlog'),
   format: z.enum(['physical', 'digital']).default('physical'),
   coverColor: z
     .string()
@@ -29,16 +38,27 @@ const UpdateGameInputSchema = z.object({
     .optional(),
   coverImage: z.string().url().nullable().optional(),
   price: z.number().int().min(0).nullable().optional(),
-  purchasedAt: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .refine((s) => {
-      const d = new Date(s);
-      return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
-    }, 'invalid date')
-    .nullable()
-    .optional(),
+  purchasedAt: purchasedAtSchema,
 });
+
+const WishlistSchema = z.object({
+  kind: z.literal('wishlist'),
+  title: z.string().min(1),
+  developer: z.string().optional().nullable(),
+  genre: z.string().optional().default(''),
+  releaseYear: z.coerce.number().int().min(1970).max(2100).optional(),
+  platform: z.string().min(1),
+  edition: z.string().optional().default(''),
+  format: z.enum(['physical', 'digital']).default('digital'),
+  coverColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
+  coverImage: z.string().url().nullable().optional(),
+  price: z.number().int().min(0).nullable().optional(),
+}).strict();
+
+const UpdateGameInputSchema = z.discriminatedUnion('kind', [OwnedSchema, WishlistSchema]);
 
 export type UpdateGameInput = z.infer<typeof UpdateGameInputSchema>;
 
@@ -59,7 +79,12 @@ export class UpdateGame {
     input: unknown,
     userId: string,
   ): Promise<Result<Game, UpdateGameError>> {
-    const parsed = UpdateGameInputSchema.safeParse(input);
+    const inputWithKind =
+      typeof input === 'object' && input !== null && !('kind' in input)
+        ? { ...input, kind: 'owned' }
+        : input;
+
+    const parsed = UpdateGameInputSchema.safeParse(inputWithKind);
     if (!parsed.success) {
       return err({ kind: 'invalid_input', issues: parsed.error.issues });
     }
@@ -79,22 +104,42 @@ export class UpdateGame {
       });
     }
 
-    const props: GameProps = {
-      userId: existing.userId,
-      title: data.title,
-      developer: data.developer,
-      genre: data.genre,
-      releaseYear: data.releaseYear,
-      platform: data.platform,
-      edition: data.edition || undefined,
-      hoursPlayed: data.hoursPlayed,
-      status: data.status,
-      format: data.format,
-      coverColor: data.coverColor,
-      coverImage: data.coverImage ?? undefined,
-      price: data.price ?? undefined,
-      purchasedAt: data.purchasedAt ?? undefined,
-    };
+    const props: GameProps =
+      data.kind === 'wishlist'
+        ? {
+            kind: 'wishlist',
+            userId: existing.userId,
+            title: data.title,
+            developer: data.developer ?? null,
+            genre: data.genre,
+            releaseYear: data.releaseYear,
+            platform: data.platform,
+            edition: data.edition || undefined,
+            hoursPlayed: null,
+            status: null,
+            format: data.format,
+            coverColor: data.coverColor,
+            coverImage: data.coverImage ?? undefined,
+            price: data.price ?? undefined,
+            purchasedAt: null,
+          }
+        : {
+            kind: 'owned',
+            userId: existing.userId,
+            title: data.title,
+            developer: data.developer ?? null,
+            genre: data.genre,
+            releaseYear: data.releaseYear,
+            platform: data.platform,
+            edition: data.edition || undefined,
+            hoursPlayed: data.hoursPlayed,
+            status: data.status,
+            format: data.format,
+            coverColor: data.coverColor,
+            coverImage: data.coverImage ?? undefined,
+            price: data.price ?? undefined,
+            purchasedAt: data.purchasedAt ?? undefined,
+          };
 
     const gameUpdateResult = NewGame.create(props);
     if (!gameUpdateResult.ok) {

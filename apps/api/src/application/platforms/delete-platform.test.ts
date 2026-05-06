@@ -71,6 +71,7 @@ class FakeGameRepository implements GameRepository {
     const game = Game.fromPersistence({
       id: this.nextId,
       externalId: g.externalId,
+      kind: g.kind,
       userId: g.userId,
       title: g.title,
       developer: g.developer,
@@ -78,7 +79,7 @@ class FakeGameRepository implements GameRepository {
       releaseYear: g.releaseYear?.value ?? null,
       platform: g.platform,
       edition: g.edition ?? null,
-      hoursPlayed: g.hoursPlayed.value,
+      hoursPlayed: g.hoursPlayed?.value ?? null,
       status: g.status,
       format: g.format,
     });
@@ -112,6 +113,7 @@ class FakeGameRepository implements GameRepository {
     const game = Game.fromPersistence({
       id: this.nextId,
       externalId: `ext-game-${this.nextId}`,
+      kind: 'owned',
       userId,
       title: 'Test Game',
       developer: 'Dev',

@@ -12,6 +12,7 @@ import {
 const validRow = {
   id: 1,
   externalId: 'test-uuid-1',
+  kind: 'owned' as const,
   userId: 'user-123',
   title: 'Elden Ring',
   developer: 'FromSoftware',
@@ -25,6 +26,7 @@ const validRow = {
 };
 
 const validProps = (): GameProps => ({
+  kind: 'owned',
   userId: 'user-123',
   title: 'Elden Ring',
   developer: 'FromSoftware',
@@ -34,6 +36,18 @@ const validProps = (): GameProps => ({
   edition: 'Standard',
   hoursPlayed: 120,
   status: 'Completed',
+  format: 'digital',
+});
+
+const wishlistProps = (): GameProps => ({
+  kind: 'wishlist',
+  userId: 'user-123',
+  title: 'Hollow Knight: Silksong',
+  developer: 'Team Cherry',
+  genre: 'Metroidvania',
+  platform: 'PC',
+  status: null,
+  hoursPlayed: null,
   format: 'digital',
 });
 
@@ -97,16 +111,17 @@ describe('HoursPlayed', () => {
   });
 });
 
-import type { GameFormat, GamePlatform, GameStatus } from '../game';
+import type { GameFormat, GameKind, GamePlatform, GameStatus } from '../game';
 
 describe('NewGame.create', () => {
   it('happy path', () => {
     const result = NewGame.create(validProps());
     expect(result.ok).toBe(true);
     if (result.ok) {
+      expect(result.value.kind).toBe('owned');
       expect(result.value.title).toBe('Elden Ring');
       expect(result.value.releaseYear?.value).toBe(2022);
-      expect(result.value.hoursPlayed.value).toBe(120);
+      expect(result.value.hoursPlayed?.value).toBe(120);
     }
   });
 
@@ -126,11 +141,11 @@ describe('NewGame.create', () => {
     }
   });
 
-  it('returns error for empty developer', () => {
+  it('normalizes empty developer to null', () => {
     const result = NewGame.create({ ...validProps(), developer: '' });
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.kind).toBe('developer_empty');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.developer).toBeNull();
     }
   });
 
@@ -142,14 +157,14 @@ describe('NewGame.create', () => {
     }
   });
 
-  it('returns error for invalid status', () => {
+  it('returns error for invalid status on owned game', () => {
     const invalidStatus = 'Pending' as unknown as GameStatus;
     const result = NewGame.create({ ...validProps(), status: invalidStatus });
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.kind).toBe('status_invalid');
-      const e = result.error as { kind: string; value: string };
-      expect(e.value).toBe('Pending');
+      expect(result.error.kind).toBe('kind_invalid_state');
+      const e = result.error as { kind: string; reason: string };
+      expect(e.reason).toBe('owned_must_have_status');
     }
   });
 
@@ -238,6 +253,85 @@ describe('NewGame.create', () => {
       expect(result.value.userId).toBe('user-123');
     }
   });
+
+  // kind invariant tests
+  it('creates owned game with Backlog status', () => {
+    const result = NewGame.create({ ...validProps(), status: 'Backlog', hoursPlayed: 0 });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.kind).toBe('owned');
+    }
+  });
+
+  it('creates wishlist game with null status and hoursPlayed', () => {
+    const result = NewGame.create(wishlistProps());
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.kind).toBe('wishlist');
+      expect(result.value.status).toBeNull();
+      expect(result.value.hoursPlayed).toBeNull();
+    }
+  });
+
+  it('rejects wishlist with non-null status', () => {
+    const result = NewGame.create({ ...wishlistProps(), status: 'Backlog' as any });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('kind_invalid_state');
+      const e = result.error as { kind: string; reason: string };
+      expect(e.reason).toBe('wishlist_must_have_null_status');
+    }
+  });
+
+  it('rejects wishlist with non-null hoursPlayed', () => {
+    const result = NewGame.create({ ...wishlistProps(), hoursPlayed: 5 as any });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('kind_invalid_state');
+      const e = result.error as { kind: string; reason: string };
+      expect(e.reason).toBe('wishlist_must_have_null_hours_played');
+    }
+  });
+
+  it('rejects wishlist with non-null purchasedAt', () => {
+    const result = NewGame.create({ ...wishlistProps(), purchasedAt: '2024-01-01' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('kind_invalid_state');
+      const e = result.error as { kind: string; reason: string };
+      expect(e.reason).toBe('wishlist_must_have_null_purchased_at');
+    }
+  });
+
+  it('rejects owned with null status', () => {
+    const result = NewGame.create({ ...validProps(), status: undefined as any });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('kind_invalid_state');
+      const e = result.error as { kind: string; reason: string };
+      expect(e.reason).toBe('owned_must_have_status');
+    }
+  });
+
+  it('rejects owned with null hoursPlayed', () => {
+    const result = NewGame.create({ ...validProps(), hoursPlayed: null as any });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('kind_invalid_state');
+      const e = result.error as { kind: string; reason: string };
+      expect(e.reason).toBe('owned_must_have_hours_played');
+    }
+  });
+
+  it('allows null developer on owned game', () => {
+    const result = NewGame.create({ ...validProps(), developer: null as any });
+    expect(result.ok).toBe(true);
+  });
+
+  it('allows null developer on wishlist game', () => {
+    const result = NewGame.create({ ...wishlistProps(), developer: null as any });
+    expect(result.ok).toBe(true);
+  });
 });
 
 describe('Game.fromPersistence', () => {
@@ -248,6 +342,7 @@ describe('Game.fromPersistence', () => {
     expect(json).toEqual({
       id: 1,
       externalId: 'test-uuid-1',
+      kind: 'owned',
       userId: 'user-123',
       title: 'Elden Ring',
       developer: 'FromSoftware',
@@ -281,6 +376,22 @@ describe('Game.fromPersistence', () => {
   it('exposes userId from persistence row', () => {
     const game = Game.fromPersistence(validRow);
     expect(game.userId).toBe('user-123');
+  });
+
+  it('restores wishlist row with null status, hoursPlayed, developer', () => {
+    const row = {
+      ...validRow,
+      kind: 'wishlist' as const,
+      status: null,
+      hoursPlayed: null,
+      developer: null,
+    };
+    const game = Game.fromPersistence(row);
+    const json = game.toJSON();
+    expect(json.kind).toBe('wishlist');
+    expect(json.status).toBeNull();
+    expect(json.hoursPlayed).toBeNull();
+    expect(json.developer).toBeNull();
   });
 });
 
