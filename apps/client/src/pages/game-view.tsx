@@ -460,14 +460,12 @@ export function GameViewPage() {
                 />
               </FieldItem>
 
-              {(game.developer != null || editMode) && (
-                <FieldItem label="Developer" value={game.developer} editMode={editMode}>
-                  <Input
-                    value={draft?.developer ?? ''}
-                    onChange={(e) => set('developer', e.target.value)}
-                  />
-                </FieldItem>
-              )}
+              <FieldItem label="Developer" value={game.developer ?? null} editMode={editMode}>
+                <Input
+                  value={draft?.developer ?? ''}
+                  onChange={(e) => set('developer', e.target.value)}
+                />
+              </FieldItem>
 
               <FieldItem label="Genre" value={game.genre || null} editMode={editMode}>
                 <Input
@@ -548,8 +546,8 @@ export function GameViewPage() {
                 />
               </FieldItem>
 
-              {game.kind === 'owned' && game.status != null && (
-                <FieldItem label="Status" value={game.status} editMode={editMode}>
+              {game.kind === 'owned' && (
+                <FieldItem label="Status" value={game.status ?? null} editMode={editMode}>
                   <Select
                     value={draft?.status ?? 'Backlog'}
                     onChange={(e) => set('status', e.target.value as GameStatus)}
@@ -561,10 +559,10 @@ export function GameViewPage() {
                 </FieldItem>
               )}
 
-              {game.kind === 'owned' && game.hoursPlayed != null && (
+              {game.kind === 'owned' && (
                 <FieldItem
                   label="Hours Played"
-                  value={`${game.hoursPlayed} h`}
+                  value={game.hoursPlayed != null ? `${game.hoursPlayed} h` : null}
                   editMode={editMode}
                   numeric
                 >
