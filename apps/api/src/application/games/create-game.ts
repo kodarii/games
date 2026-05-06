@@ -48,7 +48,7 @@ const WishlistSchema = z.object({
   releaseYear: z.coerce.number().int().min(1970).max(2100).optional(),
   platform: z.string().min(1),
   edition: z.string().optional().default(''),
-  format: z.enum(['physical', 'digital']).default('digital'),
+  format: z.enum(['physical', 'digital']).default('physical'),
   coverColor: z
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/)

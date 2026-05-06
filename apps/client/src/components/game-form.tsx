@@ -51,7 +51,7 @@ const EMPTY: FormState = {
   edition: '',
   hoursPlayed: '',
   status: 'Backlog',
-  format: 'digital',
+  format: 'physical',
   notes: '',
   coverColor: COVER_COLORS[0],
   coverImage: null,
