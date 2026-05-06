@@ -39,6 +39,7 @@ const OwnedSchema = z.object({
   coverImage: z.string().url().nullable().optional(),
   price: z.number().int().min(0).nullable().optional(),
   purchasedAt: purchasedAtSchema,
+  notes: z.string().nullable().optional(),
 });
 
 const WishlistSchema = z.object({
@@ -56,6 +57,7 @@ const WishlistSchema = z.object({
     .optional(),
   coverImage: z.string().url().nullable().optional(),
   price: z.number().int().min(0).nullable().optional(),
+  notes: z.string().nullable().optional(),
 }).strict();
 
 const UpdateGameInputSchema = z.discriminatedUnion('kind', [OwnedSchema, WishlistSchema]);
@@ -122,6 +124,7 @@ export class UpdateGame {
             coverImage: data.coverImage ?? undefined,
             price: data.price ?? undefined,
             purchasedAt: null,
+            notes: data.notes ?? null,
           }
         : {
             kind: 'owned',
@@ -139,6 +142,7 @@ export class UpdateGame {
             coverImage: data.coverImage ?? undefined,
             price: data.price ?? undefined,
             purchasedAt: data.purchasedAt ?? undefined,
+            notes: data.notes ?? null,
           };
 
     const gameUpdateResult = NewGame.create(props);

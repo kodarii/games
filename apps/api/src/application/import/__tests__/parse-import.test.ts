@@ -85,7 +85,7 @@ describe('parseImport', () => {
     const result = parseImport(JSON.stringify(ext), idGen, now);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.version).toBe(3);
+      expect(result.value.version).toBe(4);
       expect(result.value.exportedAt).toBe('2026-04-29T00:00:00.000Z');
       expect(result.value.platforms.map((p) => p.name)).toEqual(['PS4', 'Switch']);
       expect(result.value.platforms[0]?.externalId).toBe('id-1');
@@ -127,7 +127,7 @@ describe('parseImport', () => {
     const result = parseImport(JSON.stringify(validV2));
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.version).toBe(3);
+      expect(result.value.version).toBe(4);
       expect(result.value.platforms[0]?.name).toBe('PS5');
     }
   });
@@ -137,7 +137,7 @@ describe('parseImport', () => {
     const result = parseImport(JSON.stringify(validV1), gen);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.version).toBe(3);
+      expect(result.value.version).toBe(4);
       result.value.platforms.forEach((p) => expect(p.externalId).toBe('fixed-uuid'));
       result.value.games.forEach((g) => expect(g.externalId).toBe('fixed-uuid'));
     }
@@ -181,7 +181,7 @@ describe('parseImport', () => {
     const result = parseImport(JSON.stringify(v3));
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.version).toBe(3);
+      expect(result.value.version).toBe(4);
       expect(result.value.games[0]?.price).toBe(12999);
       expect(result.value.games[0]?.purchasedAt).toBe('2024-06-15');
     }
@@ -191,7 +191,7 @@ describe('parseImport', () => {
     const result = parseImport(JSON.stringify(validV2));
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.version).toBe(3);
+      expect(result.value.version).toBe(4);
       result.value.games.forEach((g) => {
         expect(g.price).toBeNull();
         expect(g.purchasedAt).toBeNull();
@@ -204,7 +204,7 @@ describe('parseImport', () => {
     const result = parseImport(JSON.stringify(validV1), gen);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.version).toBe(3);
+      expect(result.value.version).toBe(4);
       result.value.games.forEach((g) => {
         expect(g.price).toBeNull();
         expect(g.purchasedAt).toBeNull();

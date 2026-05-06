@@ -32,6 +32,7 @@ export interface CreateGameInput {
   coverImage?: string | null;
   price?: number | null;
   purchasedAt?: string | null;
+  notes?: string | null;
 }
 
 export interface CreateWishlistInput {

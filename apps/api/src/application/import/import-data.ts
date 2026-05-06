@@ -90,6 +90,7 @@ export class ImportData {
           coverColor: g.coverColor,
           price: g.price ?? undefined,
           purchasedAt: isWishlist ? null : (g.purchasedAt ?? undefined),
+          notes: g.notes ?? null,
         },
         () => g.externalId,
       );

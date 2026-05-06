@@ -112,7 +112,7 @@ describe('toSnapshot', () => {
   it('returns empty snapshot for no games and no platforms', () => {
     const snapshot = toSnapshot([], [], NOW);
     expect(snapshot).toEqual({
-      version: 3,
+      version: 4,
       exportedAt: '2026-01-15T10:00:00.000Z',
       platforms: [],
       games: [],
@@ -228,7 +228,7 @@ describe('ExportData', () => {
 
     const snapshot = await useCase.execute('u1', NOW);
 
-    expect(snapshot.version).toBe(3);
+    expect(snapshot.version).toBe(4);
     expect(snapshot.exportedAt).toBe('2026-01-15T10:00:00.000Z');
     expect(snapshot.platforms).toEqual([{ externalId: 'ext-platform-1', name: 'PC' }]);
     expect(snapshot.games).toHaveLength(2);

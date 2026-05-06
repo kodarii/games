@@ -1,7 +1,7 @@
 import type { Game, GameStatus } from '../../domain/games/game';
 import type { Platform } from '../../domain/platforms/platform';
 
-export const EXPORT_SCHEMA_VERSION = 3 as const;
+export const EXPORT_SCHEMA_VERSION = 4 as const;
 
 export interface ExportedPlatform {
   externalId: string;
@@ -23,6 +23,7 @@ export interface ExportedGame {
   coverColor?: string;
   price: number | null;
   purchasedAt: string | null;
+  notes: string | null;
 }
 
 export interface ExportSnapshot {
@@ -58,6 +59,7 @@ export function toSnapshot(games: Game[], platforms: Platform[], now: Date): Exp
       ...(g.coverColor !== undefined && { coverColor: g.coverColor }),
       price: g.price?.value ?? null,
       purchasedAt: g.purchasedAt?.value ?? null,
+      notes: g.notes,
     }));
 
   return {

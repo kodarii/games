@@ -131,6 +131,7 @@ export function GameForm({
       coverImage: form.coverImage,
       price: form.priceZl.trim() ? (zlToGrosze(form.priceZl) ?? undefined) : undefined,
       purchasedAt: isWishlist ? undefined : (form.purchasedAt ? form.purchasedAt : undefined),
+      notes: form.notes.trim() || null,
     };
 
     const successPath = isWishlist ? '/wishlist' : '/games';

@@ -22,6 +22,7 @@ export const games = sqliteTable(
     coverImage: text('cover_image'),
     price: integer('price'),
     purchasedAt: text('purchased_at'),
+    notes: text('notes'),
     externalId: text('external_id').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   },

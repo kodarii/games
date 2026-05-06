@@ -1,11 +1,12 @@
-import type { ImportSnapshotExternal, ImportSnapshotV2, ImportSnapshotV3 } from '@apex/shared';
+import type { ImportSnapshotExternal, ImportSnapshotV2, ImportSnapshotV4 } from '@apex/shared';
 import { migrateV2toV3 } from './v2-to-v3';
+import { migrateV3toV4 } from './v3-to-v4';
 
 export function externalToCurrent(
   ext: ImportSnapshotExternal,
   idGenerator: () => string,
   now: () => string,
-): ImportSnapshotV3 {
+): ImportSnapshotV4 {
   const platformNames = Array.from(new Set(ext.games.map((g) => g.platform)));
   const platforms = platformNames.map((name) => ({ externalId: idGenerator(), name }));
   const games = ext.games.map((g) => ({
@@ -22,5 +23,5 @@ export function externalToCurrent(
     coverColor: g.coverColor,
   }));
   const v2: ImportSnapshotV2 = { version: 2, exportedAt: now(), platforms, games };
-  return migrateV2toV3(v2);
+  return migrateV3toV4(migrateV2toV3(v2));
 }

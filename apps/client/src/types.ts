@@ -21,6 +21,7 @@ export interface Game {
   coverImage?: string | null;
   price: number | null;
   purchasedAt: string | null;
+  notes?: string | null;
 }
 
 export const GAME_SORT_FIELDS = [

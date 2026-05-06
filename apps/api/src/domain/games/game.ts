@@ -43,6 +43,7 @@ export type GameProps = {
   coverImage?: string;
   price?: number;
   purchasedAt?: string | null;
+  notes?: string | null;
 };
 
 export class ReleaseYear {
@@ -145,6 +146,7 @@ export class NewGame {
     private readonly _coverImage: string | undefined,
     private readonly _price: Price | null,
     private readonly _purchasedAt: PurchasedAt | null,
+    private readonly _notes: string | null,
   ) {}
 
   static create(
@@ -235,6 +237,8 @@ export class NewGame {
     const coverImage = props.coverImage?.trim() || undefined;
     const externalId = idGenerator();
 
+    const notes = props.notes?.trim() || null;
+
     return ok(
       new NewGame(
         externalId,
@@ -253,6 +257,7 @@ export class NewGame {
         coverImage,
         price,
         purchasedAt,
+        notes,
       ),
     );
   }
@@ -305,6 +310,9 @@ export class NewGame {
   get purchasedAt(): PurchasedAt | null {
     return this._purchasedAt;
   }
+  get notes(): string | null {
+    return this._notes;
+  }
 }
 
 export type GameUpdate = NewGame;
@@ -328,6 +336,7 @@ export class Game {
     private readonly _coverImage: string | undefined,
     private readonly _price: Price | null,
     private readonly _purchasedAt: PurchasedAt | null,
+    private readonly _notes: string | null,
   ) {}
 
   static fromPersistence(row: {
@@ -348,6 +357,7 @@ export class Game {
     coverImage?: string | null;
     price?: number | null;
     purchasedAt?: string | null;
+    notes?: string | null;
   }): Game {
     if (!row.externalId) {
       throw new Error(`Game row ${row.id} has null externalId — run backfill first`);
@@ -370,6 +380,7 @@ export class Game {
       row.coverImage ?? undefined,
       row.price != null ? Price.fromTrusted(row.price) : null,
       row.purchasedAt != null ? PurchasedAt.fromTrusted(row.purchasedAt) : null,
+      row.notes ?? null,
     );
   }
 
@@ -424,6 +435,9 @@ export class Game {
   get purchasedAt(): PurchasedAt | null {
     return this._purchasedAt;
   }
+  get notes(): string | null {
+    return this._notes;
+  }
 
   toJSON() {
     return {
@@ -444,6 +458,7 @@ export class Game {
       coverImage: this._coverImage ?? null,
       price: this._price?.value ?? null,
       purchasedAt: this._purchasedAt?.value ?? null,
+      notes: this._notes,
     };
   }
 }
