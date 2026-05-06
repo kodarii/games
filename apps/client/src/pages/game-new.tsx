@@ -1,5 +1,5 @@
 import { GameForm } from '@/components/game-form';
 
 export function GameNewPage() {
-  return <GameForm mode="create" />;
+  return <GameForm action="create" mode="owned" />;
 }

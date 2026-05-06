@@ -73,21 +73,24 @@ export class ImportData {
 
     const newGames: NewGame[] = [];
     for (const [i, g] of snap.games.entries()) {
+      const isWishlist = g.status === 'Wishlist';
       const r = NewGame.create(
         {
+          kind: isWishlist ? 'wishlist' : 'owned',
           userId,
           title: g.title,
           developer: g.developer,
           genre: g.genre,
           releaseYear: g.releaseYear ?? undefined,
           platform: g.platform,
-          hoursPlayed: g.hoursPlayed,
-          status: g.status,
+          hoursPlayed: isWishlist ? null : g.hoursPlayed,
+          status: isWishlist ? null : g.status as Exclude<typeof g.status, 'Wishlist'>,
           format: g.format,
           edition: g.edition,
           coverColor: g.coverColor,
           price: g.price ?? undefined,
-          purchasedAt: g.purchasedAt ?? undefined,
+          purchasedAt: isWishlist ? null : (g.purchasedAt ?? undefined),
+          notes: g.notes ?? null,
         },
         () => g.externalId,
       );

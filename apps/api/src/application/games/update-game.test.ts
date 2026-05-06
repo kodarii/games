@@ -28,6 +28,7 @@ class FakeGameRepository implements GameRepository {
     const created = Game.fromPersistence({
       id: Date.now(),
       externalId: g.externalId,
+      kind: g.kind,
       userId: g.userId,
       title: g.title,
       developer: g.developer,
@@ -35,7 +36,7 @@ class FakeGameRepository implements GameRepository {
       releaseYear: g.releaseYear?.value ?? null,
       platform: g.platform,
       edition: g.edition ?? null,
-      hoursPlayed: g.hoursPlayed.value,
+      hoursPlayed: g.hoursPlayed?.value ?? null,
       status: g.status,
       format: g.format,
       price: g.price?.value ?? null,
@@ -55,6 +56,7 @@ class FakeGameRepository implements GameRepository {
     const updated = Game.fromPersistence({
       id: existing.id,
       externalId: existing.externalId,
+      kind: game.kind,
       userId: game.userId,
       title: game.title,
       developer: game.developer,
@@ -62,7 +64,7 @@ class FakeGameRepository implements GameRepository {
       releaseYear: game.releaseYear?.value ?? null,
       platform: game.platform,
       edition: game.edition ?? null,
-      hoursPlayed: game.hoursPlayed.value,
+      hoursPlayed: game.hoursPlayed?.value ?? null,
       status: game.status,
       format: game.format,
       coverImage: game.coverImage ?? null,
@@ -127,6 +129,7 @@ class FakePlatformRepository implements PlatformRepository {
 }
 
 const validInput = {
+  kind: 'owned' as const,
   title: 'Elden Ring',
   developer: 'FromSoftware',
   genre: 'ARPG',
@@ -141,6 +144,7 @@ const validInput = {
 const existingGame = Game.fromPersistence({
   id: 1,
   externalId: 'ext-game-1',
+  kind: 'owned',
   userId: 'user-A',
   title: 'Dark Souls',
   developer: 'FromSoftware',
@@ -223,14 +227,14 @@ describe('UpdateGame', () => {
     }
   });
 
-  it('returns invalid_input for empty developer', async () => {
+  it('treats empty developer as null (developer is now nullable)', async () => {
     repo.seed(existingGame);
 
     const result = await useCase.execute(1, { ...validInput, developer: '' }, 'user-A');
 
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.kind).toBe('invalid_input');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.developer).toBeNull();
     }
   });
 
@@ -306,6 +310,7 @@ describe('UpdateGame', () => {
     const seeded = Game.fromPersistence({
       id: 1,
       externalId: 'ext-game-1',
+      kind: 'owned',
       userId: 'user-A',
       title: 'Dark Souls',
       developer: 'FromSoftware',
@@ -330,6 +335,7 @@ describe('UpdateGame', () => {
     const seeded = Game.fromPersistence({
       id: 1,
       externalId: 'ext-game-1',
+      kind: 'owned',
       userId: 'user-A',
       title: 'Dark Souls',
       developer: 'FromSoftware',
@@ -411,6 +417,7 @@ describe('UpdateGame', () => {
     const seeded = Game.fromPersistence({
       id: 1,
       externalId: 'ext-game-1',
+      kind: 'owned',
       userId: 'user-A',
       title: 'Dark Souls',
       developer: 'FromSoftware',
@@ -435,6 +442,7 @@ describe('UpdateGame', () => {
     const seeded = Game.fromPersistence({
       id: 1,
       externalId: 'ext-game-1',
+      kind: 'owned',
       userId: 'user-A',
       title: 'Dark Souls',
       developer: 'FromSoftware',
@@ -463,6 +471,7 @@ describe('UpdateGame', () => {
     const seeded = Game.fromPersistence({
       id: 1,
       externalId: 'ext-game-1',
+      kind: 'owned',
       userId: 'user-A',
       title: 'Dark Souls',
       developer: 'FromSoftware',
@@ -487,6 +496,7 @@ describe('UpdateGame', () => {
     const seeded = Game.fromPersistence({
       id: 1,
       externalId: 'ext-game-1',
+      kind: 'owned',
       userId: 'user-A',
       title: 'Dark Souls',
       developer: 'FromSoftware',
@@ -504,5 +514,65 @@ describe('UpdateGame', () => {
     await useCase.execute(1, { ...validInput, coverImage: null }, 'user-A');
     await Promise.resolve();
     expect(coverStorage.deleted).toEqual(['https://utfs.io/f/will-go']);
+  });
+
+  it('updates wishlist game with kind=wishlist and null status/hoursPlayed', async () => {
+    const wishlistGame = Game.fromPersistence({
+      id: 1,
+      externalId: 'ext-game-1',
+      kind: 'wishlist',
+      userId: 'user-A',
+      title: 'Silksong',
+      developer: 'Team Cherry',
+      genre: 'Metroidvania',
+      releaseYear: null,
+      platform: 'PS5',
+      edition: null,
+      hoursPlayed: null,
+      status: null,
+      format: 'digital',
+    });
+    repo.seed(wishlistGame);
+
+    const result = await useCase.execute(
+      1,
+      { kind: 'wishlist', title: 'Silksong Updated', platform: 'PS5' },
+      'user-A',
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.kind).toBe('wishlist');
+      expect(result.value.status).toBeNull();
+      expect(result.value.hoursPlayed).toBeNull();
+    }
+  });
+
+  it('rejects wishlist update with status field', async () => {
+    const wishlistGame = Game.fromPersistence({
+      id: 1,
+      externalId: 'ext-game-1',
+      kind: 'wishlist',
+      userId: 'user-A',
+      title: 'Silksong',
+      developer: null,
+      genre: '',
+      releaseYear: null,
+      platform: 'PS5',
+      edition: null,
+      hoursPlayed: null,
+      status: null,
+      format: 'digital',
+    });
+    repo.seed(wishlistGame);
+
+    const result = await useCase.execute(
+      1,
+      { kind: 'wishlist', title: 'Silksong', platform: 'PS5', status: 'Backlog' },
+      'user-A',
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid_input');
+    }
   });
 });

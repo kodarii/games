@@ -18,19 +18,42 @@ export async function fetchGame(id: string | number): Promise<Game> {
 }
 
 export interface CreateGameInput {
+  kind?: 'owned' | 'wishlist';
   title: string;
-  developer: string;
-  genre: string;
+  developer?: string | null;
+  genre?: string;
   releaseYear?: number;
   platform: GamePlatform;
   edition?: string;
-  hoursPlayed: number;
-  status: GameStatus;
+  hoursPlayed?: number;
+  status?: GameStatus;
   format: GameFormat;
   coverColor?: string;
   coverImage?: string | null;
   price?: number | null;
   purchasedAt?: string | null;
+  notes?: string | null;
+}
+
+export interface CreateWishlistInput {
+  kind: 'wishlist';
+  title: string;
+  platform: string;
+  developer?: string;
+}
+
+export async function createWishlistItem(input: CreateWishlistInput): Promise<Game> {
+  const r = await fetch('/api/games', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(body?.error ?? `Failed to create wishlist item: ${r.status}`);
+  }
+  return r.json();
 }
 
 export async function createGame(input: CreateGameInput): Promise<Game> {
@@ -147,6 +170,18 @@ export async function uploadCover(file: File): Promise<{ url: string }> {
 export async function fetchMyPermissions(): Promise<{ canUploadCovers: boolean }> {
   const r = await fetch('/api/me/permissions', { credentials: 'include' });
   if (!r.ok) throw new Error(`Failed to fetch permissions: ${r.status}`);
+  return r.json();
+}
+
+export async function moveToCollection(externalId: string): Promise<{ game: Game }> {
+  const r = await fetch(`/api/games/${externalId}/move-to-collection`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(body?.error ?? `Failed to move to collection: ${r.status}`);
+  }
   return r.json();
 }
 

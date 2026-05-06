@@ -4,6 +4,7 @@ import type { GameRepository, ListGamesQuery } from '../../domain/games/game-rep
 
 const ListGamesQuerySchema = z.object({
   search: z.string().optional().default(''),
+  kind: z.enum(['owned', 'wishlist']).optional(),
   page: z.coerce.number().min(1).default(1),
   perPage: z.coerce.number().min(1).max(100).default(7),
   sort: z.enum(['title', 'genre', 'platform', 'format', 'status', 'releaseYear', 'hoursPlayed']).optional(),
@@ -21,6 +22,7 @@ export class ListGames {
     const query: ListGamesQuery = {
       userId,
       search: parsed.search || undefined,
+      kind: parsed.kind,
       page: parsed.page,
       perPage: parsed.perPage,
       sort: parsed.sort,

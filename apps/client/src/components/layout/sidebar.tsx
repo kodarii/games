@@ -24,6 +24,7 @@ type NavEntry = {
 
 const mainNav: NavEntry[] = [
   { label: 'Games', icon: 'gamepad', to: '/games', addTo: '/games?add=1' },
+  { label: 'Wishlist', icon: 'heart', to: '/wishlist', addTo: '/wishlist?add=1' },
   { label: 'Dictionaries', icon: 'rows', to: '/dictionaries' },
   { label: 'Data', icon: 'rows', to: '/data' },
 ];

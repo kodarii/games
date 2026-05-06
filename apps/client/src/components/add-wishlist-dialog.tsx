@@ -1,28 +1,25 @@
 import { AddPlatformDialog } from '@/components/add-platform-dialog';
-import { CoverColorPicker } from '@/components/cover-color-picker';
 import { Icon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { COVER_COLORS } from '@/lib/avatar';
-import { useCreateGameMutation, usePlatformsQuery } from '@/lib/queries';
+import { useCreateWishlistMutation, usePlatformsQuery } from '@/lib/queries';
 import { useUrlState } from '@/lib/url-state';
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-export function AddGameDialog() {
+export function AddWishlistDialog() {
   const { get, update } = useUrlState();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const open = pathname.startsWith('/games') && get('add') === '1';
+  const open = pathname.startsWith('/wishlist') && get('add') === '1';
 
   const [title, setTitle] = useState('');
   const [platform, setPlatform] = useState('');
-  const [color, setColor] = useState<string>(COVER_COLORS[0]);
   const [addPlatformOpen, setAddPlatformOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const createMutation = useCreateGameMutation();
+  const createMutation = useCreateWishlistMutation();
   const { data: platforms = [], isLoading: platformsLoading } =
     usePlatformsQuery();
 
@@ -34,7 +31,6 @@ export function AddGameDialog() {
     if (!open) {
       setTitle('');
       setPlatform(platforms[0]?.name ?? '');
-      setColor(COVER_COLORS[0]);
       createMutation.reset();
     }
   }, [open]);
@@ -52,16 +48,14 @@ export function AddGameDialog() {
     if (!canSubmit) return;
     createMutation.mutate(
       {
+        kind: 'wishlist',
         title: title.trim(),
         platform,
-        status: 'Backlog',
-        format: 'physical',
-        coverColor: color,
       },
       {
         onSuccess: (g) => {
           update({ add: null }, { replace: true });
-          navigate(`/games/${g.id}`);
+          navigate(`/wishlist/${g.id}`);
         },
       },
     );
@@ -81,10 +75,10 @@ export function AddGameDialog() {
             className="fixed left-1/2 top-1/2 z-50 w-[440px] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 rounded-[16px] bg-white p-7 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.25)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
           >
             <AlertDialog.Title className="text-[19px] font-bold leading-tight text-apex-ink">
-              Add Game
+              Add to Wishlist
             </AlertDialog.Title>
             <AlertDialog.Description className="sr-only">
-              Add a new game to your collection.
+              Add a game to your wishlist.
             </AlertDialog.Description>
 
             <div className="mt-5">
@@ -145,15 +139,6 @@ export function AddGameDialog() {
                   </button>
                 </>
               )}
-            </div>
-
-            <div className="mt-4">
-              <FieldLabel>Cover Color</FieldLabel>
-              <CoverColorPicker
-                value={color}
-                onChange={setColor}
-                className="pt-[2px]"
-              />
             </div>
 
             {createMutation.error && (

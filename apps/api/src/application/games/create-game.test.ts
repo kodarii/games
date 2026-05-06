@@ -19,6 +19,7 @@ class FakeGameRepository implements GameRepository {
     return Game.fromPersistence({
       id: 1,
       externalId: g.externalId,
+      kind: g.kind,
       userId: g.userId,
       title: g.title,
       developer: g.developer,
@@ -26,7 +27,7 @@ class FakeGameRepository implements GameRepository {
       releaseYear: g.releaseYear?.value ?? null,
       platform: g.platform,
       edition: g.edition ?? null,
-      hoursPlayed: g.hoursPlayed.value,
+      hoursPlayed: g.hoursPlayed?.value ?? null,
       status: g.status,
       format: g.format,
       price: g.price?.value ?? null,
@@ -77,6 +78,7 @@ class FakePlatformRepository implements PlatformRepository {
 }
 
 const validInput = {
+  kind: 'owned' as const,
   title: 'Elden Ring',
   developer: 'FromSoftware',
   genre: 'ARPG',
@@ -237,6 +239,40 @@ describe('CreateGame', () => {
       if (result.error.kind === 'domain') {
         expect(result.error.error.kind).toBe('purchased_at_in_future');
       }
+    }
+  });
+
+  it('creates wishlist game with kind=wishlist and null status/hoursPlayed', async () => {
+    const result = await useCase.execute(
+      { kind: 'wishlist', title: 'Silksong', platform: 'PS5' },
+      'user-A',
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.kind).toBe('wishlist');
+      expect(result.value.status).toBeNull();
+      expect(result.value.hoursPlayed).toBeNull();
+    }
+  });
+
+  it('rejects wishlist game with status field', async () => {
+    const result = await useCase.execute(
+      { kind: 'wishlist', title: 'Silksong', platform: 'PS5', status: 'Backlog' },
+      'user-A',
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid_input');
+    }
+  });
+
+  it('treats input without kind as owned (legacy compat)', async () => {
+    const { kind: _kind, ...inputWithoutKind } = validInput;
+    const result = await useCase.execute(inputWithoutKind, 'user-A');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.kind).toBe('owned');
+      expect(result.value.status).toBe('Completed');
     }
   });
 });

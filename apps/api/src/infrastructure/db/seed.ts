@@ -3,18 +3,20 @@ import { db } from '../db/client';
 import { games as gamesTable } from '../db/schema';
 
 type SeedGame = {
+  kind: 'owned' | 'wishlist';
   title: string;
-  developer: string;
+  developer: string | null;
   genre: string;
   releaseYear: number;
   platform: string;
   edition?: string;
-  hoursPlayed: number;
-  status: string;
+  hoursPlayed: number | null;
+  status: string | null;
 };
 
 const SEED_GAMES: SeedGame[] = [
   {
+    kind: 'owned',
     title: 'The Last of Us Part II',
     developer: 'Naughty Dog',
     genre: 'Action-Adventure',
@@ -25,6 +27,7 @@ const SEED_GAMES: SeedGame[] = [
     status: 'Completed',
   },
   {
+    kind: 'owned',
     title: 'God of War Ragnarök',
     developer: 'Santa Monica Studio',
     genre: 'Action-Adventure',
@@ -34,6 +37,7 @@ const SEED_GAMES: SeedGame[] = [
     status: 'Playing',
   },
   {
+    kind: 'owned',
     title: 'Bloodborne',
     developer: 'FromSoftware',
     genre: 'Action RPG',
@@ -43,6 +47,7 @@ const SEED_GAMES: SeedGame[] = [
     status: 'Completed',
   },
   {
+    kind: 'owned',
     title: 'Horizon Forbidden West',
     developer: 'Guerrilla Games',
     genre: 'Open World',
@@ -53,6 +58,7 @@ const SEED_GAMES: SeedGame[] = [
     status: 'Playing',
   },
   {
+    kind: 'owned',
     title: 'Elden Ring',
     developer: 'FromSoftware',
     genre: 'Action RPG',
@@ -62,6 +68,7 @@ const SEED_GAMES: SeedGame[] = [
     status: 'Completed',
   },
   {
+    kind: 'owned',
     title: 'Final Fantasy VII Rebirth',
     developer: 'Square Enix',
     genre: 'JRPG',
@@ -71,6 +78,7 @@ const SEED_GAMES: SeedGame[] = [
     status: 'Playing',
   },
   {
+    kind: 'owned',
     title: 'Ghost of Tsushima',
     developer: 'Sucker Punch',
     genre: 'Action-Adventure',
@@ -81,6 +89,7 @@ const SEED_GAMES: SeedGame[] = [
     status: 'Completed',
   },
   {
+    kind: 'owned',
     title: 'Persona 5 Royal',
     developer: 'Atlus',
     genre: 'JRPG',
@@ -90,6 +99,7 @@ const SEED_GAMES: SeedGame[] = [
     status: 'Completed',
   },
   {
+    kind: 'owned',
     title: 'Uncharted 4',
     developer: 'Naughty Dog',
     genre: 'Action-Adventure',
@@ -99,6 +109,7 @@ const SEED_GAMES: SeedGame[] = [
     status: 'Completed',
   },
   {
+    kind: 'owned',
     title: 'Spider-Man 2',
     developer: 'Insomniac Games',
     genre: 'Open World',
@@ -108,15 +119,17 @@ const SEED_GAMES: SeedGame[] = [
     status: 'Backlog',
   },
   {
+    kind: 'wishlist',
     title: "Demon's Souls",
     developer: 'Bluepoint Games',
     genre: 'Action RPG',
     releaseYear: 2020,
     platform: 'PS5',
-    hoursPlayed: 0,
-    status: 'Wishlist',
+    hoursPlayed: null,
+    status: null,
   },
   {
+    kind: 'owned',
     title: 'Death Stranding',
     developer: 'Kojima Productions',
     genre: 'Action',
@@ -127,6 +140,7 @@ const SEED_GAMES: SeedGame[] = [
     status: 'Dropped',
   },
   {
+    kind: 'owned',
     title: 'Returnal',
     developer: 'Housemarque',
     genre: 'Roguelike',
@@ -136,6 +150,7 @@ const SEED_GAMES: SeedGame[] = [
     status: 'Playing',
   },
   {
+    kind: 'owned',
     title: 'Ratchet & Clank: Rift Apart',
     developer: 'Insomniac Games',
     genre: 'Platformer',
@@ -145,6 +160,7 @@ const SEED_GAMES: SeedGame[] = [
     status: 'Completed',
   },
   {
+    kind: 'owned',
     title: 'Metal Gear Solid 4',
     developer: 'Kojima Productions',
     genre: 'Stealth Action',
@@ -154,6 +170,7 @@ const SEED_GAMES: SeedGame[] = [
     status: 'Completed',
   },
   {
+    kind: 'owned',
     title: 'Gran Turismo 7',
     developer: 'Polyphony Digital',
     genre: 'Racing',

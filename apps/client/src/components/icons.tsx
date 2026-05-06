@@ -1,3 +1,4 @@
+import { Heart } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 type IconProps = {
@@ -476,6 +477,16 @@ export const Icon = {
       />
     </>,
   ),
+  arrowRight: svg(
+    <path
+      d="M3 8h10M9 4l4 4-4 4"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />,
+  ),
+  heart: ({ size = 24, className }: IconProps) => <Heart size={size} className={className} />,
   logoMark: svg(
     <>
       <path

@@ -2,11 +2,13 @@ import { err, ok } from '../shared/result';
 import type { Result } from '../shared/result';
 
 export type GamePlatform = string;
-export type GameStatus = 'Playing' | 'Completed' | 'Backlog' | 'Dropped' | 'Wishlist';
+export type GameStatus = 'Playing' | 'Completed' | 'Backlog' | 'Dropped';
 export type GameFormat = 'physical' | 'digital';
+export type GameKind = 'owned' | 'wishlist';
 
-export const GAME_STATUSES = ['Playing', 'Completed', 'Backlog', 'Dropped', 'Wishlist'] as const;
+export const GAME_STATUSES = ['Playing', 'Completed', 'Backlog', 'Dropped'] as const;
 export const GAME_FORMATS = ['physical', 'digital'] as const;
+export const GAME_KINDS = ['owned', 'wishlist'] as const;
 
 export type GameValidationError =
   | { kind: 'missing_user_id' }
@@ -22,23 +24,26 @@ export type GameValidationError =
   | { kind: 'price_not_integer'; value: number }
   | { kind: 'purchased_at_invalid_format'; value: string }
   | { kind: 'purchased_at_invalid_date'; value: string }
-  | { kind: 'purchased_at_in_future' };
+  | { kind: 'purchased_at_in_future' }
+  | { kind: 'kind_invalid_state'; reason: string };
 
 export type GameProps = {
+  kind: GameKind;
   userId: string;
   title: string;
-  developer: string;
+  developer: string | null;
   genre: string;
   releaseYear?: number;
   platform: GamePlatform;
   edition?: string;
-  hoursPlayed: number;
-  status: GameStatus;
+  hoursPlayed: number | null;
+  status: GameStatus | null;
   format: GameFormat;
   coverColor?: string;
   coverImage?: string;
   price?: number;
-  purchasedAt?: string;
+  purchasedAt?: string | null;
+  notes?: string | null;
 };
 
 export class ReleaseYear {
@@ -126,20 +131,22 @@ export class PurchasedAt {
 export class NewGame {
   private constructor(
     private readonly _externalId: string,
+    private readonly _kind: GameKind,
     private readonly _userId: string,
     private readonly _title: string,
-    private readonly _developer: string,
+    private readonly _developer: string | null,
     private readonly _genre: string,
     private readonly _releaseYear: ReleaseYear | null,
     private readonly _platform: GamePlatform,
     private readonly _edition: string | undefined,
-    private readonly _hoursPlayed: HoursPlayed,
-    private readonly _status: GameStatus,
+    private readonly _hoursPlayed: HoursPlayed | null,
+    private readonly _status: GameStatus | null,
     private readonly _format: GameFormat,
     private readonly _coverColor: string | undefined,
     private readonly _coverImage: string | undefined,
     private readonly _price: Price | null,
     private readonly _purchasedAt: PurchasedAt | null,
+    private readonly _notes: string | null,
   ) {}
 
   static create(
@@ -155,9 +162,8 @@ export class NewGame {
       return err({ kind: 'title_empty' });
     }
 
-    const trimmedDeveloper = props.developer.trim();
-    if (!trimmedDeveloper) {
-      return err({ kind: 'developer_empty' });
+    if (!GAME_KINDS.includes(props.kind as GameKind)) {
+      return err({ kind: 'kind_invalid_state', reason: 'unknown_kind' });
     }
 
     const trimmedPlatform = props.platform?.trim();
@@ -165,12 +171,27 @@ export class NewGame {
       return err({ kind: 'platform_invalid', value: String(props.platform) });
     }
 
-    if (!GAME_STATUSES.includes(props.status)) {
-      return err({ kind: 'status_invalid', value: String(props.status) });
-    }
-
     if (!GAME_FORMATS.includes(props.format)) {
       return err({ kind: 'format_invalid', value: String(props.format) });
+    }
+
+    if (props.kind === 'wishlist') {
+      if (props.status != null) {
+        return err({ kind: 'kind_invalid_state', reason: 'wishlist_must_have_null_status' });
+      }
+      if (props.hoursPlayed != null) {
+        return err({ kind: 'kind_invalid_state', reason: 'wishlist_must_have_null_hours_played' });
+      }
+      if (props.purchasedAt != null) {
+        return err({ kind: 'kind_invalid_state', reason: 'wishlist_must_have_null_purchased_at' });
+      }
+    } else {
+      if (props.status == null || !GAME_STATUSES.includes(props.status)) {
+        return err({ kind: 'kind_invalid_state', reason: 'owned_must_have_status' });
+      }
+      if (props.hoursPlayed == null) {
+        return err({ kind: 'kind_invalid_state', reason: 'owned_must_have_hours_played' });
+      }
     }
 
     let releaseYear: ReleaseYear | null = null;
@@ -182,9 +203,13 @@ export class NewGame {
       releaseYear = releaseYearResult.value;
     }
 
-    const hoursPlayedResult = HoursPlayed.create(props.hoursPlayed);
-    if (!hoursPlayedResult.ok) {
-      return hoursPlayedResult;
+    let hoursPlayed: HoursPlayed | null = null;
+    if (props.hoursPlayed != null) {
+      const hoursPlayedResult = HoursPlayed.create(props.hoursPlayed);
+      if (!hoursPlayedResult.ok) {
+        return hoursPlayedResult;
+      }
+      hoursPlayed = hoursPlayedResult.value;
     }
 
     let price: Price | null = null;
@@ -205,33 +230,41 @@ export class NewGame {
       purchasedAt = purchasedAtResult.value;
     }
 
+    const developer = props.developer?.trim() || null;
     const genre = props.genre.trim();
     const edition = props.edition?.trim() || undefined;
     const coverColor = props.coverColor?.trim() || undefined;
     const coverImage = props.coverImage?.trim() || undefined;
     const externalId = idGenerator();
 
+    const notes = props.notes?.trim() || null;
+
     return ok(
       new NewGame(
         externalId,
+        props.kind,
         props.userId.trim(),
         trimmedTitle,
-        trimmedDeveloper,
+        developer,
         genre,
         releaseYear,
         trimmedPlatform,
         edition,
-        hoursPlayedResult.value,
+        hoursPlayed,
         props.status,
         props.format,
         coverColor,
         coverImage,
         price,
         purchasedAt,
+        notes,
       ),
     );
   }
 
+  get kind(): GameKind {
+    return this._kind;
+  }
   get externalId(): string {
     return this._externalId;
   }
@@ -241,7 +274,7 @@ export class NewGame {
   get title() {
     return this._title;
   }
-  get developer() {
+  get developer(): string | null {
     return this._developer;
   }
   get genre() {
@@ -256,10 +289,10 @@ export class NewGame {
   get edition(): string | undefined {
     return this._edition;
   }
-  get hoursPlayed(): HoursPlayed {
+  get hoursPlayed(): HoursPlayed | null {
     return this._hoursPlayed;
   }
-  get status(): GameStatus {
+  get status(): GameStatus | null {
     return this._status;
   }
   get format(): GameFormat {
@@ -276,6 +309,9 @@ export class NewGame {
   }
   get purchasedAt(): PurchasedAt | null {
     return this._purchasedAt;
+  }
+  get notes(): string | null {
+    return this._notes;
   }
 }
 
@@ -285,39 +321,43 @@ export class Game {
   private constructor(
     private readonly _id: number,
     private readonly _externalId: string,
+    private readonly _kind: GameKind,
     private readonly _userId: string,
     private readonly _title: string,
-    private readonly _developer: string,
+    private readonly _developer: string | null,
     private readonly _genre: string,
     private readonly _releaseYear: ReleaseYear | null,
     private readonly _platform: GamePlatform,
     private readonly _edition: string | undefined,
-    private readonly _hoursPlayed: HoursPlayed,
-    private readonly _status: GameStatus,
+    private readonly _hoursPlayed: HoursPlayed | null,
+    private readonly _status: GameStatus | null,
     private readonly _format: GameFormat,
     private readonly _coverColor: string | undefined,
     private readonly _coverImage: string | undefined,
     private readonly _price: Price | null,
     private readonly _purchasedAt: PurchasedAt | null,
+    private readonly _notes: string | null,
   ) {}
 
   static fromPersistence(row: {
     id: number;
     externalId: string;
+    kind: GameKind;
     userId: string;
     title: string;
-    developer: string;
+    developer: string | null;
     genre: string;
     releaseYear: number | null;
     platform: GamePlatform;
     edition: string | null;
-    hoursPlayed: number;
-    status: GameStatus;
+    hoursPlayed: number | null;
+    status: GameStatus | null;
     format: GameFormat;
     coverColor?: string | null;
     coverImage?: string | null;
     price?: number | null;
     purchasedAt?: string | null;
+    notes?: string | null;
   }): Game {
     if (!row.externalId) {
       throw new Error(`Game row ${row.id} has null externalId — run backfill first`);
@@ -325,20 +365,22 @@ export class Game {
     return new Game(
       row.id,
       row.externalId,
+      row.kind,
       row.userId,
       row.title,
-      row.developer,
+      row.developer ?? null,
       row.genre,
       row.releaseYear != null ? ReleaseYear.fromTrusted(row.releaseYear) : null,
       row.platform,
       row.edition ?? undefined,
-      HoursPlayed.fromTrusted(row.hoursPlayed),
-      row.status,
+      row.hoursPlayed != null ? HoursPlayed.fromTrusted(row.hoursPlayed) : null,
+      row.status ?? null,
       row.format,
       row.coverColor ?? undefined,
       row.coverImage ?? undefined,
       row.price != null ? Price.fromTrusted(row.price) : null,
       row.purchasedAt != null ? PurchasedAt.fromTrusted(row.purchasedAt) : null,
+      row.notes ?? null,
     );
   }
 
@@ -348,13 +390,16 @@ export class Game {
   get externalId(): string {
     return this._externalId;
   }
+  get kind(): GameKind {
+    return this._kind;
+  }
   get userId() {
     return this._userId;
   }
   get title() {
     return this._title;
   }
-  get developer() {
+  get developer(): string | null {
     return this._developer;
   }
   get genre() {
@@ -369,10 +414,10 @@ export class Game {
   get edition(): string | undefined {
     return this._edition;
   }
-  get hoursPlayed(): HoursPlayed {
+  get hoursPlayed(): HoursPlayed | null {
     return this._hoursPlayed;
   }
-  get status(): GameStatus {
+  get status(): GameStatus | null {
     return this._status;
   }
   get format(): GameFormat {
@@ -390,11 +435,15 @@ export class Game {
   get purchasedAt(): PurchasedAt | null {
     return this._purchasedAt;
   }
+  get notes(): string | null {
+    return this._notes;
+  }
 
   toJSON() {
     return {
       id: this._id,
       externalId: this._externalId,
+      kind: this._kind,
       userId: this._userId,
       title: this._title,
       developer: this._developer,
@@ -402,13 +451,14 @@ export class Game {
       releaseYear: this._releaseYear?.value ?? null,
       platform: this._platform,
       edition: this._edition,
-      hoursPlayed: this._hoursPlayed.value,
+      hoursPlayed: this._hoursPlayed?.value ?? null,
       status: this._status,
       format: this._format,
       coverColor: this._coverColor,
       coverImage: this._coverImage ?? null,
       price: this._price?.value ?? null,
       purchasedAt: this._purchasedAt?.value ?? null,
+      notes: this._notes,
     };
   }
 }

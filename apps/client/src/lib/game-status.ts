@@ -5,8 +5,6 @@ export function statusFor(s: GameStatus): { variant: StatusVariant; label: strin
   switch (s) {
     case 'Playing':
       return { variant: 'progress', label: 'Playing' };
-    case 'Wishlist':
-      return { variant: 'info', label: 'Wishlist' };
     case 'Backlog':
       return { variant: 'pending', label: 'Backlog' };
     case 'Completed':

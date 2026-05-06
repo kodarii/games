@@ -17,7 +17,7 @@ export function GamesGrid({ items }: { items: Game[] }) {
 }
 
 function GameCard({ game }: { game: Game }) {
-  const status = statusFor(game.status);
+  const status = game.status != null ? statusFor(game.status) : null;
 
   return (
     <Link
@@ -37,7 +37,7 @@ function GameCard({ game }: { game: Game }) {
           {game.title}
         </div>
         <div className="mt-0.5 truncate text-[11px] leading-[1.35] text-apex-faint">
-          {game.developer}
+          {game.developer ?? ''}
         </div>
         <div className="truncate text-[11px] leading-[1.35] text-apex-faint">
           {game.platform}
@@ -46,10 +46,10 @@ function GameCard({ game }: { game: Game }) {
           {game.price != null ? formatPriceZl(game.price) : '—'}
         </div>
         <div className="mt-auto flex items-center justify-between gap-2 pt-1.5">
-          <StatusBadge {...status} />
-          <span className="text-[11px] text-apex-faint">
-            {game.hoursPlayed}h
-          </span>
+          {status != null && <StatusBadge {...status} />}
+          {game.hoursPlayed != null && (
+            <span className="text-[11px] text-apex-faint">{game.hoursPlayed}h</span>
+          )}
         </div>
       </div>
     </Link>

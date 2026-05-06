@@ -23,6 +23,7 @@ class FakeGameRepository implements GameRepository {
     return Game.fromPersistence({
       id: Date.now(),
       externalId: g.externalId,
+      kind: g.kind,
       userId: g.userId,
       title: g.title,
       developer: g.developer,
@@ -30,7 +31,7 @@ class FakeGameRepository implements GameRepository {
       releaseYear: g.releaseYear?.value ?? null,
       platform: g.platform,
       edition: g.edition ?? null,
-      hoursPlayed: g.hoursPlayed.value,
+      hoursPlayed: g.hoursPlayed?.value ?? null,
       status: g.status,
       format: g.format,
     });
@@ -41,6 +42,7 @@ class FakeGameRepository implements GameRepository {
     const updated = Game.fromPersistence({
       id: existing.id,
       externalId: existing.externalId,
+      kind: game.kind,
       userId: game.userId,
       title: game.title,
       developer: game.developer,
@@ -48,7 +50,7 @@ class FakeGameRepository implements GameRepository {
       releaseYear: game.releaseYear?.value ?? null,
       platform: game.platform,
       edition: game.edition ?? null,
-      hoursPlayed: game.hoursPlayed.value,
+      hoursPlayed: game.hoursPlayed?.value ?? null,
       status: game.status,
       format: game.format,
     });
@@ -83,6 +85,7 @@ class FakeGameRepository implements GameRepository {
 const existingGame = Game.fromPersistence({
   id: 1,
   externalId: 'ext-game-1',
+  kind: 'owned',
   userId: 'user-A',
   title: 'Dark Souls',
   developer: 'FromSoftware',
@@ -145,6 +148,7 @@ describe('DeleteGame', () => {
     const gameWithCover = Game.fromPersistence({
       id: 1,
       externalId: 'ext-game-1',
+      kind: 'owned',
       userId: 'user-A',
       title: 'Dark Souls',
       developer: 'FromSoftware',

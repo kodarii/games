@@ -36,14 +36,15 @@ export class DrizzleImportRepository implements ImportRepository {
           .where(and(eq(gamesTable.userId, userId), eq(gamesTable.externalId, ng.externalId)))
           .limit(1);
         const values = {
+          kind: ng.kind,
           title: ng.title,
-          developer: ng.developer,
+          developer: ng.developer ?? null,
           genre: ng.genre,
           releaseYear: ng.releaseYear?.value ?? null,
           platform: ng.platform,
           edition: ng.edition ?? null,
-          hoursPlayed: ng.hoursPlayed.value,
-          status: ng.status,
+          hoursPlayed: ng.hoursPlayed?.value ?? null,
+          status: ng.status ?? null,
           format: ng.format,
           coverColor: ng.coverColor ?? null,
         };
@@ -85,14 +86,15 @@ export class DrizzleImportRepository implements ImportRepository {
         await tx.insert(gamesTable).values({
           userId,
           externalId: ng.externalId,
+          kind: ng.kind,
           title: ng.title,
-          developer: ng.developer,
+          developer: ng.developer ?? null,
           genre: ng.genre,
           releaseYear: ng.releaseYear?.value ?? null,
           platform: ng.platform,
           edition: ng.edition ?? null,
-          hoursPlayed: ng.hoursPlayed.value,
-          status: ng.status,
+          hoursPlayed: ng.hoursPlayed?.value ?? null,
+          status: ng.status ?? null,
           format: ng.format,
           coverColor: ng.coverColor ?? null,
         });

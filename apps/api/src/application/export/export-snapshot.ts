@@ -1,7 +1,7 @@
-import type { Game } from '../../domain/games/game';
+import type { Game, GameStatus } from '../../domain/games/game';
 import type { Platform } from '../../domain/platforms/platform';
 
-export const EXPORT_SCHEMA_VERSION = 3 as const;
+export const EXPORT_SCHEMA_VERSION = 4 as const;
 
 export interface ExportedPlatform {
   externalId: string;
@@ -10,18 +10,20 @@ export interface ExportedPlatform {
 
 export interface ExportedGame {
   externalId: string;
+  kind: 'owned' | 'wishlist';
   title: string;
-  developer: string;
+  developer: string | null;
   genre: string;
   releaseYear: number | null;
   platform: string;
-  hoursPlayed: number;
-  status: 'Playing' | 'Completed' | 'Backlog' | 'Dropped' | 'Wishlist';
+  hoursPlayed: number | null;
+  status: GameStatus | null;
   format: 'physical' | 'digital';
   edition?: string;
   coverColor?: string;
   price: number | null;
   purchasedAt: string | null;
+  notes: string | null;
 }
 
 export interface ExportSnapshot {
@@ -44,18 +46,20 @@ export function toSnapshot(games: Game[], platforms: Platform[], now: Date): Exp
     })
     .map<ExportedGame>((g) => ({
       externalId: g.externalId,
+      kind: g.kind,
       title: g.title,
       developer: g.developer,
       genre: g.genre,
       releaseYear: g.releaseYear?.value ?? null,
       platform: g.platform,
-      hoursPlayed: g.hoursPlayed.value,
+      hoursPlayed: g.hoursPlayed?.value ?? null,
       status: g.status,
       format: g.format,
       ...(g.edition !== undefined && { edition: g.edition }),
       ...(g.coverColor !== undefined && { coverColor: g.coverColor }),
       price: g.price?.value ?? null,
       purchasedAt: g.purchasedAt?.value ?? null,
+      notes: g.notes,
     }));
 
   return {

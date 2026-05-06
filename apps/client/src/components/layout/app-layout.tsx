@@ -1,4 +1,5 @@
 import { AddGameDialog } from '@/components/add-game-dialog';
+import { AddWishlistDialog } from '@/components/add-wishlist-dialog';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './sidebar';
@@ -14,6 +15,7 @@ export function AppLayout() {
         <Outlet />
       </main>
       <AddGameDialog />
+      <AddWishlistDialog />
     </SidebarProvider>
   );
 }
