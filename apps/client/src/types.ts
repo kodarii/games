@@ -42,6 +42,18 @@ export interface Platform {
   name: string;
 }
 
+export interface Genre {
+  id: number;
+  userId: string;
+  name: string;
+}
+
+export interface Developer {
+  id: number;
+  userId: string;
+  name: string;
+}
+
 export interface GamesResponse {
   items: Game[];
   page: number;

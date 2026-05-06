@@ -4,7 +4,6 @@ import { AuthLayout } from '@/components/layout/auth-layout';
 import { queryClient } from '@/lib/query-client';
 import { DataPage } from '@/pages/data';
 import { DictionariesPage } from '@/pages/dictionaries';
-import { DictionariesPlatformsPage } from '@/pages/dictionaries-platforms';
 import { GameEditPage } from '@/pages/game-edit';
 import { GameNewPage } from '@/pages/game-new';
 import { GameViewPage } from '@/pages/game-view';
@@ -50,7 +49,7 @@ const router = createBrowserRouter(
             { path: 'support', element: <Placeholder title="Support" /> },
             { path: 'data', element: <DataPage /> },
             { path: 'dictionaries', element: <DictionariesPage /> },
-            { path: 'dictionaries/platforms', element: <DictionariesPlatformsPage /> },
+            { path: 'dictionaries/platforms', element: <Navigate to="/dictionaries?tab=platforms" replace /> },
           ],
         },
       ],

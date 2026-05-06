@@ -36,6 +36,8 @@ class FakeGameRepository implements GameRepository {
   async countByPlatform(_userId: string, _platformName: string): Promise<number> {
     throw new Error('not used in this test');
   }
+  async countByGenre(): Promise<number> { throw new Error('not used in this test'); }
+  async countByDeveloper(): Promise<number> { throw new Error('not used in this test'); }
 
   async findAllCoverImages(): Promise<string[]> {
     return [];

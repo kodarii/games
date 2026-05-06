@@ -21,6 +21,8 @@ class FakeGameRepository implements GameRepository {
   list = async (_q: ListGamesQuery): Promise<ListGamesResult> => ({ items: [], total: 0 });
   listAll = async (): Promise<Game[]> => [];
   countByPlatform = async () => 0;
+  countByGenre = async () => 0;
+  countByDeveloper = async () => 0;
   findAllCoverImages = async (): Promise<string[]> => [];
   findByExternalId = async (): Promise<Game | null> => null;
 

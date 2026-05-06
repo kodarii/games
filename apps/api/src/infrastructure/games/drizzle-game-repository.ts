@@ -186,6 +186,22 @@ export class DrizzleGameRepository implements GameRepository {
     return r[0]?.count ?? 0;
   }
 
+  async countByGenre(userId: string, genre: string): Promise<number> {
+    const r = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(gamesTable)
+      .where(and(eq(gamesTable.userId, userId), eq(gamesTable.genre, genre)));
+    return r[0]?.count ?? 0;
+  }
+
+  async countByDeveloper(userId: string, developer: string): Promise<number> {
+    const r = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(gamesTable)
+      .where(and(eq(gamesTable.userId, userId), eq(gamesTable.developer, developer)));
+    return r[0]?.count ?? 0;
+  }
+
   async findAllCoverImages(): Promise<string[]> {
     const rows = await db
       .select({ coverImage: gamesTable.coverImage })

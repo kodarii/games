@@ -4,13 +4,19 @@ import {
   type CreateGameInput,
   type CreateWishlistInput,
   type UpdateGameInput,
+  createDeveloper,
   createGame,
+  createGenre,
   createPlatform,
   createWishlistItem,
+  deleteDeveloper,
   deleteGame,
+  deleteGenre,
   deletePlatform,
+  fetchDevelopers,
   fetchGame,
   fetchGames,
+  fetchGenres,
   fetchMyPermissions,
   fetchPlatforms,
   moveToCollection,
@@ -134,6 +140,46 @@ export function useDeletePlatform() {
   return useMutation({
     mutationFn: deletePlatform,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['platforms'] }),
+  });
+}
+
+export function useGenresQuery() {
+  return useQuery({ queryKey: ['genres'], queryFn: fetchGenres });
+}
+
+export function useCreateGenre() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: createGenre,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['genres'] }),
+  });
+}
+
+export function useDeleteGenre() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deleteGenre,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['genres'] }),
+  });
+}
+
+export function useDevelopersQuery() {
+  return useQuery({ queryKey: ['developers'], queryFn: fetchDevelopers });
+}
+
+export function useCreateDeveloper() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: createDeveloper,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['developers'] }),
+  });
+}
+
+export function useDeleteDeveloper() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deleteDeveloper,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['developers'] }),
   });
 }
 

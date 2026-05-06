@@ -26,6 +26,8 @@ class FakeGameRepository implements GameRepository {
   update = async (): Promise<Game | null> => null;
   delete = async (): Promise<Game | null> => null;
   countByPlatform = async () => 0;
+  countByGenre = async () => 0;
+  countByDeveloper = async () => 0;
   findAllCoverImages = async () => this.urls;
 }
 

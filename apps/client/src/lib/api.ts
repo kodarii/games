@@ -1,5 +1,5 @@
 import type { ImportMode, ImportReport } from '@apex/shared';
-import type { Game, GameFormat, GamePlatform, GameStatus, GamesResponse, Platform } from '@/types';
+import type { Developer, Game, GameFormat, GamePlatform, GameStatus, GamesResponse, Genre, Platform } from '@/types';
 
 export async function fetchGames(params: URLSearchParams): Promise<GamesResponse> {
   const r = await fetch(`/api/games?${params.toString()}`, { credentials: 'include' });
@@ -128,6 +128,72 @@ export async function deletePlatform(id: number): Promise<Platform> {
     const e = new Error(body?.error ?? `Failed to delete platform: ${r.status}`);
     (e as any).status = r.status;
     (e as any).body = body;
+    throw e;
+  }
+  return r.json();
+}
+
+export async function fetchGenres(): Promise<Genre[]> {
+  const r = await fetch('/api/genres', { credentials: 'include' });
+  if (!r.ok) throw new Error(`Failed to fetch genres: ${r.status}`);
+  return r.json();
+}
+
+export async function createGenre(input: { name: string }): Promise<Genre> {
+  const r = await fetch('/api/genres', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    const e = new Error(body?.error ?? `Failed to create genre: ${r.status}`);
+    (e as any).status = r.status;
+    throw e;
+  }
+  return r.json();
+}
+
+export async function deleteGenre(id: number): Promise<Genre> {
+  const r = await fetch(`/api/genres/${id}`, { method: 'DELETE', credentials: 'include' });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    const e = new Error(body?.error ?? `Failed to delete genre: ${r.status}`);
+    (e as any).status = r.status;
+    throw e;
+  }
+  return r.json();
+}
+
+export async function fetchDevelopers(): Promise<Developer[]> {
+  const r = await fetch('/api/developers', { credentials: 'include' });
+  if (!r.ok) throw new Error(`Failed to fetch developers: ${r.status}`);
+  return r.json();
+}
+
+export async function createDeveloper(input: { name: string }): Promise<Developer> {
+  const r = await fetch('/api/developers', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    const e = new Error(body?.error ?? `Failed to create developer: ${r.status}`);
+    (e as any).status = r.status;
+    throw e;
+  }
+  return r.json();
+}
+
+export async function deleteDeveloper(id: number): Promise<Developer> {
+  const r = await fetch(`/api/developers/${id}`, { method: 'DELETE', credentials: 'include' });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    const e = new Error(body?.error ?? `Failed to delete developer: ${r.status}`);
+    (e as any).status = r.status;
     throw e;
   }
   return r.json();

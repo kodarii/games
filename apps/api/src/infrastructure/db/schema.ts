@@ -55,3 +55,45 @@ export const platforms = sqliteTable(
 
 export type PlatformRow = typeof platforms.$inferSelect;
 export type NewPlatformRow = typeof platforms.$inferInsert;
+
+export const genres = sqliteTable(
+  'genres',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    externalId: text('external_id').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  },
+  (table) => [
+    index('genres_user_id_idx').on(table.userId),
+    uniqueIndex('genres_user_id_name_unq').on(table.userId, table.name),
+    uniqueIndex('genres_user_id_external_id_unq').on(table.userId, table.externalId),
+  ],
+);
+
+export type GenreRow = typeof genres.$inferSelect;
+export type NewGenreRow = typeof genres.$inferInsert;
+
+export const developers = sqliteTable(
+  'developers',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    externalId: text('external_id').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  },
+  (table) => [
+    index('developers_user_id_idx').on(table.userId),
+    uniqueIndex('developers_user_id_name_unq').on(table.userId, table.name),
+    uniqueIndex('developers_user_id_external_id_unq').on(table.userId, table.externalId),
+  ],
+);
+
+export type DeveloperRow = typeof developers.$inferSelect;
+export type NewDeveloperRow = typeof developers.$inferInsert;

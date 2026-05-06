@@ -7,6 +7,8 @@ import { exportRoute } from './routes/export';
 import { games } from './routes/games';
 import { importRoute } from './routes/import';
 import { me } from './routes/me';
+import { developers } from './routes/developers';
+import { genres } from './routes/genres';
 import { platforms } from './routes/platforms';
 import { createUploadRoute } from './routes/upload';
 import { type AuthVariables, requireAuth } from './routes/middleware/require-auth';
@@ -39,6 +41,12 @@ app.route('/api/games', games);
 
 app.use('/api/platforms/*', requireAuth);
 app.route('/api/platforms', platforms);
+
+app.use('/api/genres/*', requireAuth);
+app.route('/api/genres', genres);
+
+app.use('/api/developers/*', requireAuth);
+app.route('/api/developers', developers);
 
 app.use('/api/export/*', requireAuth);
 app.route('/api/export', exportRoute);

@@ -104,6 +104,8 @@ class FakeGameRepository implements GameRepository {
       (g) => g.userId === userId && g.platform === platformName,
     ).length;
   }
+  async countByGenre(): Promise<number> { return 0; }
+  async countByDeveloper(): Promise<number> { return 0; }
 
   async findAllCoverImages(): Promise<string[]> {
     return [];
