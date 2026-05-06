@@ -310,7 +310,7 @@ interface TabContentProps {
 function TabContent({ isLoading, isEmpty, deleteError, emptyState, toolbar, table, children }: TabContentProps) {
   return (
     <>
-      <Toolbar>
+      <Toolbar className="hidden sm:flex">
         <ToolbarSpacer />
         {toolbar}
       </Toolbar>
@@ -321,7 +321,7 @@ function TabContent({ isLoading, isEmpty, deleteError, emptyState, toolbar, tabl
         </div>
       )}
 
-      <div className="scroll-thin flex-1 overflow-y-auto bg-[#fafafa] px-5 pb-4 pt-1">
+      <div className="scroll-thin flex-1 overflow-y-auto bg-[#fafafa] px-5 pb-4 pt-3 sm:pt-1">
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-apex-surface-head text-apex-muted">
@@ -336,6 +336,10 @@ function TabContent({ isLoading, isEmpty, deleteError, emptyState, toolbar, tabl
         ) : (
           table
         )}
+      </div>
+
+      <div className="sm:hidden fixed bottom-6 right-6 z-20 drop-shadow-lg">
+        {toolbar}
       </div>
 
       {children}
