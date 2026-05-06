@@ -8,11 +8,11 @@ export const ImportedPlatformV1 = z.object({ name: z.string().min(1).max(40) });
 
 export const ImportedGameV1 = z.object({
   title: z.string().min(1),
-  developer: z.string().min(1),
+  developer: z.string().min(1).nullable(),
   genre: z.string(),
   releaseYear: z.number().int().min(1970).max(2100).nullish(),
   platform: z.string().min(1),
-  hoursPlayed: z.number().min(0),
+  hoursPlayed: z.number().min(0).nullable(),
   status: Status,
   format: Format,
   edition: z.string().optional(),

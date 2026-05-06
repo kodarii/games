@@ -4,6 +4,8 @@ import {
   ImportSnapshotExternalSchema,
   ImportSnapshotV1Schema,
   ImportSnapshotV2Schema,
+  ImportSnapshotV3Schema,
+  ImportSnapshotV4Schema,
   type ImportMode,
   type ImportReport,
 } from '@apex/shared';
@@ -13,10 +15,12 @@ import { importData } from '@/lib/api';
 const SnapshotSchema = z.discriminatedUnion('version', [
   ImportSnapshotV1Schema,
   ImportSnapshotV2Schema,
+  ImportSnapshotV3Schema,
+  ImportSnapshotV4Schema,
 ]);
 
 export type ParsedSummary = {
-  version: 1 | 2 | 'external';
+  version: 1 | 2 | 3 | 4 | 'external';
   platforms: number;
   games: number;
   snapshot: unknown;
@@ -48,7 +52,7 @@ export function useImport() {
       }
       const raw = parsed as Record<string, unknown> | null;
       if (raw && typeof raw === 'object' && 'version' in raw) {
-        if (raw.version !== 1 && raw.version !== 2) {
+        if (raw.version !== 1 && raw.version !== 2 && raw.version !== 3 && raw.version !== 4) {
           setState({
             kind: 'parse-failed',
             message:

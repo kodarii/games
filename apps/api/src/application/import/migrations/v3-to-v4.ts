@@ -6,6 +6,14 @@ export function migrateV3toV4(snap: ImportSnapshotV3): ImportSnapshotV4 {
     version: 4,
     exportedAt: snap.exportedAt,
     platforms: snap.platforms,
-    games: snap.games.map((g) => ({ ...g, notes: null })),
+    games: snap.games.map((g) => {
+      const isWishlist = g.status === 'Wishlist';
+      return {
+        ...g,
+        kind: isWishlist ? 'wishlist' : 'owned',
+        status: isWishlist ? null : (g.status as Exclude<typeof g.status, 'Wishlist'>),
+        notes: null,
+      };
+    }),
   };
 }

@@ -3,7 +3,11 @@ import { ImportedPlatformV3, ImportedGameV3 } from './import-schema-v3';
 
 export const ImportedPlatformV4 = ImportedPlatformV3;
 
+const StatusV4 = z.enum(['Playing', 'Completed', 'Backlog', 'Dropped']);
+
 export const ImportedGameV4 = ImportedGameV3.extend({
+  kind: z.enum(['owned', 'wishlist']),
+  status: StatusV4.nullable(),
   notes: z.string().nullable().optional(),
 });
 

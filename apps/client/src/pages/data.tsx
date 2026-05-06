@@ -1,11 +1,12 @@
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
+import { cn } from '@/lib/utils';
 import { Icon } from '@/components/icons';
 import { AppHeader } from '@/components/layout/app-header';
 import { useExport } from '@/hooks/use-export';
 import { useImport } from '@/hooks/use-import';
-import type { ImportMode } from '@apex/shared';
+import type { ImportReport, ImportMode } from '@apex/shared';
 import type { Platform } from '@/types';
 
 export function DataPage() {
@@ -17,196 +18,107 @@ export function DataPage() {
         </span>
         <span className="text-[15px] font-bold text-apex-ink">Data</span>
       </AppHeader>
-      <div className="flex-1 overflow-y-auto bg-[#fafafa] px-5 pb-4 pt-4">
-        <div className="grid max-w-4xl grid-cols-1 gap-4 md:grid-cols-2">
-          <ExportCard />
-          <ImportCard />
+      <div className="flex-1 overflow-y-auto bg-[#fafafa] px-6 pb-12 pt-6">
+        <div className="max-w-[600px]">
+          <SectionLabel>Export</SectionLabel>
+          <ExportSection />
+
+          <SectionLabel className="mt-8">Import</SectionLabel>
+          <ImportSection />
         </div>
       </div>
     </>
   );
 }
 
-function ExportCard() {
-  const { isExporting, error, trigger } = useExport();
+function SectionLabel({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className="rounded-[12px] border border-apex-line-3 bg-white p-5">
-      <div className="mb-4 flex items-center gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] bg-apex-surface-head text-apex-ink-4">
-          <Icon.rows size={18} />
-        </span>
-        <div className="text-[15px] font-semibold text-apex-ink">Export to JSON</div>
-      </div>
-      <p className="mb-3 text-[13px] text-apex-muted">
-        Download a snapshot of all your platforms and games. Useful for backups or migrating to another instance.
-      </p>
-      <ul className="mb-4 space-y-1 text-[12px] text-apex-muted">
-        <li>• Includes platforms and games</li>
-        <li>• Excludes internal IDs</li>
-        <li>• Schema version 1</li>
-      </ul>
-      <button
-        type="button"
-        onClick={trigger}
-        disabled={isExporting}
-        className="w-full rounded-[8px] bg-apex-accent px-4 py-2 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 sm:w-auto"
-      >
-        {isExporting ? 'Exporting…' : 'Export to JSON'}
-      </button>
-      {error && <p className="mt-2 text-[12px] text-red-600">{error}</p>}
+    <div className={cn('mb-1 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-apex-hint', className)}>
+      {children}
     </div>
   );
 }
 
-function ImportFilePicker({
-  statKind,
-  fileName,
-  errorMsg,
-  summary,
-  onPick,
-  onReset,
+function Row({
+  label,
+  description,
+  extra,
+  last = false,
+  children,
 }: {
-  statKind: string;
-  fileName?: string;
-  errorMsg?: string;
-  summary?: { platforms: number; games: number; version: 1 | 2 | 'external' };
-  onPick: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onReset: () => void;
+  label: string;
+  description?: string;
+  extra?: React.ReactNode;
+  last?: boolean;
+  children?: React.ReactNode;
 }) {
-  const fileRef = useRef<HTMLInputElement>(null);
   return (
-    <div className="mb-3">
-      <input
-        ref={fileRef}
-        type="file"
-        accept=".json,application/json"
-        className="hidden"
-        onChange={onPick}
-      />
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          className="rounded-[8px] border border-apex-line-3 bg-white px-3 py-1.5 text-[13px] hover:bg-apex-surface-head"
-        >
-          Choose file…
-        </button>
-        <span className="text-[12px] text-apex-muted">
-          {(statKind === 'idle' || statKind === 'parse-failed') && 'No file selected'}
-          {statKind === 'parsing' && 'Reading…'}
-          {(statKind === 'validated' || statKind === 'submitting') && fileName}
-          {(statKind === 'succeeded' || statKind === 'failed') && (
-            <button onClick={onReset} className="text-apex-accent hover:underline">
-              Import another
-            </button>
-          )}
-        </span>
+    <div className={cn('flex items-start justify-between gap-6 py-5', !last && 'border-b border-apex-line-5')}>
+      <div className="min-w-0 flex-1">
+        <div className="text-[13.5px] font-semibold text-apex-ink">{label}</div>
+        {description && (
+          <div className="mt-[3px] text-[12.5px] leading-[1.5] text-apex-muted">{description}</div>
+        )}
+        {extra}
       </div>
-      {summary && (
-        <p className="mt-2 text-[12px] text-green-600">
-          ✓ Found {summary.platforms} platform{summary.platforms === 1 ? '' : 's'} and {summary.games} game{summary.games === 1 ? '' : 's'} ({summary.version === 'external' ? 'external format' : `schema v${summary.version}`}).
-        </p>
-      )}
-      {errorMsg && <p className="mt-2 text-[12px] text-red-600">{errorMsg}</p>}
+      {children && <div className="shrink-0 pt-[2px]">{children}</div>}
     </div>
   );
 }
 
-function ImportModeRadio({
-  mode,
-  onChange,
+function OutlineButton({
+  onClick,
   disabled,
+  children,
 }: {
-  mode: ImportMode;
-  onChange: (m: ImportMode) => void;
-  disabled: boolean;
+  onClick?: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
 }) {
   return (
-    <fieldset className="mb-4 flex flex-col gap-2 sm:flex-row sm:gap-4">
-      {(['merge', 'replace'] as ImportMode[]).map((m) => (
-        <label key={m} className="flex cursor-pointer items-start gap-2">
-          <input
-            type="radio"
-            name="import-mode"
-            value={m}
-            checked={mode === m}
-            onChange={() => onChange(m)}
-            disabled={disabled}
-            className="mt-0.5"
-          />
-          <span>
-            <div className="text-[13px] font-medium capitalize text-apex-ink">{m}</div>
-            <div className="text-[11px] text-apex-muted">
-              {m === 'merge' ? 'Update existing items, add new ones.' : 'Delete current data, then import.'}
-            </div>
-          </span>
-        </label>
-      ))}
-    </fieldset>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="h-[30px] rounded-[6px] border border-apex-line-3 bg-white px-3 text-[12.5px] text-apex-ink-3 transition-colors hover:bg-apex-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {children}
+    </button>
   );
 }
 
-function ImportReplaceConfirm({
-  open,
-  onOpenChange,
-  platformsCount,
-  gamesCount,
-  onConfirm,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  platformsCount: number | undefined;
-  gamesCount: number | undefined;
-  onConfirm: () => void;
-}) {
+function ExportSection() {
+  const { isExporting, error, trigger } = useExport();
+
   return (
-    <AlertDialog.Root open={open} onOpenChange={onOpenChange}>
-      <AlertDialog.Portal>
-        <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/40" />
-        <AlertDialog.Content className="fixed left-1/2 top-1/2 z-50 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-[12px] bg-white p-5 shadow-xl">
-          <AlertDialog.Title className="mb-2 text-[16px] font-semibold text-apex-ink">
-            Replace all data?
-          </AlertDialog.Title>
-          <AlertDialog.Description className="mb-4 text-[13px] text-apex-muted">
-            This will permanently delete{' '}
-            <strong>
-              {platformsCount ?? 'all'} platform{platformsCount === 1 ? '' : 's'}
-            </strong>{' '}
-            and{' '}
-            <strong>
-              {gamesCount ?? 'all'} game{gamesCount === 1 ? '' : 's'}
-            </strong>{' '}
-            and replace them with the contents of the file. This cannot be undone.
-          </AlertDialog.Description>
-          <div className="flex justify-end gap-2">
-            <AlertDialog.Cancel asChild>
-              <button className="rounded-[8px] border border-apex-line-3 bg-white px-4 py-2 text-[13px] hover:bg-apex-surface-head">
-                Cancel
-              </button>
-            </AlertDialog.Cancel>
-            <AlertDialog.Action asChild>
-              <button
-                onClick={onConfirm}
-                className="rounded-[8px] bg-red-600 px-4 py-2 text-[13px] font-semibold text-white hover:bg-red-700"
-              >
-                Replace
-              </button>
-            </AlertDialog.Action>
-          </div>
-        </AlertDialog.Content>
-      </AlertDialog.Portal>
-    </AlertDialog.Root>
+    <Row
+      label="Export to JSON"
+      description="Download all platforms and games as a JSON snapshot."
+      last
+      extra={
+        error && (
+          <p className="mt-1 text-[12px] text-apex-status-inactive">{error}</p>
+        )
+      }
+    >
+      <OutlineButton onClick={trigger} disabled={isExporting}>
+        {isExporting ? 'Exporting…' : 'Export to JSON'}
+      </OutlineButton>
+    </Row>
   );
 }
 
-function ImportCard() {
+function ImportSection() {
   const { state, selectFile, submit, reset } = useImport();
   const [mode, setMode] = useState<ImportMode>('merge');
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const qc = useQueryClient();
   const platformsCount = qc.getQueryData<Platform[]>(['platforms'])?.length;
-  const gamesCount: number | undefined = undefined;
+
+  const isSubmitting = state.kind === 'submitting';
+  const showControls = state.kind === 'validated' || state.kind === 'submitting';
 
   const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -219,76 +131,222 @@ function ImportCard() {
     else void submit('merge');
   };
 
-  const onConfirmReplace = () => {
-    setConfirmOpen(false);
-    void submit('replace');
-  };
+  if (state.kind === 'succeeded') {
+    return (
+      <ImportResultRow
+        label="Import complete"
+        detail={formatReport(state.report)}
+        onReset={reset}
+        resetLabel="Import another"
+      />
+    );
+  }
 
-  const isSubmitting = state.kind === 'submitting';
-  const canSubmit = state.kind === 'validated' && !isSubmitting;
-  const showControls = state.kind === 'validated' || state.kind === 'submitting';
+  if (state.kind === 'failed') {
+    return (
+      <ImportResultRow
+        label="Import failed"
+        detail={state.message}
+        onReset={reset}
+        resetLabel="Try again"
+        isError
+      />
+    );
+  }
 
   return (
-    <div className="rounded-[12px] border border-apex-line-3 bg-white p-5">
-      <div className="mb-4 flex items-center gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] bg-apex-surface-head text-apex-ink-4">
-          <Icon.rows size={18} />
-        </span>
-        <div className="text-[15px] font-semibold text-apex-ink">Import from JSON</div>
-      </div>
-      <p className="mb-3 text-[13px] text-apex-muted">
-        Restore platforms and games from a previously exported JSON file.
-      </p>
-
-      <ImportFilePicker
-        statKind={state.kind}
-        fileName={(state.kind === 'validated' || state.kind === 'submitting') ? state.file.name : undefined}
-        errorMsg={state.kind === 'parse-failed' ? state.message : undefined}
-        summary={(state.kind === 'validated' || state.kind === 'submitting') ? state.summary : undefined}
-        onPick={onPick}
-        onReset={reset}
+    <>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".json,application/json"
+        className="hidden"
+        onChange={onPick}
       />
 
-      {showControls && (
-        <ImportModeRadio mode={mode} onChange={setMode} disabled={isSubmitting} />
-      )}
-
-      {showControls && (
-        <button
-          type="button"
-          onClick={onImportClick}
-          disabled={!canSubmit}
-          className="w-full rounded-[8px] bg-apex-accent px-4 py-2 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 sm:w-auto"
-        >
-          {isSubmitting ? 'Importing…' : 'Import'}
-        </button>
-      )}
-
-      {state.kind === 'succeeded' && (
-        <div className="mt-3 rounded-[8px] border border-green-200 bg-green-50 p-3 text-[12px] text-green-800">
-          <div className="font-semibold">Import complete</div>
-          <div>
-            Platforms — created: {state.report.platforms.created}, updated: {state.report.platforms.updated}
-            {state.report.platforms.deleted !== undefined ? `, deleted: ${state.report.platforms.deleted}` : ''}
+      <Row
+        label="Source file"
+        description="Accepts JSON exports (v1–v4) or external format."
+        last={!showControls}
+        extra={
+          state.kind === 'parse-failed' ? (
+            <p className="mt-1 text-[12px] text-apex-status-inactive">{state.message}</p>
+          ) : showControls ? (
+            <p className="mt-1 text-[12px] text-apex-muted">
+              {state.summary.platforms} platform{state.summary.platforms !== 1 ? 's' : ''}&nbsp;·&nbsp;
+              {state.summary.games} game{state.summary.games !== 1 ? 's' : ''}&nbsp;·&nbsp;
+              {state.summary.version === 'external' ? 'external format' : `schema v${state.summary.version}`}
+            </p>
+          ) : null
+        }
+      >
+        {showControls ? (
+          <div className="flex items-center gap-2">
+            <span className="max-w-[150px] truncate text-[12.5px] text-apex-ink-3">
+              {state.file.name}
+            </span>
+            <button
+              type="button"
+              onClick={reset}
+              disabled={isSubmitting}
+              aria-label="Remove file"
+              className="text-[16px] leading-none text-apex-hint transition-colors hover:text-apex-ink-3 disabled:opacity-40"
+            >
+              ×
+            </button>
           </div>
-          <div>
-            Games — created: {state.report.games.created}, updated: {state.report.games.updated}
-            {state.report.games.deleted !== undefined ? `, deleted: ${state.report.games.deleted}` : ''}
-          </div>
-        </div>
-      )}
+        ) : state.kind === 'parsing' ? (
+          <span className="text-[12.5px] text-apex-muted">Reading…</span>
+        ) : (
+          <OutlineButton onClick={() => fileRef.current?.click()}>
+            Choose file…
+          </OutlineButton>
+        )}
+      </Row>
 
-      {state.kind === 'failed' && (
-        <p className="mt-2 text-[12px] text-red-600">{state.message}</p>
+      {showControls && (
+        <>
+          <Row label="Import mode" description="Merge keeps existing data and adds new items. Replace deletes everything first." last>
+            <div className="flex overflow-hidden rounded-[6px] border border-apex-line-3">
+              {(['merge', 'replace'] as const).map((m, i) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMode(m)}
+                  disabled={isSubmitting}
+                  className={cn(
+                    'h-[30px] px-3 text-[12.5px] capitalize transition-colors disabled:opacity-50',
+                    i > 0 && 'border-l border-apex-line-3',
+                    mode === m
+                      ? 'bg-apex-surface-head font-medium text-apex-ink'
+                      : 'bg-white text-apex-ink-5 hover:bg-apex-surface-hover',
+                  )}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          </Row>
+
+          <div className="flex items-center justify-end pt-4">
+            <button
+              type="button"
+              onClick={onImportClick}
+              disabled={isSubmitting || state.kind !== 'validated'}
+              className="h-[30px] rounded-[6px] bg-apex-accent px-4 text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {isSubmitting ? 'Importing…' : 'Import'}
+            </button>
+          </div>
+        </>
       )}
 
       <ImportReplaceConfirm
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         platformsCount={platformsCount}
-        gamesCount={gamesCount}
-        onConfirm={onConfirmReplace}
+        onConfirm={() => {
+          setConfirmOpen(false);
+          void submit('replace');
+        }}
       />
-    </div>
+    </>
+  );
+}
+
+function ImportResultRow({
+  label,
+  detail,
+  onReset,
+  resetLabel,
+  isError = false,
+}: {
+  label: string;
+  detail: string;
+  onReset: () => void;
+  resetLabel: string;
+  isError?: boolean;
+}) {
+  return (
+    <Row
+      label={label}
+      last
+      extra={
+        <p className={cn('mt-[3px] text-[12.5px] leading-[1.5]', isError ? 'text-apex-status-inactive' : 'text-apex-muted')}>
+          {detail}
+        </p>
+      }
+    >
+      <button
+        type="button"
+        onClick={onReset}
+        className="text-[12.5px] text-apex-accent hover:underline"
+      >
+        {resetLabel}
+      </button>
+    </Row>
+  );
+}
+
+function formatReport(report: ImportReport): string {
+  const p = report.platforms;
+  const g = report.games;
+  const parts: string[] = [];
+
+  const pParts = [`created ${p.created}`, `updated ${p.updated}`];
+  if (p.deleted !== undefined) pParts.push(`deleted ${p.deleted}`);
+  parts.push(`Platforms: ${pParts.join(', ')}.`);
+
+  const gParts = [`created ${g.created}`, `updated ${g.updated}`];
+  if (g.deleted !== undefined) gParts.push(`deleted ${g.deleted}`);
+  parts.push(`Games: ${gParts.join(', ')}.`);
+
+  return parts.join(' ');
+}
+
+function ImportReplaceConfirm({
+  open,
+  onOpenChange,
+  platformsCount,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  platformsCount: number | undefined;
+  onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog.Root open={open} onOpenChange={onOpenChange}>
+      <AlertDialog.Portal>
+        <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/40" />
+        <AlertDialog.Content className="fixed left-1/2 top-1/2 z-50 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-[10px] bg-white p-5 shadow-apex-2">
+          <AlertDialog.Title className="mb-2 text-[14px] font-semibold text-apex-ink">
+            Replace all data?
+          </AlertDialog.Title>
+          <AlertDialog.Description className="mb-5 text-[13px] leading-[1.6] text-apex-muted">
+            This will permanently delete{' '}
+            <span className="text-apex-ink-2">
+              {platformsCount !== undefined ? `${platformsCount} platform${platformsCount === 1 ? '' : 's'}` : 'all platforms'}
+            </span>{' '}
+            and all associated games, then replace them with the contents of the file. This cannot be undone.
+          </AlertDialog.Description>
+          <div className="flex justify-end gap-2">
+            <AlertDialog.Cancel asChild>
+              <button className="h-[30px] rounded-[6px] border border-apex-line-3 bg-white px-3 text-[12.5px] text-apex-ink-3 hover:bg-apex-surface-hover">
+                Cancel
+              </button>
+            </AlertDialog.Cancel>
+            <AlertDialog.Action asChild>
+              <button
+                onClick={onConfirm}
+                className="h-[30px] rounded-[6px] bg-red-600 px-3 text-[12.5px] font-semibold text-white hover:bg-red-700"
+              >
+                Replace
+              </button>
+            </AlertDialog.Action>
+          </div>
+        </AlertDialog.Content>
+      </AlertDialog.Portal>
+    </AlertDialog.Root>
   );
 }
