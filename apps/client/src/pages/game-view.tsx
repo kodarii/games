@@ -410,31 +410,50 @@ export function GameViewPage() {
           <div className="px-6 pb-24 pt-7 lg:px-8">
 
             {/* Mobile: compact cover + title row */}
-            <div className="mb-6 flex gap-4 md:hidden">
-              <div className="w-[88px] shrink-0">
-                <GameCover
-                  name={liveTitle}
-                  color={liveCoverColor}
-                  src={liveCoverImage}
-                />
-              </div>
-              <div className="min-w-0 pt-1">
-                <h1 className="text-[17px] font-bold leading-tight text-apex-ink" style={{ textWrap: 'balance' } as React.CSSProperties}>
-                  {liveTitle}
-                </h1>
-                {subtitle && (
-                  <p className="mt-1 text-[12px] text-apex-muted">{subtitle}</p>
-                )}
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {game.kind === 'owned' && game.status && (
-                    <StatusBadge
-                      variant={statusFor(game.status).variant}
-                      label={statusFor(game.status).label}
-                    />
+            <div className="mb-6 md:hidden">
+              <div className="flex gap-4">
+                <div className="w-[88px] shrink-0">
+                  <GameCover
+                    name={liveTitle}
+                    color={liveCoverColor}
+                    src={liveCoverImage}
+                  />
+                </div>
+                <div className="min-w-0 pt-1">
+                  <h1 className="text-[17px] font-bold leading-tight text-apex-ink" style={{ textWrap: 'balance' } as React.CSSProperties}>
+                    {liveTitle}
+                  </h1>
+                  {subtitle && (
+                    <p className="mt-1 text-[12px] text-apex-muted">{subtitle}</p>
                   )}
-                  <FormatChip format={game.format} />
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {game.kind === 'owned' && game.status && (
+                      <StatusBadge
+                        variant={statusFor(game.status).variant}
+                        label={statusFor(game.status).label}
+                      />
+                    )}
+                    <FormatChip format={game.format} />
+                  </div>
                 </div>
               </div>
+              {editMode && draft && (
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <div className="mb-[6px] text-[10px] font-semibold uppercase tracking-[0.07em] text-apex-muted">
+                      Cover Color
+                    </div>
+                    <CoverColorPicker
+                      value={draft.coverColor}
+                      onChange={(c) => set('coverColor', c)}
+                    />
+                  </div>
+                  <UploadCoverButton
+                    value={draft.coverImage}
+                    onChange={(url) => set('coverImage', url)}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Desktop title */}
