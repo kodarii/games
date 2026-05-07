@@ -5,6 +5,7 @@ import {
   type GameKind,
   type GamePlatform,
   type GameStatus,
+  type GameUpdate,
   type NewGame,
 } from '../../domain/games/game';
 import type {
@@ -135,7 +136,7 @@ export class DrizzleGameRepository implements GameRepository {
     return this.mapRowToGame(inserted);
   }
 
-  async update(id: number, game: NewGame): Promise<Game | null> {
+  async update(userId: string, externalId: string, game: GameUpdate): Promise<Game | null> {
     const [updated] = await db
       .update(gamesTable)
       .set({
@@ -155,15 +156,18 @@ export class DrizzleGameRepository implements GameRepository {
         purchasedAt: game.purchasedAt?.value ?? null,
         notes: game.notes ?? null,
       })
-      .where(eq(gamesTable.id, id))
+      .where(and(eq(gamesTable.externalId, externalId), eq(gamesTable.userId, userId)))
       .returning();
 
     if (!updated) return null;
     return this.mapRowToGame(updated);
   }
 
-  async delete(id: number): Promise<Game | null> {
-    const [deleted] = await db.delete(gamesTable).where(eq(gamesTable.id, id)).returning();
+  async delete(userId: string, externalId: string): Promise<Game | null> {
+    const [deleted] = await db
+      .delete(gamesTable)
+      .where(and(eq(gamesTable.externalId, externalId), eq(gamesTable.userId, userId)))
+      .returning();
 
     if (!deleted) return null;
     return this.mapRowToGame(deleted);

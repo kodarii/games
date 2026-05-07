@@ -5,8 +5,7 @@ export const GAME_FORMATS = ['physical', 'digital'] as const;
 export type GameFormat = (typeof GAME_FORMATS)[number];
 
 export interface Game {
-  id: number;
-  externalId: string;
+  id: string;
   kind: GameKind;
   title: string;
   developer: string | null;

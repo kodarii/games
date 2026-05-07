@@ -281,7 +281,7 @@ export function GameViewPage() {
 
   const handleMove = () => {
     if (!game) return;
-    moveMutation.mutate(game.externalId, {
+    moveMutation.mutate(game.id, {
       onSuccess: () => navigate(`/games/${game.id}`),
     });
   };

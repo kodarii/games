@@ -27,10 +27,10 @@ class FakeGameRepository implements GameRepository {
   async create(_game: NewGame): Promise<Game> {
     throw new Error('not used in this test');
   }
-  async update(_id: number, _game: GameUpdate): Promise<Game | null> {
+  async update(_userId: string, _externalId: string, _game: GameUpdate): Promise<Game | null> {
     throw new Error('not used in this test');
   }
-  async delete(_id: number): Promise<Game | null> {
+  async delete(_userId: string, _externalId: string): Promise<Game | null> {
     throw new Error('not used in this test');
   }
   async countByPlatform(_userId: string, _platformName: string): Promise<number> {

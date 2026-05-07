@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import {
   Game,
+  GameUpdate,
   type GameProps,
   HoursPlayed,
   NewGame,
@@ -560,5 +561,97 @@ describe('Game.fromPersistence with price and purchasedAt', () => {
     const json = game.toJSON();
     expect(json.price).toBe(12999);
     expect(json.purchasedAt).toBe('2024-06-15');
+  });
+});
+
+describe('GameUpdate.create', () => {
+  it('happy path — owned game, no externalId', () => {
+    const result = GameUpdate.create(validProps());
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.kind).toBe('owned');
+      expect(result.value.title).toBe('Elden Ring');
+      // @ts-expect-error externalId must not exist on GameUpdate
+      expect(result.value.externalId).toBeUndefined();
+    }
+  });
+
+  it('returns error for empty title', () => {
+    const result = GameUpdate.create({ ...validProps(), title: '' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('title_empty');
+    }
+  });
+
+  it('returns error for empty platform', () => {
+    const result = GameUpdate.create({ ...validProps(), platform: '' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('platform_invalid');
+    }
+  });
+
+  it('creates wishlist game', () => {
+    const result = GameUpdate.create(wishlistProps());
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.kind).toBe('wishlist');
+    }
+  });
+
+  it('rejects wishlist with non-null status', () => {
+    const result = GameUpdate.create({ ...wishlistProps(), status: 'Backlog' as any });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('kind_invalid_state');
+    }
+  });
+});
+
+describe('GameUpdate.fromGame', () => {
+  it('creates GameUpdate from Game with matching fields', () => {
+    const game = Game.fromPersistence(validRow);
+    const update = GameUpdate.fromGame(game);
+    expect(update.kind).toBe(game.kind);
+    expect(update.title).toBe(game.title);
+    expect(update.developer).toBe(game.developer);
+    expect(update.genre).toBe(game.genre);
+    expect(update.platform).toBe(game.platform);
+    expect(update.status).toBe(game.status);
+    expect(update.format).toBe(game.format);
+    expect(update.hoursPlayed?.value).toBe(game.hoursPlayed?.value);
+    expect(update.releaseYear?.value).toBe(game.releaseYear?.value);
+    // @ts-expect-error externalId must not exist on GameUpdate
+    expect(update.externalId).toBeUndefined();
+  });
+});
+
+describe('Game.toOwned', () => {
+  it('converts wishlist to owned with Backlog status and 0 hoursPlayed', () => {
+    const wishlistRow = { ...validRow, kind: 'wishlist' as const, status: null, hoursPlayed: null };
+    const wishlistGame = Game.fromPersistence(wishlistRow);
+    const owned = wishlistGame.toOwned();
+    expect(owned.kind).toBe('owned');
+    expect(owned.status).toBe('Backlog');
+    expect(owned.hoursPlayed?.value).toBe(0);
+  });
+
+  it('preserves id, externalId, userId, title, platform', () => {
+    const wishlistRow = { ...validRow, kind: 'wishlist' as const, status: null, hoursPlayed: null };
+    const wishlistGame = Game.fromPersistence(wishlistRow);
+    const owned = wishlistGame.toOwned();
+    expect(owned.id).toBe(wishlistGame.id);
+    expect(owned.externalId).toBe(wishlistGame.externalId);
+    expect(owned.userId).toBe(wishlistGame.userId);
+    expect(owned.title).toBe(wishlistGame.title);
+    expect(owned.platform).toBe(wishlistGame.platform);
+  });
+
+  it('sets purchasedAt to null', () => {
+    const wishlistRow = { ...validRow, kind: 'wishlist' as const, status: null, hoursPlayed: null };
+    const wishlistGame = Game.fromPersistence(wishlistRow);
+    const owned = wishlistGame.toOwned();
+    expect(owned.purchasedAt).toBeNull();
   });
 });

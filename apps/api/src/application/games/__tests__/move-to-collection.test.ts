@@ -17,8 +17,8 @@ class FakeGameRepository implements GameRepository {
     return null;
   };
 
-  update = async (id: number, newGame: GameUpdate): Promise<Game | null> => {
-    const existing = this.store.get(id);
+  update = async (userId: string, externalId: string, newGame: GameUpdate): Promise<Game | null> => {
+    const existing = [...this.store.values()].find(g => g.externalId === externalId && g.userId === userId);
     if (!existing) return null;
     const updated = Game.fromPersistence({
       id: existing.id,
@@ -39,7 +39,7 @@ class FakeGameRepository implements GameRepository {
       price: newGame.price?.value ?? null,
       purchasedAt: newGame.purchasedAt?.value ?? null,
     });
-    this.store.set(id, updated);
+    this.store.set(existing.id, updated);
     return updated;
   };
 

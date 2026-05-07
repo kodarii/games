@@ -12,22 +12,13 @@ export class DeleteGame {
     private readonly coverStorage: CoverStorage,
   ) {}
 
-  async execute(id: number, userId: string): Promise<Result<Game, DeleteGameError>> {
-    const existing = await this.repo.findById(id);
+  async execute(externalId: string, userId: string): Promise<Result<Game, DeleteGameError>> {
+    const deleted = await this.repo.delete(userId, externalId);
+    if (!deleted) return err({ kind: 'not_found' });
 
-    if (!existing || existing.userId !== userId) {
-      return err({ kind: 'not_found' });
-    }
-
-    const deleted = await this.repo.delete(id);
-
-    if (!deleted) {
-      return err({ kind: 'not_found' });
-    }
-
-    if (existing.coverImage) {
-      void this.coverStorage.delete(existing.coverImage).catch((deleteErr) => {
-        console.warn('[delete-game] cover cleanup failed', { id, url: existing.coverImage, deleteErr });
+    if (deleted.coverImage) {
+      void this.coverStorage.delete(deleted.coverImage).catch((deleteErr) => {
+        console.warn('[delete-game] cover cleanup failed', { externalId, deleteErr });
       });
     }
 

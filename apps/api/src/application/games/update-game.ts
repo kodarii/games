@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import {
   type Game,
+  GameUpdate,
   type GameProps,
   type GameValidationError,
-  NewGame,
 } from '../../domain/games/game';
 import type { GameRepository } from '../../domain/games/game-repository';
 import type { PlatformRepository } from '../../domain/platforms/platform-repository';
@@ -77,7 +77,7 @@ export class UpdateGame {
   ) {}
 
   async execute(
-    id: number,
+    externalId: string,
     input: unknown,
     userId: string,
   ): Promise<Result<Game, UpdateGameError>> {
@@ -91,8 +91,8 @@ export class UpdateGame {
       return err({ kind: 'invalid_input', issues: parsed.error.issues });
     }
 
-    const existing = await this.repo.findById(id);
-    if (!existing || existing.userId !== userId) {
+    const existing = await this.repo.findByExternalId(userId, externalId);
+    if (!existing) {
       return err({ kind: 'not_found' });
     }
 
@@ -145,12 +145,12 @@ export class UpdateGame {
             notes: data.notes ?? null,
           };
 
-    const gameUpdateResult = NewGame.create(props);
+    const gameUpdateResult = GameUpdate.create(props);
     if (!gameUpdateResult.ok) {
       return err({ kind: 'domain', error: gameUpdateResult.error });
     }
 
-    const updated = await this.repo.update(id, gameUpdateResult.value);
+    const updated = await this.repo.update(userId, externalId, gameUpdateResult.value);
     if (!updated) {
       return err({ kind: 'not_found' });
     }
@@ -158,8 +158,8 @@ export class UpdateGame {
     const oldUrl = existing.coverImage;
     const newUrl = updated.coverImage;
     if (oldUrl && oldUrl !== newUrl) {
-      void this.coverStorage.delete(oldUrl).catch((err) => {
-        console.warn('[update-game] cover cleanup failed', { id, oldUrl, err });
+      void this.coverStorage.delete(oldUrl).catch((updateErr) => {
+        console.warn('[update-game] cover cleanup failed', { externalId, oldUrl, updateErr });
       });
     }
 

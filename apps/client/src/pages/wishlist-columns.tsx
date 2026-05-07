@@ -71,7 +71,7 @@ export const wishlistColumns = [
   columnHelper.display({
     id: 'actions',
     header: '',
-    cell: ({ row }) => <MoveToCollectionButton externalId={row.original.externalId} />,
+    cell: ({ row }) => <MoveToCollectionButton externalId={row.original.id} />,
     size: 48,
   }),
 ];

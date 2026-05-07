@@ -37,8 +37,8 @@ class FakeGameRepository implements GameRepository {
   async findById(_id: number): Promise<Game | null> { return null; }
   async findByExternalId(_userId: string, _externalId: string): Promise<Game | null> { return null; }
   async create(_game: NewGame): Promise<Game> { throw new Error('not implemented'); }
-  async update(_id: number, _game: GameUpdate): Promise<Game | null> { return null; }
-  async delete(_id: number): Promise<Game | null> { return null; }
+  async update(_userId: string, _externalId: string, _game: GameUpdate): Promise<Game | null> { return null; }
+  async delete(_userId: string, _externalId: string): Promise<Game | null> { return null; }
   async countByPlatform(_userId: string, _platformName: string): Promise<number> { return 0; }
   async countByGenre(): Promise<number> { return 0; }
   async countByDeveloper(): Promise<number> { return 0; }

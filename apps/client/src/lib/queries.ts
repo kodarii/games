@@ -104,10 +104,9 @@ export function useCreateGameMutation() {
 export function useUpdateGameMutation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, input }: { id: number; input: UpdateGameInput }) => updateGame(id, input),
+    mutationFn: ({ id, input }: { id: string; input: UpdateGameInput }) => updateGame(id, input),
     onSuccess: (game) => {
       qc.invalidateQueries({ queryKey: ['games'] });
-      qc.invalidateQueries({ queryKey: ['game', String(game.id)] });
       qc.invalidateQueries({ queryKey: ['game', game.id] });
     },
   });
@@ -116,7 +115,7 @@ export function useUpdateGameMutation() {
 export function useDeleteGameMutation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => deleteGame(id),
+    mutationFn: (id: string) => deleteGame(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['games'] });
     },
@@ -213,7 +212,7 @@ export function useMoveToCollectionMutation() {
           ...data,
           pages: data.pages.map((p) => ({
             ...p,
-            items: p.items.filter((g) => g.externalId !== externalId),
+            items: p.items.filter((g) => g.id !== externalId),
           })),
         };
       });
@@ -224,9 +223,10 @@ export function useMoveToCollectionMutation() {
         ctx.snapshot.forEach(([key, data]) => qc.setQueryData(key, data));
       }
     },
-    onSettled: () => {
+    onSettled: (_data, _err, externalId) => {
       qc.invalidateQueries({ queryKey: ['games', 'wishlist'] });
       qc.invalidateQueries({ queryKey: ['games', 'owned'] });
+      qc.invalidateQueries({ queryKey: ['game', externalId] });
     },
   });
 }

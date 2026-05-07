@@ -8,13 +8,9 @@ export type GetGameError = { kind: 'not_found' };
 export class GetGame {
   constructor(private readonly repo: GameRepository) {}
 
-  async execute(id: number, userId: string): Promise<Result<Game, GetGameError>> {
-    const game = await this.repo.findById(id);
-
-    if (!game || game.userId !== userId) {
-      return err({ kind: 'not_found' });
-    }
-
+  async execute(externalId: string, userId: string): Promise<Result<Game, GetGameError>> {
+    const game = await this.repo.findByExternalId(userId, externalId);
+    if (!game) return err({ kind: 'not_found' });
     return ok(game);
   }
 }

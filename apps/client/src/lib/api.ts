@@ -72,7 +72,7 @@ export async function createGame(input: CreateGameInput): Promise<Game> {
 
 export type UpdateGameInput = CreateGameInput;
 
-export async function updateGame(id: number, input: UpdateGameInput): Promise<Game> {
+export async function updateGame(id: string, input: UpdateGameInput): Promise<Game> {
   const r = await fetch(`/api/games/${id}`, {
     method: 'PUT',
     credentials: 'include',
@@ -86,7 +86,7 @@ export async function updateGame(id: number, input: UpdateGameInput): Promise<Ga
   return r.json();
 }
 
-export async function deleteGame(id: number): Promise<Game> {
+export async function deleteGame(id: string): Promise<Game> {
   const r = await fetch(`/api/games/${id}`, {
     method: 'DELETE',
     credentials: 'include',

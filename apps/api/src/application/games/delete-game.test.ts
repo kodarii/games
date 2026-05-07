@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { Game, type GameUpdate } from '../../domain/games/game';
+import { Game, type GameUpdate, type NewGame } from '../../domain/games/game';
 import type { GameRepository } from '../../domain/games/game-repository';
 import type { CoverStorage } from '../cover-storage/cover-storage';
 import { DeleteGame } from './delete-game';
@@ -19,7 +19,7 @@ class FakeGameRepository implements GameRepository {
   list = async () => ({ items: [], total: 0 });
   listAll = async (): Promise<Game[]> => [];
   findByExternalId = async (): Promise<Game | null> => null;
-  create = async (g: GameUpdate) => {
+  create = async (g: NewGame) => {
     return Game.fromPersistence({
       id: Date.now(),
       externalId: g.externalId,
@@ -36,36 +36,18 @@ class FakeGameRepository implements GameRepository {
       format: g.format,
     });
   };
-  update = async (id: number, game: GameUpdate) => {
-    const existing = this.games.get(id);
-    if (!existing) return null;
-    const updated = Game.fromPersistence({
-      id: existing.id,
-      externalId: existing.externalId,
-      kind: game.kind,
-      userId: game.userId,
-      title: game.title,
-      developer: game.developer,
-      genre: game.genre,
-      releaseYear: game.releaseYear?.value ?? null,
-      platform: game.platform,
-      edition: game.edition ?? null,
-      hoursPlayed: game.hoursPlayed?.value ?? null,
-      status: game.status,
-      format: game.format,
-    });
-    this.games.set(id, updated);
-    return updated;
+  update = async (_userId: string, _externalId: string, _game: GameUpdate): Promise<Game | null> => {
+    return null;
   };
 
   async findById(id: number): Promise<Game | null> {
     return this.games.get(id) ?? null;
   }
 
-  async delete(id: number): Promise<Game | null> {
-    const game = this.games.get(id);
+  async delete(userId: string, externalId: string): Promise<Game | null> {
+    const game = [...this.games.values()].find(g => g.externalId === externalId && g.userId === userId);
     if (!game) return null;
-    this.games.delete(id);
+    this.games.delete(game.id);
     return game;
   }
 
@@ -107,7 +89,7 @@ describe('DeleteGame', () => {
     const coverStorage = new FakeCoverStorage();
     const useCase = new DeleteGame(repo, coverStorage);
 
-    const result = await useCase.execute(1, 'user-A');
+    const result = await useCase.execute('ext-game-1', 'user-A');
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -121,7 +103,7 @@ describe('DeleteGame', () => {
     const coverStorage = new FakeCoverStorage();
     const useCase = new DeleteGame(repo, coverStorage);
 
-    const result = await useCase.execute(99, 'user-A');
+    const result = await useCase.execute('nonexistent', 'user-A');
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -135,7 +117,7 @@ describe('DeleteGame', () => {
     const coverStorage = new FakeCoverStorage();
     const useCase = new DeleteGame(repo, coverStorage);
 
-    const result = await useCase.execute(1, 'user-B');
+    const result = await useCase.execute('ext-game-1', 'user-B');
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -167,7 +149,7 @@ describe('DeleteGame', () => {
     const coverStorage = new FakeCoverStorage();
     const useCase = new DeleteGame(repo, coverStorage);
 
-    await useCase.execute(1, 'user-A');
+    await useCase.execute('ext-game-1', 'user-A');
     await Promise.resolve();
     expect(coverStorage.deleted).toEqual(['https://utfs.io/f/some-key']);
   });
@@ -178,7 +160,7 @@ describe('DeleteGame', () => {
     const coverStorage = new FakeCoverStorage();
     const useCase = new DeleteGame(repo, coverStorage);
 
-    await useCase.execute(1, 'user-A');
+    await useCase.execute('ext-game-1', 'user-A');
     await Promise.resolve();
     expect(coverStorage.deleted).toEqual([]);
   });

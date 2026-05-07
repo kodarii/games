@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { Game, type GameUpdate } from '../../domain/games/game';
+import { Game, type NewGame } from '../../domain/games/game';
 import type { GameRepository, ListGamesQuery } from '../../domain/games/game-repository';
 import { ListGames } from './list-games';
 
@@ -21,7 +21,7 @@ class FakeGameRepository implements GameRepository {
   findByExternalId = async (): Promise<Game | null> => {
     throw new Error('not implemented');
   };
-  create = async (_g: GameUpdate): Promise<Game> => {
+  create = async (_g: NewGame): Promise<Game> => {
     throw new Error('not implemented');
   };
   update = async (): Promise<Game | null> => {

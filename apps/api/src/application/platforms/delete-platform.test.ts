@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
-import { Game, type NewGame } from '../../domain/games/game';
+import { Game, type GameUpdate, type NewGame } from '../../domain/games/game';
 import type { GameRepository, ListGamesQuery, ListGamesResult } from '../../domain/games/game-repository';
 import { Platform, type NewPlatform } from '../../domain/platforms/platform';
 import type { PlatformRepository } from '../../domain/platforms/platform-repository';
@@ -88,15 +88,12 @@ class FakeGameRepository implements GameRepository {
     return game;
   }
 
-  async update(_id: number, _g: NewGame): Promise<Game | null> {
+  async update(_userId: string, _externalId: string, _g: GameUpdate): Promise<Game | null> {
     return null;
   }
 
-  async delete(id: number): Promise<Game | null> {
-    const game = this.store.get(id);
-    if (!game) return null;
-    this.store.delete(id);
-    return game;
+  async delete(_userId: string, _externalId: string): Promise<Game | null> {
+    return null;
   }
 
   async countByPlatform(userId: string, platformName: string): Promise<number> {

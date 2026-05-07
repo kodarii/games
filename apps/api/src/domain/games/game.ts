@@ -315,7 +315,187 @@ export class NewGame {
   }
 }
 
-export type GameUpdate = NewGame;
+export class GameUpdate {
+  private constructor(
+    private readonly _kind: GameKind,
+    private readonly _userId: string,
+    private readonly _title: string,
+    private readonly _developer: string | null,
+    private readonly _genre: string,
+    private readonly _releaseYear: ReleaseYear | null,
+    private readonly _platform: GamePlatform,
+    private readonly _edition: string | undefined,
+    private readonly _hoursPlayed: HoursPlayed | null,
+    private readonly _status: GameStatus | null,
+    private readonly _format: GameFormat,
+    private readonly _coverColor: string | undefined,
+    private readonly _coverImage: string | undefined,
+    private readonly _price: Price | null,
+    private readonly _purchasedAt: PurchasedAt | null,
+    private readonly _notes: string | null,
+  ) {}
+
+  private static _build(
+    kind: GameKind,
+    userId: string,
+    title: string,
+    developer: string | null,
+    genre: string,
+    releaseYear: ReleaseYear | null,
+    platform: GamePlatform,
+    edition: string | undefined,
+    hoursPlayed: HoursPlayed | null,
+    status: GameStatus | null,
+    format: GameFormat,
+    coverColor: string | undefined,
+    coverImage: string | undefined,
+    price: Price | null,
+    purchasedAt: PurchasedAt | null,
+    notes: string | null,
+  ): GameUpdate {
+    return new GameUpdate(
+      kind, userId, title, developer, genre, releaseYear, platform, edition,
+      hoursPlayed, status, format, coverColor, coverImage, price, purchasedAt, notes,
+    );
+  }
+
+  static create(props: GameProps): Result<GameUpdate, GameValidationError> {
+    if (!props.userId || !props.userId.trim()) {
+      return err({ kind: 'missing_user_id' });
+    }
+
+    const trimmedTitle = props.title.trim();
+    if (!trimmedTitle) {
+      return err({ kind: 'title_empty' });
+    }
+
+    if (!GAME_KINDS.includes(props.kind as GameKind)) {
+      return err({ kind: 'kind_invalid_state', reason: 'unknown_kind' });
+    }
+
+    const trimmedPlatform = props.platform?.trim();
+    if (!trimmedPlatform) {
+      return err({ kind: 'platform_invalid', value: String(props.platform) });
+    }
+
+    if (!GAME_FORMATS.includes(props.format)) {
+      return err({ kind: 'format_invalid', value: String(props.format) });
+    }
+
+    if (props.kind === 'wishlist') {
+      if (props.status != null) {
+        return err({ kind: 'kind_invalid_state', reason: 'wishlist_must_have_null_status' });
+      }
+      if (props.hoursPlayed != null) {
+        return err({ kind: 'kind_invalid_state', reason: 'wishlist_must_have_null_hours_played' });
+      }
+      if (props.purchasedAt != null) {
+        return err({ kind: 'kind_invalid_state', reason: 'wishlist_must_have_null_purchased_at' });
+      }
+    } else {
+      if (props.status == null || !GAME_STATUSES.includes(props.status)) {
+        return err({ kind: 'kind_invalid_state', reason: 'owned_must_have_status' });
+      }
+      if (props.hoursPlayed == null) {
+        return err({ kind: 'kind_invalid_state', reason: 'owned_must_have_hours_played' });
+      }
+    }
+
+    let releaseYear: ReleaseYear | null = null;
+    if (props.releaseYear != null) {
+      const releaseYearResult = ReleaseYear.create(props.releaseYear);
+      if (!releaseYearResult.ok) return releaseYearResult;
+      releaseYear = releaseYearResult.value;
+    }
+
+    let hoursPlayed: HoursPlayed | null = null;
+    if (props.hoursPlayed != null) {
+      const hoursPlayedResult = HoursPlayed.create(props.hoursPlayed);
+      if (!hoursPlayedResult.ok) return hoursPlayedResult;
+      hoursPlayed = hoursPlayedResult.value;
+    }
+
+    let price: Price | null = null;
+    if (props.price != null) {
+      const priceResult = Price.create(props.price);
+      if (!priceResult.ok) return priceResult;
+      price = priceResult.value;
+    }
+
+    let purchasedAt: PurchasedAt | null = null;
+    if (props.purchasedAt != null) {
+      const purchasedAtResult = PurchasedAt.create(props.purchasedAt);
+      if (!purchasedAtResult.ok) return purchasedAtResult;
+      purchasedAt = purchasedAtResult.value;
+    }
+
+    const developer = props.developer?.trim() || null;
+    const genre = props.genre.trim();
+    const edition = props.edition?.trim() || undefined;
+    const coverColor = props.coverColor?.trim() || undefined;
+    const coverImage = props.coverImage?.trim() || undefined;
+    const notes = props.notes?.trim() || null;
+
+    return ok(
+      GameUpdate._build(
+        props.kind,
+        props.userId.trim(),
+        trimmedTitle,
+        developer,
+        genre,
+        releaseYear,
+        trimmedPlatform,
+        edition,
+        hoursPlayed,
+        props.status,
+        props.format,
+        coverColor,
+        coverImage,
+        price,
+        purchasedAt,
+        notes,
+      ),
+    );
+  }
+
+  static fromGame(game: Game): GameUpdate {
+    return GameUpdate._build(
+      game.kind,
+      game.userId,
+      game.title,
+      game.developer,
+      game.genre,
+      game.releaseYear,
+      game.platform,
+      game.edition,
+      game.hoursPlayed,
+      game.status,
+      game.format,
+      game.coverColor,
+      game.coverImage,
+      game.price,
+      game.purchasedAt,
+      game.notes,
+    );
+  }
+
+  get kind(): GameKind { return this._kind; }
+  get userId() { return this._userId; }
+  get title() { return this._title; }
+  get developer(): string | null { return this._developer; }
+  get genre() { return this._genre; }
+  get releaseYear(): ReleaseYear | null { return this._releaseYear; }
+  get platform(): GamePlatform { return this._platform; }
+  get edition(): string | undefined { return this._edition; }
+  get hoursPlayed(): HoursPlayed | null { return this._hoursPlayed; }
+  get status(): GameStatus | null { return this._status; }
+  get format(): GameFormat { return this._format; }
+  get coverColor(): string | undefined { return this._coverColor; }
+  get coverImage(): string | undefined { return this._coverImage; }
+  get price(): Price | null { return this._price; }
+  get purchasedAt(): PurchasedAt | null { return this._purchasedAt; }
+  get notes(): string | null { return this._notes; }
+}
 
 export class Game {
   private constructor(
@@ -437,6 +617,29 @@ export class Game {
   }
   get notes(): string | null {
     return this._notes;
+  }
+
+  toOwned(): Game {
+    return Game.fromPersistence({
+      id: this._id,
+      externalId: this._externalId,
+      kind: 'owned',
+      userId: this._userId,
+      title: this._title,
+      developer: this._developer,
+      genre: this._genre,
+      releaseYear: this._releaseYear?.value ?? null,
+      platform: this._platform,
+      edition: this._edition ?? null,
+      hoursPlayed: 0,
+      status: 'Backlog',
+      format: this._format,
+      coverColor: this._coverColor ?? null,
+      coverImage: this._coverImage ?? null,
+      price: this._price?.value ?? null,
+      purchasedAt: null,
+      notes: this._notes,
+    });
   }
 
   toJSON() {

@@ -21,8 +21,8 @@ export interface GameRepository {
   findById(id: number): Promise<Game | null>;
   findByExternalId(userId: string, externalId: string): Promise<Game | null>;
   create(game: NewGame): Promise<Game>;
-  update(id: number, game: GameUpdate): Promise<Game | null>;
-  delete(id: number): Promise<Game | null>;
+  update(userId: string, externalId: string, game: GameUpdate): Promise<Game | null>;
+  delete(userId: string, externalId: string): Promise<Game | null>;
   countByPlatform(userId: string, platformName: string): Promise<number>;
   countByGenre(userId: string, genre: string): Promise<number>;
   countByDeveloper(userId: string, developer: string): Promise<number>;
