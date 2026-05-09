@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, like, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import {
   Game,
   type GameFormat,
@@ -13,11 +13,15 @@ import type {
   ListGamesQuery,
   ListGamesResult,
 } from '../../domain/games/game-repository';
-import { db } from '../db/client';
+import { db as defaultDb } from '../db/client';
 import type { GameRow } from '../db/schema';
 import { games as gamesTable } from '../db/schema';
 
+type DB = typeof defaultDb;
+
 export class DrizzleGameRepository implements GameRepository {
+  constructor(private readonly db: DB = defaultDb) {}
+
   private mapRowToGame(row: GameRow): Game {
     return Game.fromPersistence({
       id: row.id,
@@ -42,21 +46,44 @@ export class DrizzleGameRepository implements GameRepository {
   }
 
   async list(query: ListGamesQuery): Promise<ListGamesResult> {
-    const { userId, search, kind, page, perPage, sort, dir } = query;
+    const { userId, search, kind, page, perPage, sort, dir, platforms, formats, releaseYearRange } =
+      query;
 
     const userFilter = eq(gamesTable.userId, userId);
     const kindFilter = kind ? eq(gamesTable.kind, kind) : undefined;
-    const searchFilter = search
-      ? or(
-          like(gamesTable.title, `%${search}%`),
-          like(gamesTable.developer, `%${search}%`),
-          like(gamesTable.genre, `%${search}%`),
-          like(gamesTable.platform, `%${search}%`),
-        )
-      : undefined;
-    const whereClause = and(userFilter, kindFilter, searchFilter);
 
-    const totalResult = await db
+    const likePattern = search ? `%${search}%` : undefined;
+    const searchFilter = likePattern
+      ? sql`(
+          ${gamesTable.title} LIKE ${likePattern} ESCAPE '\\'
+          OR ${gamesTable.developer} LIKE ${likePattern} ESCAPE '\\'
+          OR ${gamesTable.genre} LIKE ${likePattern} ESCAPE '\\'
+          OR ${gamesTable.platform} LIKE ${likePattern} ESCAPE '\\'
+        )`
+      : undefined;
+
+    const platformFilter =
+      platforms && platforms.length > 0 ? inArray(gamesTable.platform, platforms) : undefined;
+    const formatFilter =
+      formats && formats.length > 0 ? inArray(gamesTable.format, formats) : undefined;
+    const yearFromFilter = releaseYearRange
+      ? gte(gamesTable.releaseYear, releaseYearRange.from)
+      : undefined;
+    const yearToFilter = releaseYearRange
+      ? lte(gamesTable.releaseYear, releaseYearRange.to)
+      : undefined;
+
+    const whereClause = and(
+      userFilter,
+      kindFilter,
+      searchFilter,
+      platformFilter,
+      formatFilter,
+      yearFromFilter,
+      yearToFilter,
+    );
+
+    const totalResult = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(gamesTable)
       .where(whereClause);
@@ -76,12 +103,15 @@ export class DrizzleGameRepository implements GameRepository {
 
     const offset = (page - 1) * perPage;
 
-    let baseQuery = db.select().from(gamesTable).where(whereClause).$dynamic();
+    let baseQuery = this.db.select().from(gamesTable).where(whereClause).$dynamic();
     if (sortColumn) {
       const isReleaseYear = sort === 'releaseYear';
-      const order =
-        dir === 'desc'
-          ? isReleaseYear ? sql`${gamesTable.releaseYear} DESC NULLS LAST` : desc(sortColumn)
+      // dir is a Zod-validated enum ('asc' | 'desc') — sql.raw is safe here.
+      const dirSql = sql.raw(dir === 'desc' ? 'DESC' : 'ASC');
+      const order = isReleaseYear
+        ? sql`${gamesTable.releaseYear} IS NULL, ${gamesTable.releaseYear} ${dirSql}`
+        : dir === 'desc'
+          ? desc(sortColumn)
           : asc(sortColumn);
       baseQuery = baseQuery.orderBy(order);
     }
@@ -91,7 +121,7 @@ export class DrizzleGameRepository implements GameRepository {
   }
 
   async findById(id: number): Promise<Game | null> {
-    const result = await db.select().from(gamesTable).where(eq(gamesTable.id, id)).limit(1);
+    const result = await this.db.select().from(gamesTable).where(eq(gamesTable.id, id)).limit(1);
 
     if (result.length === 0) {
       return null;
@@ -101,7 +131,7 @@ export class DrizzleGameRepository implements GameRepository {
   }
 
   async findByExternalId(userId: string, externalId: string): Promise<Game | null> {
-    const [row] = await db
+    const [row] = await this.db
       .select()
       .from(gamesTable)
       .where(and(eq(gamesTable.userId, userId), eq(gamesTable.externalId, externalId)))
@@ -110,7 +140,7 @@ export class DrizzleGameRepository implements GameRepository {
   }
 
   async create(newGame: NewGame): Promise<Game> {
-    const [inserted] = await db
+    const [inserted] = await this.db
       .insert(gamesTable)
       .values({
         externalId: newGame.externalId,
@@ -137,7 +167,7 @@ export class DrizzleGameRepository implements GameRepository {
   }
 
   async update(userId: string, externalId: string, game: GameUpdate): Promise<Game | null> {
-    const [updated] = await db
+    const [updated] = await this.db
       .update(gamesTable)
       .set({
         kind: game.kind,
@@ -164,7 +194,7 @@ export class DrizzleGameRepository implements GameRepository {
   }
 
   async delete(userId: string, externalId: string): Promise<Game | null> {
-    const [deleted] = await db
+    const [deleted] = await this.db
       .delete(gamesTable)
       .where(and(eq(gamesTable.externalId, externalId), eq(gamesTable.userId, userId)))
       .returning();
@@ -174,7 +204,7 @@ export class DrizzleGameRepository implements GameRepository {
   }
 
   async listAll(userId: string): Promise<Game[]> {
-    const rows = await db
+    const rows = await this.db
       .select()
       .from(gamesTable)
       .where(eq(gamesTable.userId, userId))
@@ -183,7 +213,7 @@ export class DrizzleGameRepository implements GameRepository {
   }
 
   async countByPlatform(userId: string, platformName: string): Promise<number> {
-    const r = await db
+    const r = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(gamesTable)
       .where(and(eq(gamesTable.userId, userId), eq(gamesTable.platform, platformName)));
@@ -191,7 +221,7 @@ export class DrizzleGameRepository implements GameRepository {
   }
 
   async countByGenre(userId: string, genre: string): Promise<number> {
-    const r = await db
+    const r = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(gamesTable)
       .where(and(eq(gamesTable.userId, userId), eq(gamesTable.genre, genre)));
@@ -199,7 +229,7 @@ export class DrizzleGameRepository implements GameRepository {
   }
 
   async countByDeveloper(userId: string, developer: string): Promise<number> {
-    const r = await db
+    const r = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(gamesTable)
       .where(and(eq(gamesTable.userId, userId), eq(gamesTable.developer, developer)));
@@ -207,7 +237,7 @@ export class DrizzleGameRepository implements GameRepository {
   }
 
   async findAllCoverImages(): Promise<string[]> {
-    const rows = await db
+    const rows = await this.db
       .select({ coverImage: gamesTable.coverImage })
       .from(gamesTable)
       .where(sql`${gamesTable.coverImage} IS NOT NULL`);

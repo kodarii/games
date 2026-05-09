@@ -3,19 +3,22 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { CleanupOrphans } from './application/cover-storage/cleanup-orphans';
 import { auth } from './infrastructure/auth/auth';
+import { attachProblemJsonErrorHandler } from './routes/_problem-json';
+import { developers } from './routes/developers';
 import { exportRoute } from './routes/export';
 import { games } from './routes/games';
+import { genres } from './routes/genres';
 import { importRoute } from './routes/import';
 import { me } from './routes/me';
-import { developers } from './routes/developers';
-import { genres } from './routes/genres';
-import { platforms } from './routes/platforms';
-import { createUploadRoute } from './routes/upload';
 import { type AuthVariables, requireAuth } from './routes/middleware/require-auth';
 import { requireUploadPermission } from './routes/middleware/require-upload-permission';
+import { platforms } from './routes/platforms';
+import { createUploadRoute } from './routes/upload';
 import { coverStorage, gameRepository } from './wiring';
 
 const app = new Hono<{ Variables: AuthVariables }>();
+
+attachProblemJsonErrorHandler(app);
 
 app.use('*', logger());
 

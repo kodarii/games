@@ -60,3 +60,13 @@ export interface GamesResponse {
   total: number;
   hasMore: boolean;
 }
+
+export const RELEASE_YEAR_DEFAULT_FROM = 2000;
+export const RELEASE_YEAR_DEFAULT_TO = 2030;
+
+export interface GameFilters {
+  platforms: string[];
+  formats: GameFormat[];
+  releaseYearFrom: number;
+  releaseYearTo: number;
+}

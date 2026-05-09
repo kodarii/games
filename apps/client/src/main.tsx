@@ -14,11 +14,8 @@ import { WishlistPage } from '@/pages/wishlist';
 import { QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import {
-  Navigate,
-  RouterProvider,
-  createBrowserRouter,
-} from 'react-router-dom';
+import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import './index.css';
 
 const router = createBrowserRouter(
@@ -49,7 +46,10 @@ const router = createBrowserRouter(
             { path: 'support', element: <Placeholder title="Support" /> },
             { path: 'data', element: <DataPage /> },
             { path: 'dictionaries', element: <DictionariesPage /> },
-            { path: 'dictionaries/platforms', element: <Navigate to="/dictionaries?tab=platforms" replace /> },
+            {
+              path: 'dictionaries/platforms',
+              element: <Navigate to="/dictionaries?tab=platforms" replace />,
+            },
           ],
         },
       ],
@@ -70,6 +70,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
+      <Toaster richColors position="top-center" />
     </QueryClientProvider>
   </React.StrictMode>,
 );
