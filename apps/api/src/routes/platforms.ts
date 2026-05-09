@@ -4,6 +4,7 @@ import { DeletePlatform } from '../application/platforms/delete-platform';
 import { ListPlatforms } from '../application/platforms/list-platforms';
 import { DrizzleGameRepository } from '../infrastructure/games/drizzle-game-repository';
 import { DrizzlePlatformRepository } from '../infrastructure/platforms/drizzle-platform-repository';
+import { domainProblem, internalProblem, zodIssuesToProblemJson } from './_problem-json';
 import type { AuthVariables } from './middleware/require-auth';
 
 const platformRepo = new DrizzlePlatformRepository();
@@ -26,10 +27,10 @@ platforms.post('/', async (c) => {
   const result = await createPlatform.execute(body, userId);
   if (!result.ok) {
     const e = result.error;
-    if (e.kind === 'invalid_input') return c.json({ error: 'validation', issues: e.issues }, 400);
-    if (e.kind === 'domain') return c.json({ error: 'validation', domain: e.error }, 400);
+    if (e.kind === 'invalid_input') return c.json(zodIssuesToProblemJson(e.issues), 400);
+    if (e.kind === 'domain') return c.json(domainProblem(e.error), 400);
     if (e.kind === 'name_taken') return c.json({ error: 'name_taken' }, 409);
-    return c.json({ error: 'unknown error' }, 500);
+    return c.json(internalProblem('unknown error'), 500);
   }
   return c.json(result.value, 201);
 });

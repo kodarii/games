@@ -1,8 +1,38 @@
+import type {
+  Developer,
+  Game,
+  GameFormat,
+  GamePlatform,
+  GameStatus,
+  GamesResponse,
+  Genre,
+  Platform,
+} from '@/types';
 import type { ImportMode, ImportReport } from '@apex/shared';
-import type { Developer, Game, GameFormat, GamePlatform, GameStatus, GamesResponse, Genre, Platform } from '@/types';
 
-export async function fetchGames(params: URLSearchParams): Promise<GamesResponse> {
-  const r = await fetch(`/api/games?${params.toString()}`, { credentials: 'include' });
+/**
+ * Reads an error message from a non-OK response body, preferring RFC 7807 fields
+ * (`detail`, `title`) over the legacy `{ error }` shape, falling back to a hardcoded
+ * verb-based message. Returns `[message, body]` so callers that need the full body
+ * (e.g. for `issues` or status attachment) can still access it.
+ */
+async function readErrorMessage(
+  r: Response,
+  fallback: string,
+): Promise<[message: string, body: unknown]> {
+  const body = (await r.json().catch(() => ({}))) as {
+    detail?: string;
+    title?: string;
+    error?: string;
+  };
+  return [body?.detail ?? body?.title ?? body?.error ?? fallback, body];
+}
+
+export async function fetchGames(
+  params: URLSearchParams,
+  signal?: AbortSignal,
+): Promise<GamesResponse> {
+  const r = await fetch(`/api/games?${params.toString()}`, { credentials: 'include', signal });
   if (!r.ok) {
     throw new Error(`Failed to fetch games: ${r.status}`);
   }
@@ -50,8 +80,8 @@ export async function createWishlistItem(input: CreateWishlistInput): Promise<Ga
     body: JSON.stringify(input),
   });
   if (!r.ok) {
-    const body = await r.json().catch(() => ({}));
-    throw new Error(body?.error ?? `Failed to create wishlist item: ${r.status}`);
+    const [message] = await readErrorMessage(r, `Failed to create wishlist item: ${r.status}`);
+    throw new Error(message);
   }
   return r.json();
 }
@@ -64,8 +94,8 @@ export async function createGame(input: CreateGameInput): Promise<Game> {
     body: JSON.stringify(input),
   });
   if (!r.ok) {
-    const body = await r.json().catch(() => ({}));
-    throw new Error(body?.error ?? `Failed to create game: ${r.status}`);
+    const [message] = await readErrorMessage(r, `Failed to create game: ${r.status}`);
+    throw new Error(message);
   }
   return r.json();
 }
@@ -80,8 +110,8 @@ export async function updateGame(id: string, input: UpdateGameInput): Promise<Ga
     body: JSON.stringify(input),
   });
   if (!r.ok) {
-    const body = await r.json().catch(() => ({}));
-    throw new Error(body?.error ?? `Failed to update game: ${r.status}`);
+    const [message] = await readErrorMessage(r, `Failed to update game: ${r.status}`);
+    throw new Error(message);
   }
   return r.json();
 }
@@ -92,8 +122,8 @@ export async function deleteGame(id: string): Promise<Game> {
     credentials: 'include',
   });
   if (!r.ok) {
-    const body = await r.json().catch(() => ({}));
-    throw new Error(body?.error ?? `Failed to delete game: ${r.status}`);
+    const [message] = await readErrorMessage(r, `Failed to delete game: ${r.status}`);
+    throw new Error(message);
   }
   return r.json();
 }
@@ -112,8 +142,8 @@ export async function createPlatform(input: { name: string }): Promise<Platform>
     body: JSON.stringify(input),
   });
   if (!r.ok) {
-    const body = await r.json().catch(() => ({}));
-    const e = new Error(body?.error ?? `Failed to create platform: ${r.status}`);
+    const [message, body] = await readErrorMessage(r, `Failed to create platform: ${r.status}`);
+    const e = new Error(message);
     (e as any).status = r.status;
     (e as any).body = body;
     throw e;
@@ -124,8 +154,8 @@ export async function createPlatform(input: { name: string }): Promise<Platform>
 export async function deletePlatform(id: number): Promise<Platform> {
   const r = await fetch(`/api/platforms/${id}`, { method: 'DELETE', credentials: 'include' });
   if (!r.ok) {
-    const body = await r.json().catch(() => ({}));
-    const e = new Error(body?.error ?? `Failed to delete platform: ${r.status}`);
+    const [message, body] = await readErrorMessage(r, `Failed to delete platform: ${r.status}`);
+    const e = new Error(message);
     (e as any).status = r.status;
     (e as any).body = body;
     throw e;
@@ -147,8 +177,8 @@ export async function createGenre(input: { name: string }): Promise<Genre> {
     body: JSON.stringify(input),
   });
   if (!r.ok) {
-    const body = await r.json().catch(() => ({}));
-    const e = new Error(body?.error ?? `Failed to create genre: ${r.status}`);
+    const [message] = await readErrorMessage(r, `Failed to create genre: ${r.status}`);
+    const e = new Error(message);
     (e as any).status = r.status;
     throw e;
   }
@@ -158,8 +188,8 @@ export async function createGenre(input: { name: string }): Promise<Genre> {
 export async function deleteGenre(id: number): Promise<Genre> {
   const r = await fetch(`/api/genres/${id}`, { method: 'DELETE', credentials: 'include' });
   if (!r.ok) {
-    const body = await r.json().catch(() => ({}));
-    const e = new Error(body?.error ?? `Failed to delete genre: ${r.status}`);
+    const [message] = await readErrorMessage(r, `Failed to delete genre: ${r.status}`);
+    const e = new Error(message);
     (e as any).status = r.status;
     throw e;
   }
@@ -180,8 +210,8 @@ export async function createDeveloper(input: { name: string }): Promise<Develope
     body: JSON.stringify(input),
   });
   if (!r.ok) {
-    const body = await r.json().catch(() => ({}));
-    const e = new Error(body?.error ?? `Failed to create developer: ${r.status}`);
+    const [message] = await readErrorMessage(r, `Failed to create developer: ${r.status}`);
+    const e = new Error(message);
     (e as any).status = r.status;
     throw e;
   }
@@ -191,8 +221,8 @@ export async function createDeveloper(input: { name: string }): Promise<Develope
 export async function deleteDeveloper(id: number): Promise<Developer> {
   const r = await fetch(`/api/developers/${id}`, { method: 'DELETE', credentials: 'include' });
   if (!r.ok) {
-    const body = await r.json().catch(() => ({}));
-    const e = new Error(body?.error ?? `Failed to delete developer: ${r.status}`);
+    const [message] = await readErrorMessage(r, `Failed to delete developer: ${r.status}`);
+    const e = new Error(message);
     (e as any).status = r.status;
     throw e;
   }
@@ -207,8 +237,8 @@ export async function importData(snapshot: unknown, mode: ImportMode): Promise<I
     body: JSON.stringify({ mode, snapshot }),
   });
   if (!r.ok) {
-    const body = await r.json().catch(() => ({}));
-    const e = new Error(body?.error ?? `Failed to import: ${r.status}`);
+    const [message, body] = await readErrorMessage(r, `Failed to import: ${r.status}`);
+    const e = new Error(message);
     (e as any).status = r.status;
     (e as any).body = body;
     throw e;
@@ -225,8 +255,8 @@ export async function uploadCover(file: File): Promise<{ url: string }> {
     body: fd,
   });
   if (!r.ok) {
-    const body = await r.json().catch(() => ({}));
-    const e = new Error(body?.error ?? `upload_failed`);
+    const [message] = await readErrorMessage(r, 'upload_failed');
+    const e = new Error(message);
     (e as any).status = r.status;
     throw e;
   }
@@ -245,8 +275,8 @@ export async function moveToCollection(externalId: string): Promise<{ game: Game
     credentials: 'include',
   });
   if (!r.ok) {
-    const body = await r.json().catch(() => ({}));
-    throw new Error(body?.error ?? `Failed to move to collection: ${r.status}`);
+    const [message] = await readErrorMessage(r, `Failed to move to collection: ${r.status}`);
+    throw new Error(message);
   }
   return r.json();
 }

@@ -1,0 +1,156 @@
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
+import { eq } from 'drizzle-orm';
+import { Hono } from 'hono';
+import { db } from '../infrastructure/db/client';
+import { games as gamesTable } from '../infrastructure/db/schema';
+import { attachProblemJsonErrorHandler } from './_problem-json';
+import { games } from './games';
+import type { AuthVariables } from './middleware/require-auth';
+
+const TEST_USER_ID = `test-user-routes-${crypto.randomUUID()}`;
+
+function makeTestApp() {
+  const app = new Hono<{ Variables: AuthVariables }>();
+  attachProblemJsonErrorHandler(app);
+  app.use('/api/games/*', async (c, next) => {
+    c.set('user', { id: TEST_USER_ID } as AuthVariables['user']);
+    await next();
+  });
+  app.route('/api/games', games);
+  return app;
+}
+
+async function seedGame(
+  opts: {
+    externalId?: string;
+    title?: string;
+    platform?: string;
+    format?: 'physical' | 'digital';
+    releaseYear?: number | null;
+    kind?: 'owned' | 'wishlist';
+  } = {},
+) {
+  await db.insert(gamesTable).values({
+    externalId: opts.externalId ?? `ext-${crypto.randomUUID()}`,
+    userId: TEST_USER_ID,
+    kind: opts.kind ?? 'owned',
+    title: opts.title ?? 'Game',
+    developer: 'Dev',
+    genre: 'ARPG',
+    releaseYear: opts.releaseYear === undefined ? 2020 : opts.releaseYear,
+    platform: opts.platform ?? 'PC',
+    format: opts.format ?? 'digital',
+    status: opts.kind === 'wishlist' ? null : 'Backlog',
+    hoursPlayed: opts.kind === 'wishlist' ? null : 0,
+  });
+}
+
+describe('routes/games', () => {
+  let app: ReturnType<typeof makeTestApp>;
+
+  beforeAll(() => {
+    app = makeTestApp();
+  });
+
+  afterAll(async () => {
+    await db.delete(gamesTable).where(eq(gamesTable.userId, TEST_USER_ID));
+  });
+
+  describe('GET /api/games — validation & DoS guard', () => {
+    it('returns 400 RFC 7807 when releaseYearFrom > releaseYearTo', async () => {
+      const res = await app.request('/api/games?releaseYearFrom=2030&releaseYearTo=2000');
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as Record<string, unknown>;
+      expect(body.type).toBe('/errors/validation');
+      expect(body.title).toBe('Invalid input');
+      expect(Array.isArray(body.issues)).toBe(true);
+      // No legacy shape leak
+      expect(body).not.toHaveProperty('error');
+    });
+
+    it('returns 400 RFC 7807 when more than 20 platforms (Zod array max)', async () => {
+      const sp = new URLSearchParams();
+      for (let i = 0; i < 21; i++) sp.append('platforms', `P${i}`);
+      const res = await app.request(`/api/games?${sp.toString()}`);
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as Record<string, unknown>;
+      expect(body.type).toBe('/errors/validation');
+      expect(body).not.toHaveProperty('error');
+    });
+
+    it('returns 413 RFC 7807 when more than 100 platforms (DoS pre-check)', async () => {
+      const sp = new URLSearchParams();
+      for (let i = 0; i < 101; i++) sp.append('platforms', `P${i}`);
+      const res = await app.request(`/api/games?${sp.toString()}`);
+      expect(res.status).toBe(413);
+      const body = (await res.json()) as Record<string, unknown>;
+      expect(body.type).toBe('/errors/payload-too-large');
+    });
+  });
+
+  describe('GET /api/games — happy path with repeated params', () => {
+    let seeded = false;
+
+    async function seedOnce() {
+      if (seeded) return;
+      seeded = true;
+      await seedGame({
+        platform: 'PC',
+        format: 'digital',
+        releaseYear: 2015,
+        title: 'PC-Digital-2015',
+      });
+      await seedGame({
+        platform: 'PS5',
+        format: 'physical',
+        releaseYear: 2018,
+        title: 'PS5-Physical-2018',
+      });
+      await seedGame({
+        platform: 'Switch',
+        format: 'digital',
+        releaseYear: 2005,
+        title: 'Switch-Digital-2005',
+      });
+      await seedGame({
+        platform: 'PC',
+        format: 'digital',
+        releaseYear: 2025,
+        title: 'PC-Digital-2025',
+      });
+    }
+
+    it('returns 200 and filters via repeated params', async () => {
+      await seedOnce();
+      const sp = new URLSearchParams();
+      sp.append('platforms', 'PC');
+      sp.append('platforms', 'PS5');
+      sp.append('formats', 'digital');
+      sp.append('releaseYearFrom', '2010');
+      sp.append('releaseYearTo', '2020');
+      sp.append('perPage', '50');
+      const res = await app.request(`/api/games?${sp.toString()}`);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { total: number; items: { title: string }[] };
+      expect(body.total).toBe(1);
+      expect(body.items[0]?.title).toBe('PC-Digital-2015');
+    });
+  });
+
+  describe('POST /api/games — Option A migration verification', () => {
+    it('returns 400 RFC 7807 on bad payload (NOT legacy {error:"validation"})', async () => {
+      const res = await app.request('/api/games', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'owned', title: '', platform: '' }),
+      });
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as Record<string, unknown>;
+      expect(body.type).toBe('/errors/validation');
+      expect(body.title).toBe('Invalid input');
+      expect(Array.isArray(body.issues)).toBe(true);
+      // Legacy shape is gone
+      expect(body).not.toHaveProperty('error');
+    });
+  });
+});

@@ -2,8 +2,9 @@ import { Hono } from 'hono';
 import { CreateDeveloper } from '../application/developers/create-developer';
 import { DeleteDeveloper } from '../application/developers/delete-developer';
 import { ListDevelopers } from '../application/developers/list-developers';
-import { DrizzleGameRepository } from '../infrastructure/games/drizzle-game-repository';
 import { DrizzleDeveloperRepository } from '../infrastructure/developers/drizzle-developer-repository';
+import { DrizzleGameRepository } from '../infrastructure/games/drizzle-game-repository';
+import { domainProblem, internalProblem, zodIssuesToProblemJson } from './_problem-json';
 import type { AuthVariables } from './middleware/require-auth';
 
 const developerRepo = new DrizzleDeveloperRepository();
@@ -25,10 +26,10 @@ developers.post('/', async (c) => {
   const result = await createDeveloper.execute(body, userId);
   if (!result.ok) {
     const e = result.error;
-    if (e.kind === 'invalid_input') return c.json({ error: 'validation', issues: e.issues }, 400);
-    if (e.kind === 'domain') return c.json({ error: 'validation', domain: e.error }, 400);
+    if (e.kind === 'invalid_input') return c.json(zodIssuesToProblemJson(e.issues), 400);
+    if (e.kind === 'domain') return c.json(domainProblem(e.error), 400);
     if (e.kind === 'name_taken') return c.json({ error: 'name_taken' }, 409);
-    return c.json({ error: 'unknown error' }, 500);
+    return c.json(internalProblem('unknown error'), 500);
   }
   return c.json(result.value, 201);
 });

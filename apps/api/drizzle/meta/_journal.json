@@ -85,6 +85,13 @@
       "when": 1778025600000,
       "tag": "0011_add_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1778400000000,
+      "tag": "0013_add_games_filter_indexes",
+      "breakpoints": true
     }
   ]
 }

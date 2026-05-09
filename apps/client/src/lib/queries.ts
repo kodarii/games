@@ -1,4 +1,4 @@
-import type { Game, GameSortField, GamesResponse, SortDir } from '@/types';
+import type { Game, GameFormat, GameSortField, GamesResponse, SortDir } from '@/types';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   type CreateGameInput,
@@ -29,25 +29,44 @@ export type InfiniteGamesParams = {
   perPage: number;
   sort?: GameSortField;
   dir?: SortDir;
+  platforms?: string[];
+  formats?: GameFormat[];
+  releaseYearFrom?: number;
+  releaseYearTo?: number;
 };
+
+function buildGamesSearchParams(
+  params: InfiniteGamesParams,
+  pageParam: number,
+  kind: 'owned' | 'wishlist',
+): URLSearchParams {
+  const sp = new URLSearchParams({
+    page: String(pageParam),
+    perPage: String(params.perPage),
+    search: params.search,
+    kind,
+  });
+  if (params.sort) {
+    sp.set('sort', params.sort);
+    sp.set('dir', params.dir ?? 'asc');
+  }
+  if (params.platforms?.length) {
+    for (const p of params.platforms) sp.append('platforms', p);
+  }
+  if (params.formats?.length) {
+    for (const f of params.formats) sp.append('formats', f);
+  }
+  if (params.releaseYearFrom != null) sp.set('releaseYearFrom', String(params.releaseYearFrom));
+  if (params.releaseYearTo != null) sp.set('releaseYearTo', String(params.releaseYearTo));
+  return sp;
+}
 
 export function useInfiniteGamesQuery(params: InfiniteGamesParams) {
   return useInfiniteQuery({
     queryKey: ['games', 'owned', params] as const,
     initialPageParam: 1,
-    queryFn: ({ pageParam }): Promise<GamesResponse> => {
-      const sp = new URLSearchParams({
-        page: String(pageParam),
-        perPage: String(params.perPage),
-        search: params.search,
-        kind: 'owned',
-      });
-      if (params.sort) {
-        sp.set('sort', params.sort);
-        sp.set('dir', params.dir ?? 'asc');
-      }
-      return fetchGames(sp);
-    },
+    queryFn: ({ pageParam, signal }): Promise<GamesResponse> =>
+      fetchGames(buildGamesSearchParams(params, pageParam, 'owned'), signal),
     getNextPageParam: (last, _all, lastParam) => (last.hasMore ? lastParam + 1 : undefined),
   });
 }
@@ -56,19 +75,8 @@ export function useInfiniteWishlistQuery(params: InfiniteGamesParams) {
   return useInfiniteQuery({
     queryKey: ['games', 'wishlist', params] as const,
     initialPageParam: 1,
-    queryFn: ({ pageParam }): Promise<GamesResponse> => {
-      const sp = new URLSearchParams({
-        page: String(pageParam),
-        perPage: String(params.perPage),
-        search: params.search,
-        kind: 'wishlist',
-      });
-      if (params.sort) {
-        sp.set('sort', params.sort);
-        sp.set('dir', params.dir ?? 'asc');
-      }
-      return fetchGames(sp);
-    },
+    queryFn: ({ pageParam, signal }): Promise<GamesResponse> =>
+      fetchGames(buildGamesSearchParams(params, pageParam, 'wishlist'), signal),
     getNextPageParam: (last, _all, lastParam) => (last.hasMore ? lastParam + 1 : undefined),
   });
 }

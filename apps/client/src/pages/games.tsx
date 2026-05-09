@@ -1,18 +1,18 @@
 import { DataTable } from '@/components/data-table';
+import { GamesEmptyState } from '@/components/games-empty-state';
+import { GamesFilters } from '@/components/games-filters';
+import { GamesSort } from '@/components/games-sort';
 import { Icon } from '@/components/icons';
-import { AppHeader } from '@/components/layout/app-header';
 import { InfiniteScrollFooter } from '@/components/infinite-scroll-footer';
+import { AppHeader } from '@/components/layout/app-header';
 import { SearchInput } from '@/components/search-input';
 import { Button } from '@/components/ui/button';
+import { ViewModeToggle } from '@/components/view-mode-toggle';
 import { useGamesListState } from '@/lib/games-list-state';
 import { useInfiniteGamesQuery } from '@/lib/queries';
 import { useUrlState } from '@/lib/url-state';
-import type { Game } from '@/types';
-import {
-  type RowSelectionState,
-  getCoreRowModel,
-  useReactTable,
-} from '@tanstack/react-table';
+import { type Game, RELEASE_YEAR_DEFAULT_FROM, RELEASE_YEAR_DEFAULT_TO } from '@/types';
+import { type RowSelectionState, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { gamesColumns } from './games-columns';
@@ -32,22 +32,30 @@ export function GamesPage() {
     onSortingChange,
     searchInput,
     setSearchInput,
+    filters,
+    setFilters,
+    resetFilters,
+    activeFilterCount,
   } = useGamesListState();
   const { update: updateUrl } = useUrlState();
   const navigate = useNavigate();
 
-  const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } =
-    useInfiniteGamesQuery({
+  const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteGamesQuery(
+    {
       search,
       perPage: PER_PAGE,
       sort,
       dir: sort ? dir : undefined,
-    });
-
-  const items = useMemo(
-    () => data?.pages.flatMap((p) => p.items) ?? [],
-    [data],
+      platforms: filters.platforms.length ? filters.platforms : undefined,
+      formats: filters.formats.length ? filters.formats : undefined,
+      releaseYearFrom:
+        filters.releaseYearFrom !== RELEASE_YEAR_DEFAULT_FROM ? filters.releaseYearFrom : undefined,
+      releaseYearTo:
+        filters.releaseYearTo !== RELEASE_YEAR_DEFAULT_TO ? filters.releaseYearTo : undefined,
+    },
   );
+
+  const items = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
   const totalCount = data?.pages[0]?.total ?? 0;
 
   const table = useReactTable<Game>({
@@ -63,9 +71,9 @@ export function GamesPage() {
 
   return (
     <>
-      {/* Top bar */}
+      {/* Page header: title + primary action */}
       <AppHeader>
-        <div className="flex shrink-0 items-center gap-[10px]">
+        <div className="flex flex-1 shrink-0 items-center gap-[10px]">
           <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] bg-apex-ink text-white">
             <Icon.gamepad size={15} className="text-white" />
           </span>
@@ -77,146 +85,70 @@ export function GamesPage() {
           )}
         </div>
 
+        <Button variant="primary" size="sm" onClick={() => updateUrl({ add: '1' })}>
+          <Icon.plus size={13} />
+          Add game
+        </Button>
+      </AppHeader>
+
+      {/* Toolbar: filter / sort / search / view mode */}
+      <div className="flex shrink-0 items-center gap-2 border-b border-apex-line-3 bg-white px-4 py-2.5 lg:px-5">
+        <GamesFilters
+          filters={filters}
+          activeFilterCount={activeFilterCount}
+          onChange={setFilters}
+          onReset={resetFilters}
+        />
+        <GamesSort
+          sort={sort}
+          dir={dir}
+          onChange={(s, d) => updateUrl({ sort: s ?? null, dir: s ? d : null })}
+        />
         <SearchInput
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          onClear={() => setSearchInput("")}
+          onClear={() => setSearchInput('')}
           placeholder="Search games..."
-          containerClassName="order-last w-full md:order-none md:w-[220px] lg:w-[300px]"
+          containerClassName="min-w-0 flex-1 md:max-w-[420px]"
         />
-
-        <div className="ml-auto flex items-center gap-2">
-          <div className="hidden md:flex overflow-hidden rounded-[7px] border border-[#eee]">
-            <button
-              type="button"
-              onClick={() => setViewMode('list')}
-              className="flex h-8 w-8 cursor-pointer items-center justify-center border-none transition-colors"
-              style={{ background: viewMode === 'list' ? '#f0f0f0' : '#fff' }}
-              aria-label="List view"
-              title="List view"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 14 14"
-                fill="none"
-                aria-hidden
-              >
-                <rect
-                  x="1"
-                  y="2"
-                  width="12"
-                  height="2.5"
-                  rx="1"
-                  fill={viewMode === 'list' ? '#333' : '#aaa'}
-                />
-                <rect
-                  x="1"
-                  y="5.75"
-                  width="12"
-                  height="2.5"
-                  rx="1"
-                  fill={viewMode === 'list' ? '#333' : '#aaa'}
-                />
-                <rect
-                  x="1"
-                  y="9.5"
-                  width="12"
-                  height="2.5"
-                  rx="1"
-                  fill={viewMode === 'list' ? '#333' : '#aaa'}
-                />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('grid')}
-              className="flex h-8 w-8 cursor-pointer items-center justify-center border-none transition-colors"
-              style={{ background: viewMode === 'grid' ? '#f0f0f0' : '#fff' }}
-              aria-label="Grid view"
-              title="Grid view"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 14 14"
-                fill="none"
-                aria-hidden
-              >
-                <rect
-                  x="1"
-                  y="1"
-                  width="5"
-                  height="5"
-                  rx="1"
-                  fill={viewMode === 'grid' ? '#333' : '#aaa'}
-                />
-                <rect
-                  x="8"
-                  y="1"
-                  width="5"
-                  height="5"
-                  rx="1"
-                  fill={viewMode === 'grid' ? '#333' : '#aaa'}
-                />
-                <rect
-                  x="1"
-                  y="8"
-                  width="5"
-                  height="5"
-                  rx="1"
-                  fill={viewMode === 'grid' ? '#333' : '#aaa'}
-                />
-                <rect
-                  x="8"
-                  y="8"
-                  width="5"
-                  height="5"
-                  rx="1"
-                  fill={viewMode === 'grid' ? '#333' : '#aaa'}
-                />
-              </svg>
-            </button>
-          </div>
-
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => updateUrl({ add: '1' })}
-          >
-            <Icon.plus size={13} />
-            Add game
-          </Button>
+        <div className="ml-auto hidden md:flex">
+          <ViewModeToggle value={viewMode} onChange={setViewMode} />
         </div>
-      </AppHeader>
+      </div>
 
       {/* Table */}
       <div className="scroll-thin flex-1 overflow-y-auto bg-[#fafafa] px-5 pb-4 pt-4">
-        {/* Mobile: always expandable cards */}
-        <div className="md:hidden">
-          <GamesMobileList items={items} />
-        </div>
+        {items.length === 0 && !isLoading && activeFilterCount > 0 ? (
+          <GamesEmptyState onReset={resetFilters} />
+        ) : (
+          <>
+            {/* Mobile: always expandable cards */}
+            <div className="md:hidden">
+              <GamesMobileList items={items} />
+            </div>
 
-        {/* Desktop: grid or list unchanged */}
-        <div className="hidden md:block">
-          {viewMode === 'grid' ? (
-            <GamesGrid items={items} />
-          ) : (
-            <DataTable
-              table={table}
-              variant="cards"
-              onRowClick={(row) => navigate(`/games/${row.original.id}`)}
+            {/* Desktop: grid or list unchanged */}
+            <div className="hidden md:block">
+              {viewMode === 'grid' ? (
+                <GamesGrid items={items} />
+              ) : (
+                <DataTable
+                  table={table}
+                  variant="cards"
+                  onRowClick={(row) => navigate(`/games/${row.original.id}`)}
+                />
+              )}
+            </div>
+            <InfiniteScrollFooter
+              isLoading={isLoading}
+              isFetchingNextPage={isFetchingNextPage}
+              hasNextPage={hasNextPage}
+              itemCount={items.length}
+              emptyLabel="No games found."
+              onLoadMore={() => fetchNextPage()}
             />
-          )}
-        </div>
-        <InfiniteScrollFooter
-          isLoading={isLoading}
-          isFetchingNextPage={isFetchingNextPage}
-          hasNextPage={hasNextPage}
-          itemCount={items.length}
-          emptyLabel="No games found."
-          onLoadMore={() => fetchNextPage()}
-        />
+          </>
+        )}
       </div>
     </>
   );

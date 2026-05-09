@@ -29,6 +29,11 @@ export const games = sqliteTable(
   (table) => [
     index('games_user_id_idx').on(table.userId),
     uniqueIndex('games_user_id_external_id_unq').on(table.userId, table.externalId),
+    index('games_user_kind_idx').on(table.userId, table.kind),
+    index('games_user_kind_platform_idx').on(table.userId, table.kind, table.platform),
+    index('games_user_kind_format_idx').on(table.userId, table.kind, table.format),
+    index('games_user_kind_releaseyear_idx').on(table.userId, table.kind, table.releaseYear),
+    index('games_user_kind_title_idx').on(table.userId, table.kind, table.title),
   ],
 );
 

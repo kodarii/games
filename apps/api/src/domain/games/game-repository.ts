@@ -1,13 +1,28 @@
-import type { Game, GameKind, GameUpdate, NewGame } from './game';
+import type { Game, GameFormat, GameKind, GameUpdate, NewGame } from './game';
+import type { ReleaseYearRange } from './release-year-range';
 
+/**
+ * Read-side query DTO for listing games.
+ * Semantyka pól:
+ *   - filters: search, kind, platforms, formats, releaseYearRange
+ *   - sort: sort, dir
+ *   - pagination: page, perPage
+ * userId jest implicit constraint (auth) — zawsze ustawiony przez application layer.
+ */
 export interface ListGamesQuery {
   userId: string;
+  // filters
   search?: string;
   kind?: GameKind;
-  page: number;
-  perPage: number;
+  platforms?: string[];
+  formats?: GameFormat[];
+  releaseYearRange?: ReleaseYearRange;
+  // sort
   sort?: 'title' | 'genre' | 'platform' | 'format' | 'status' | 'releaseYear' | 'hoursPlayed';
   dir: 'asc' | 'desc';
+  // pagination
+  page: number;
+  perPage: number;
 }
 
 export interface ListGamesResult {
