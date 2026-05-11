@@ -52,6 +52,9 @@ class FakeGameRepository implements GameRepository {
   countByGenre = async (): Promise<number> => 0;
   countByDeveloper = async (): Promise<number> => 0;
   findAllCoverImages = async (): Promise<string[]> => [];
+  saveMetadata = async (): Promise<Game | null> => {
+    throw new Error('not implemented');
+  };
 }
 
 function makeWishlistGame(overrides: Partial<Parameters<typeof Game.fromPersistence>[0]> = {}): Game {

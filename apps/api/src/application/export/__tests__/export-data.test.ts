@@ -42,6 +42,9 @@ class FakeGameRepository implements GameRepository {
   async findAllCoverImages(): Promise<string[]> {
     return [];
   }
+  async saveMetadata(): Promise<Game | null> {
+    throw new Error('not used in this test');
+  }
 }
 
 class FakePlatformRepository implements PlatformRepository {

@@ -43,6 +43,7 @@ class FakeGameRepository implements GameRepository {
   async countByGenre(): Promise<number> { return 0; }
   async countByDeveloper(): Promise<number> { return 0; }
   async findAllCoverImages(): Promise<string[]> { return []; }
+  async saveMetadata(): Promise<Game | null> { return null; }
 }
 
 function makeUseCase(opts: { platforms?: Platform[]; importRepo?: FakeImportRepository; idGen?: () => string } = {}) {

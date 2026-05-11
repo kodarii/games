@@ -3,6 +3,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import {
   type CreateGameInput,
   type CreateWishlistInput,
+  type EnrichGameMetadataInput,
   type UpdateGameInput,
   createDeveloper,
   createGame,
@@ -13,10 +14,12 @@ import {
   deleteGame,
   deleteGenre,
   deletePlatform,
+  enrichGameMetadata,
   fetchDevelopers,
   fetchGame,
   fetchGames,
   fetchGenres,
+  fetchMetadataCandidates,
   fetchMyPermissions,
   fetchPlatforms,
   moveToCollection,
@@ -127,6 +130,29 @@ export function useDeleteGameMutation() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['games'] });
     },
+  });
+}
+
+export function useEnrichGameMetadataMutation(externalId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: EnrichGameMetadataInput) => enrichGameMetadata(externalId, input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['game', externalId] });
+      qc.invalidateQueries({ queryKey: ['games'] });
+    },
+  });
+}
+
+export function useMetadataCandidatesQuery(title: string, platform: string, enabled: boolean) {
+  const normalizedTitle = title.trim().toLowerCase();
+  const trimmedTitle = title.trim();
+  return useQuery({
+    queryKey: ['metadata-candidates', normalizedTitle, platform] as const,
+    queryFn: ({ signal }) => fetchMetadataCandidates(trimmedTitle, platform, signal),
+    enabled: enabled && trimmedTitle.length > 0 && platform.length > 0,
+    staleTime: 5 * 60 * 1000,
+    retry: 0,
   });
 }
 

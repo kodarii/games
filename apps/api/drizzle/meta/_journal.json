@@ -92,6 +92,13 @@
       "when": 1778400000000,
       "tag": "0013_add_games_filter_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1778527894254,
+      "tag": "0014_add_metadata_tables",
+      "breakpoints": true
     }
   ]
 }

@@ -107,6 +107,9 @@ class FakeGameRepository implements GameRepository {
   async findAllCoverImages(): Promise<string[]> {
     return [];
   }
+  async saveMetadata(): Promise<Game | null> {
+    return null;
+  }
 
   seedGame(userId: string, platformName: string): Game {
     const game = Game.fromPersistence({

@@ -6,6 +6,7 @@ import type {
   GameStatus,
   GamesResponse,
   Genre,
+  MetadataCandidatesResponse,
   Platform,
 } from '@/types';
 import type { ImportMode, ImportReport } from '@apex/shared';
@@ -63,6 +64,7 @@ export interface CreateGameInput {
   price?: number | null;
   purchasedAt?: string | null;
   notes?: string | null;
+  metadataRef?: { providerName: 'igdb'; providerId: string };
 }
 
 export interface CreateWishlistInput {
@@ -123,6 +125,50 @@ export async function deleteGame(id: string): Promise<Game> {
   });
   if (!r.ok) {
     const [message] = await readErrorMessage(r, `Failed to delete game: ${r.status}`);
+    throw new Error(message);
+  }
+  return r.json();
+}
+
+export interface EnrichGameMetadataInput {
+  providerName: 'igdb';
+  providerId: string;
+  snapshot: {
+    coverImageUrl: string | null;
+    releaseYear: number | null;
+    developer: string | null;
+  };
+}
+
+export async function enrichGameMetadata(
+  externalId: string,
+  body: EnrichGameMetadataInput,
+): Promise<Game> {
+  const r = await fetch(`/api/games/${externalId}/metadata`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const [message] = await readErrorMessage(r, `Failed to enrich game metadata: ${r.status}`);
+    throw new Error(message);
+  }
+  return r.json();
+}
+
+export async function fetchMetadataCandidates(
+  title: string,
+  platform: string,
+  signal?: AbortSignal,
+): Promise<MetadataCandidatesResponse> {
+  const sp = new URLSearchParams({ title, platform });
+  const r = await fetch(`/api/games/metadata/candidates?${sp.toString()}`, {
+    credentials: 'include',
+    signal,
+  });
+  if (!r.ok) {
+    const [message] = await readErrorMessage(r, `Failed to fetch metadata candidates: ${r.status}`);
     throw new Error(message);
   }
   return r.json();

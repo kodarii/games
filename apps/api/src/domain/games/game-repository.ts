@@ -42,6 +42,13 @@ export interface GameRepository {
   countByGenre(userId: string, genre: string): Promise<number>;
   countByDeveloper(userId: string, developer: string): Promise<number>;
   /**
+   * Persist the metadata-mutated subset of a Game: cover image, release
+   * year, developer + the `metadata_*` ref columns. Scoped by user_id +
+   * external_id so cross-user writes cannot leak (IDOR).
+   * Returns the reloaded Game, or null if no row matched.
+   */
+  saveMetadata(userId: string, externalId: string, game: Game): Promise<Game | null>;
+  /**
    * Used by orphan-cleanup cron — returns all non-null cover URLs across all users.
    */
   findAllCoverImages(): Promise<string[]>;

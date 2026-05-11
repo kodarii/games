@@ -29,6 +29,7 @@ class FakeGameRepository implements GameRepository {
   countByGenre = async () => 0;
   countByDeveloper = async () => 0;
   findAllCoverImages = async () => this.urls;
+  saveMetadata = async (): Promise<Game | null> => null;
 }
 
 describe('CleanupOrphans', () => {

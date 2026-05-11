@@ -3,9 +3,11 @@ import type { Game } from '../domain/games/game';
 import {
   createGame,
   deleteGame,
+  enrichGameMetadata,
   getGame,
   listGames,
   moveToCollection,
+  searchGameMetadata,
   updateGame,
 } from '../wiring';
 import {
@@ -14,6 +16,7 @@ import {
   payloadTooLargeProblem,
   zodIssuesToProblemJson,
 } from './_problem-json';
+import { createGamesMetadataRouter } from './games-metadata';
 import type { AuthVariables } from './middleware/require-auth';
 
 type GameResponse = {
@@ -146,6 +149,54 @@ games.post('/:externalId/move-to-collection', async (c) => {
     return c.json({ error: 'already_owned' }, 409);
   }
   return c.json({ game: toGameResponse(result.value) }, 200);
+});
+
+// Metadata sub-router MUST be registered before `/:externalId` — Hono uses
+// registration order and `/metadata/candidates` would otherwise be swallowed
+// by the `:externalId` route as `externalId === 'metadata'`.
+games.route('/metadata', createGamesMetadataRouter({ searchGameMetadata }));
+
+// PATCH `/:externalId/metadata` — different verb + extra segment, so no
+// collision with the GET/PUT/DELETE `/:externalId` routes below. Belongs
+// here logically with its sibling `:externalId` routes.
+const PATCH_METADATA_ROUTE = 'PATCH /games/:externalId/metadata';
+games.patch('/:externalId/metadata', async (c) => {
+  const externalId = c.req.param('externalId');
+  const userId = c.get('user').id;
+  const t0 = Date.now();
+  const body = await c.req.json();
+  const result = await enrichGameMetadata.execute(externalId, body, userId);
+  if (!result.ok) {
+    const e = result.error;
+    if (e.kind === 'not_found') {
+      console.log(
+        JSON.stringify({
+          event: 'security.idor_attempt',
+          userId,
+          externalId,
+          route: PATCH_METADATA_ROUTE,
+        }),
+      );
+      return c.json({ error: 'not found' }, 404);
+    }
+    if (e.kind === 'invalid_input') return c.json(zodIssuesToProblemJson(e.issues), 400);
+    if (e.kind === 'domain') return c.json(domainProblem(e.error), 400);
+    return c.json(internalProblem('unknown error'), 500);
+  }
+  const providerId =
+    typeof body === 'object' && body !== null && 'providerId' in body
+      ? String((body as { providerId: unknown }).providerId)
+      : null;
+  console.log(
+    JSON.stringify({
+      event: 'igdb.enrich',
+      userId,
+      externalId,
+      providerId,
+      durationMs: Date.now() - t0,
+    }),
+  );
+  return c.json(toGameResponse(result.value), 200);
 });
 
 games.get('/:externalId', async (c) => {

@@ -130,4 +130,19 @@ describe('GET /api/games — IDOR resistance', () => {
       expect(userASet.has(item.id)).toBe(false);
     }
   });
+
+  it("PATCH /:externalId/metadata: user B cannot patch user A's game (returns 404)", async () => {
+    const appForB = makeAppForUser(USER_B);
+    const aExternalId = userAExternalIds[0];
+    const res = await appForB.request(`/api/games/${aExternalId}/metadata`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        providerName: 'igdb',
+        providerId: '12345',
+        snapshot: { coverImageUrl: null, releaseYear: null, developer: null },
+      }),
+    });
+    expect(res.status).toBe(404);
+  });
 });

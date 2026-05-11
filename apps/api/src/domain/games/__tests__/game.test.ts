@@ -359,6 +359,7 @@ describe('Game.fromPersistence', () => {
       price: null,
       purchasedAt: null,
       notes: null,
+      metadataRef: null,
     });
   });
 

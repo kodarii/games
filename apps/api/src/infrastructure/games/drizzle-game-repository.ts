@@ -42,6 +42,9 @@ export class DrizzleGameRepository implements GameRepository {
       price: row.price,
       purchasedAt: row.purchasedAt,
       notes: row.notes,
+      metadataProvider: row.metadataProvider === 'igdb' ? 'igdb' : null,
+      metadataProviderId: row.metadataProviderId,
+      metadataMatchedAt: row.metadataMatchedAt,
     });
   }
 
@@ -140,6 +143,7 @@ export class DrizzleGameRepository implements GameRepository {
   }
 
   async create(newGame: NewGame): Promise<Game> {
+    const metadataRef = newGame.metadataRef;
     const [inserted] = await this.db
       .insert(gamesTable)
       .values({
@@ -160,6 +164,9 @@ export class DrizzleGameRepository implements GameRepository {
         price: newGame.price?.value ?? null,
         purchasedAt: newGame.purchasedAt?.value ?? null,
         notes: newGame.notes ?? null,
+        metadataProvider: metadataRef?.providerName ?? null,
+        metadataProviderId: metadataRef?.providerId ?? null,
+        metadataMatchedAt: metadataRef?.matchedAt.toISOString() ?? null,
       })
       .returning();
 
@@ -185,6 +192,25 @@ export class DrizzleGameRepository implements GameRepository {
         price: game.price?.value ?? null,
         purchasedAt: game.purchasedAt?.value ?? null,
         notes: game.notes ?? null,
+      })
+      .where(and(eq(gamesTable.externalId, externalId), eq(gamesTable.userId, userId)))
+      .returning();
+
+    if (!updated) return null;
+    return this.mapRowToGame(updated);
+  }
+
+  async saveMetadata(userId: string, externalId: string, game: Game): Promise<Game | null> {
+    const ref = game.metadataRef;
+    const [updated] = await this.db
+      .update(gamesTable)
+      .set({
+        developer: game.developer ?? null,
+        releaseYear: game.releaseYear?.value ?? null,
+        coverImage: game.coverImage ?? null,
+        metadataProvider: ref?.providerName ?? null,
+        metadataProviderId: ref?.providerId ?? null,
+        metadataMatchedAt: ref?.matchedAt.toISOString() ?? null,
       })
       .where(and(eq(gamesTable.externalId, externalId), eq(gamesTable.userId, userId)))
       .returning();

@@ -19,6 +19,13 @@ const purchasedAtSchema = z
   }, 'invalid date')
   .optional();
 
+const metadataRefSchema = z
+  .object({
+    providerName: z.literal('igdb'),
+    providerId: z.string().trim().min(1),
+  })
+  .optional();
+
 const OwnedSchema = z.object({
   kind: z.literal('owned'),
   title: z.string().min(1),
@@ -38,25 +45,29 @@ const OwnedSchema = z.object({
   price: z.number().int().min(0).optional(),
   purchasedAt: purchasedAtSchema,
   notes: z.string().nullable().optional(),
+  metadataRef: metadataRefSchema,
 });
 
-const WishlistSchema = z.object({
-  kind: z.literal('wishlist'),
-  title: z.string().min(1),
-  developer: z.string().optional().nullable(),
-  genre: z.string().optional().default(''),
-  releaseYear: z.coerce.number().int().min(1970).max(2100).optional(),
-  platform: z.string().min(1),
-  edition: z.string().optional().default(''),
-  format: z.enum(['physical', 'digital']).default('physical'),
-  coverColor: z
-    .string()
-    .regex(/^#[0-9a-fA-F]{6}$/)
-    .optional(),
-  coverImage: z.string().url().nullable().optional(),
-  price: z.number().int().min(0).optional(),
-  notes: z.string().nullable().optional(),
-}).strict();
+const WishlistSchema = z
+  .object({
+    kind: z.literal('wishlist'),
+    title: z.string().min(1),
+    developer: z.string().optional().nullable(),
+    genre: z.string().optional().default(''),
+    releaseYear: z.coerce.number().int().min(1970).max(2100).optional(),
+    platform: z.string().min(1),
+    edition: z.string().optional().default(''),
+    format: z.enum(['physical', 'digital']).default('physical'),
+    coverColor: z
+      .string()
+      .regex(/^#[0-9a-fA-F]{6}$/)
+      .optional(),
+    coverImage: z.string().url().nullable().optional(),
+    price: z.number().int().min(0).optional(),
+    notes: z.string().nullable().optional(),
+    metadataRef: metadataRefSchema,
+  })
+  .strict();
 
 const CreateGameInputSchema = z.discriminatedUnion('kind', [OwnedSchema, WishlistSchema]);
 
@@ -72,10 +83,7 @@ export class CreateGame {
     private readonly platformRepo: PlatformRepository,
   ) {}
 
-  async execute(
-    input: unknown,
-    userId: string,
-  ): Promise<Result<Game, CreateGameError>> {
+  async execute(input: unknown, userId: string): Promise<Result<Game, CreateGameError>> {
     const inputWithKind =
       typeof input === 'object' && input !== null && !('kind' in input)
         ? { ...input, kind: 'owned' }
@@ -116,6 +124,7 @@ export class CreateGame {
             price: data.price,
             purchasedAt: null,
             notes: data.notes ?? null,
+            metadataRef: data.metadataRef,
           }
         : {
             kind: 'owned',
@@ -134,6 +143,7 @@ export class CreateGame {
             price: data.price,
             purchasedAt: data.purchasedAt,
             notes: data.notes ?? null,
+            metadataRef: data.metadataRef,
           };
 
     const newGameResult = NewGame.create(props);

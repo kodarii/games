@@ -1,5 +1,7 @@
 import { err, ok } from '../shared/result';
 import type { Result } from '../shared/result';
+import { CoverImageUrl, type CoverImageUrlError } from './cover-image-url';
+import { ExternalMetadataRef } from './external-metadata-ref';
 
 export type GamePlatform = string;
 export type GameStatus = 'Playing' | 'Completed' | 'Backlog' | 'Dropped';
@@ -44,6 +46,7 @@ export type GameProps = {
   price?: number;
   purchasedAt?: string | null;
   notes?: string | null;
+  metadataRef?: { providerName: 'igdb'; providerId: string };
 };
 
 export class ReleaseYear {
@@ -106,10 +109,7 @@ function isoToday(now: Date = new Date()): string {
 export class PurchasedAt {
   private constructor(public readonly value: string) {}
 
-  static create(
-    raw: string,
-    today: string = isoToday(),
-  ): Result<PurchasedAt, GameValidationError> {
+  static create(raw: string, today: string = isoToday()): Result<PurchasedAt, GameValidationError> {
     if (!PURCHASED_AT_REGEX.test(raw)) {
       return err({ kind: 'purchased_at_invalid_format', value: raw });
     }
@@ -147,6 +147,7 @@ export class NewGame {
     private readonly _price: Price | null,
     private readonly _purchasedAt: PurchasedAt | null,
     private readonly _notes: string | null,
+    private readonly _metadataRef: ExternalMetadataRef | null = null,
   ) {}
 
   static create(
@@ -239,6 +240,19 @@ export class NewGame {
 
     const notes = props.notes?.trim() || null;
 
+    let metadataRef: ExternalMetadataRef | null = null;
+    if (props.metadataRef != null) {
+      const refResult = ExternalMetadataRef.create({
+        providerName: props.metadataRef.providerName,
+        providerId: props.metadataRef.providerId,
+        matchedAt: new Date(),
+      });
+      if (!refResult.ok) {
+        return err({ kind: 'kind_invalid_state', reason: 'metadata_ref_invalid' });
+      }
+      metadataRef = refResult.value;
+    }
+
     return ok(
       new NewGame(
         externalId,
@@ -258,6 +272,7 @@ export class NewGame {
         price,
         purchasedAt,
         notes,
+        metadataRef,
       ),
     );
   }
@@ -313,6 +328,9 @@ export class NewGame {
   get notes(): string | null {
     return this._notes;
   }
+  get metadataRef(): ExternalMetadataRef | null {
+    return this._metadataRef;
+  }
 }
 
 export class GameUpdate {
@@ -354,8 +372,22 @@ export class GameUpdate {
     notes: string | null,
   ): GameUpdate {
     return new GameUpdate(
-      kind, userId, title, developer, genre, releaseYear, platform, edition,
-      hoursPlayed, status, format, coverColor, coverImage, price, purchasedAt, notes,
+      kind,
+      userId,
+      title,
+      developer,
+      genre,
+      releaseYear,
+      platform,
+      edition,
+      hoursPlayed,
+      status,
+      format,
+      coverColor,
+      coverImage,
+      price,
+      purchasedAt,
+      notes,
     );
   }
 
@@ -479,22 +511,54 @@ export class GameUpdate {
     );
   }
 
-  get kind(): GameKind { return this._kind; }
-  get userId() { return this._userId; }
-  get title() { return this._title; }
-  get developer(): string | null { return this._developer; }
-  get genre() { return this._genre; }
-  get releaseYear(): ReleaseYear | null { return this._releaseYear; }
-  get platform(): GamePlatform { return this._platform; }
-  get edition(): string | undefined { return this._edition; }
-  get hoursPlayed(): HoursPlayed | null { return this._hoursPlayed; }
-  get status(): GameStatus | null { return this._status; }
-  get format(): GameFormat { return this._format; }
-  get coverColor(): string | undefined { return this._coverColor; }
-  get coverImage(): string | undefined { return this._coverImage; }
-  get price(): Price | null { return this._price; }
-  get purchasedAt(): PurchasedAt | null { return this._purchasedAt; }
-  get notes(): string | null { return this._notes; }
+  get kind(): GameKind {
+    return this._kind;
+  }
+  get userId() {
+    return this._userId;
+  }
+  get title() {
+    return this._title;
+  }
+  get developer(): string | null {
+    return this._developer;
+  }
+  get genre() {
+    return this._genre;
+  }
+  get releaseYear(): ReleaseYear | null {
+    return this._releaseYear;
+  }
+  get platform(): GamePlatform {
+    return this._platform;
+  }
+  get edition(): string | undefined {
+    return this._edition;
+  }
+  get hoursPlayed(): HoursPlayed | null {
+    return this._hoursPlayed;
+  }
+  get status(): GameStatus | null {
+    return this._status;
+  }
+  get format(): GameFormat {
+    return this._format;
+  }
+  get coverColor(): string | undefined {
+    return this._coverColor;
+  }
+  get coverImage(): string | undefined {
+    return this._coverImage;
+  }
+  get price(): Price | null {
+    return this._price;
+  }
+  get purchasedAt(): PurchasedAt | null {
+    return this._purchasedAt;
+  }
+  get notes(): string | null {
+    return this._notes;
+  }
 }
 
 export class Game {
@@ -517,6 +581,7 @@ export class Game {
     private readonly _price: Price | null,
     private readonly _purchasedAt: PurchasedAt | null,
     private readonly _notes: string | null,
+    private readonly _metadataRef: ExternalMetadataRef | null = null,
   ) {}
 
   static fromPersistence(row: {
@@ -538,10 +603,23 @@ export class Game {
     price?: number | null;
     purchasedAt?: string | null;
     notes?: string | null;
+    metadataProvider?: 'igdb' | null;
+    metadataProviderId?: string | null;
+    metadataMatchedAt?: string | null;
   }): Game {
     if (!row.externalId) {
       throw new Error(`Game row ${row.id} has null externalId — run backfill first`);
     }
+    const metadataRef =
+      row.metadataProvider != null &&
+      row.metadataProviderId != null &&
+      row.metadataMatchedAt != null
+        ? ExternalMetadataRef.fromTrusted({
+            providerName: row.metadataProvider,
+            providerId: row.metadataProviderId,
+            matchedAt: new Date(row.metadataMatchedAt),
+          })
+        : null;
     return new Game(
       row.id,
       row.externalId,
@@ -561,6 +639,7 @@ export class Game {
       row.price != null ? Price.fromTrusted(row.price) : null,
       row.purchasedAt != null ? PurchasedAt.fromTrusted(row.purchasedAt) : null,
       row.notes ?? null,
+      metadataRef,
     );
   }
 
@@ -618,6 +697,58 @@ export class Game {
   get notes(): string | null {
     return this._notes;
   }
+  get metadataRef(): ExternalMetadataRef | null {
+    return this._metadataRef;
+  }
+
+  applyMetadata(
+    snapshot: {
+      coverImageUrl: string | null;
+      releaseYear: number | null;
+      developer: string | null;
+    },
+    ref: ExternalMetadataRef,
+  ): Result<Game, GameValidationError | CoverImageUrlError> {
+    let nextCoverImage = this._coverImage;
+    if (snapshot.coverImageUrl !== null) {
+      const coverResult = CoverImageUrl.create(snapshot.coverImageUrl);
+      if (!coverResult.ok) return coverResult;
+      nextCoverImage = coverResult.value.value;
+    }
+
+    let nextReleaseYear = this._releaseYear;
+    if (snapshot.releaseYear !== null) {
+      const releaseYearResult = ReleaseYear.create(snapshot.releaseYear);
+      if (!releaseYearResult.ok) return releaseYearResult;
+      nextReleaseYear = releaseYearResult.value;
+    }
+
+    const nextDeveloper = snapshot.developer ?? this._developer;
+
+    return ok(
+      new Game(
+        this._id,
+        this._externalId,
+        this._kind,
+        this._userId,
+        this._title,
+        nextDeveloper,
+        this._genre,
+        nextReleaseYear,
+        this._platform,
+        this._edition,
+        this._hoursPlayed,
+        this._status,
+        this._format,
+        this._coverColor,
+        nextCoverImage,
+        this._price,
+        this._purchasedAt,
+        this._notes,
+        ref,
+      ),
+    );
+  }
 
   toOwned(): Game {
     return Game.fromPersistence({
@@ -639,6 +770,9 @@ export class Game {
       price: this._price?.value ?? null,
       purchasedAt: null,
       notes: this._notes,
+      metadataProvider: this._metadataRef?.providerName ?? null,
+      metadataProviderId: this._metadataRef?.providerId ?? null,
+      metadataMatchedAt: this._metadataRef?.matchedAt.toISOString() ?? null,
     });
   }
 
@@ -662,6 +796,13 @@ export class Game {
       price: this._price?.value ?? null,
       purchasedAt: this._purchasedAt?.value ?? null,
       notes: this._notes,
+      metadataRef: this._metadataRef
+        ? {
+            providerName: this._metadataRef.providerName,
+            providerId: this._metadataRef.providerId,
+            matchedAt: this._metadataRef.matchedAt.toISOString(),
+          }
+        : null,
     };
   }
 }

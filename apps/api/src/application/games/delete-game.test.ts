@@ -60,6 +60,9 @@ class FakeGameRepository implements GameRepository {
   async findAllCoverImages(): Promise<string[]> {
     return [];
   }
+  async saveMetadata(): Promise<Game | null> {
+    return null;
+  }
 
   seed(game: Game): void {
     this.games.set(game.id, game);

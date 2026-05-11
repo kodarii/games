@@ -3,6 +3,7 @@ import { CoverColorPicker } from '@/components/cover-color-picker';
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
 import { GameCover } from '@/components/game-cover';
 import { Icon } from '@/components/icons';
+import { RematchButton } from '@/components/rematch-button';
 import { StatusBadge } from '@/components/status-badge';
 import { UploadCoverButton } from '@/components/upload-cover-button';
 import { Button } from '@/components/ui/button';
@@ -400,6 +401,9 @@ export function GameViewPage() {
                   />
                 )}
                 <FormatChip format={game.format} />
+                <div className="mt-2">
+                  <RematchButton game={game} />
+                </div>
               </div>
             )}
           </div>
@@ -435,6 +439,11 @@ export function GameViewPage() {
                     )}
                     <FormatChip format={game.format} />
                   </div>
+                  {!editMode && (
+                    <div className="mt-3">
+                      <RematchButton game={game} />
+                    </div>
+                  )}
                 </div>
               </div>
               {editMode && draft && (

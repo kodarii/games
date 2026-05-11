@@ -53,6 +53,7 @@ class FakeGameRepository implements GameRepository {
   countByDeveloper = async (): Promise<number> => 0;
   findAllCoverImages = async (): Promise<string[]> => [];
   listAll = async (): Promise<Game[]> => [];
+  saveMetadata = async (): Promise<Game | null> => null;
 }
 
 type GameOverrides = {

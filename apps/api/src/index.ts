@@ -37,7 +37,7 @@ app.use(
 app.get('/', (c) => c.json({ name: 'apex-api', status: 'ok' }));
 app.get('/api/health', (c) => c.json({ status: 'ok' }));
 
-app.on(['POST', 'GET'], '/api/auth/**', (c) => auth.handler(c.req.raw));
+app.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw));
 
 app.use('/api/games/*', requireAuth);
 app.route('/api/games', games);

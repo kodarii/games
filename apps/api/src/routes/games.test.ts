@@ -137,6 +137,24 @@ describe('routes/games', () => {
     });
   });
 
+  describe('GET /api/games/metadata/candidates — auth coverage', () => {
+    it('returns 401 when no auth cookie / session is present', async () => {
+      // Mount the full games router behind the SAME requireAuth middleware
+      // used in production (apps/api/src/index.ts:42). With no cookie, the
+      // middleware short-circuits to 401 BEFORE the metadata sub-router has
+      // a chance to handle the request. Asserts that a future contributor
+      // who mounts the metadata router differently cannot silently strip
+      // the auth requirement.
+      const { requireAuth } = await import('./middleware/require-auth');
+      const noAuthApp = new Hono<{ Variables: AuthVariables }>();
+      attachProblemJsonErrorHandler(noAuthApp);
+      noAuthApp.use('/api/games/*', requireAuth);
+      noAuthApp.route('/api/games', games);
+      const res = await noAuthApp.request('/api/games/metadata/candidates?title=X&platform=PS2');
+      expect(res.status).toBe(401);
+    });
+  });
+
   describe('POST /api/games — Option A migration verification', () => {
     it('returns 400 RFC 7807 on bad payload (NOT legacy {error:"validation"})', async () => {
       const res = await app.request('/api/games', {

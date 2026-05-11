@@ -23,6 +23,9 @@ export const games = sqliteTable(
     price: integer('price'),
     purchasedAt: text('purchased_at'),
     notes: text('notes'),
+    metadataProvider: text('metadata_provider'),
+    metadataProviderId: text('metadata_provider_id'),
+    metadataMatchedAt: text('metadata_matched_at'),
     externalId: text('external_id').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   },
@@ -102,3 +105,30 @@ export const developers = sqliteTable(
 
 export type DeveloperRow = typeof developers.$inferSelect;
 export type NewDeveloperRow = typeof developers.$inferInsert;
+
+export const metadataCache = sqliteTable(
+  'metadata_cache',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    provider: text('provider').notNull(),
+    cacheKey: text('cache_key').notNull(),
+    candidatesJson: text('candidates_json').notNull(),
+    fetchedAt: integer('fetched_at', { mode: 'timestamp' }).notNull(),
+  },
+  (table) => [
+    uniqueIndex('metadata_cache_provider_cache_key_unq').on(table.provider, table.cacheKey),
+  ],
+);
+
+export type MetadataCacheRow = typeof metadataCache.$inferSelect;
+export type NewMetadataCacheRow = typeof metadataCache.$inferInsert;
+
+export const igdbOauthToken = sqliteTable('igdb_oauth_token', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  accessToken: text('access_token').notNull(),
+  expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+  obtainedAt: integer('obtained_at', { mode: 'timestamp' }).notNull(),
+});
+
+export type IgdbOauthTokenRow = typeof igdbOauthToken.$inferSelect;
+export type NewIgdbOauthTokenRow = typeof igdbOauthToken.$inferInsert;

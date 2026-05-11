@@ -24,6 +24,7 @@ class FakeGameRepository implements GameRepository {
   countByGenre = async () => 0;
   countByDeveloper = async () => 0;
   findAllCoverImages = async (): Promise<string[]> => [];
+  saveMetadata = async (): Promise<Game | null> => null;
   findByExternalId = async (userId: string, externalId: string): Promise<Game | null> => {
     return [...this.games.values()].find(g => g.externalId === externalId && g.userId === userId) ?? null;
   };

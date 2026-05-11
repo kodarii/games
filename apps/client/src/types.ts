@@ -70,3 +70,22 @@ export interface GameFilters {
   releaseYearFrom: number;
   releaseYearTo: number;
 }
+
+export type MetadataDegradedReason = 'provider_down' | 'platform_unsupported' | 'rate_limited';
+
+export interface MetadataCandidate {
+  providerName: 'igdb';
+  providerId: string;
+  title: string;
+  developer: string | null;
+  releaseYear: number | null;
+  coverImageUrl: string | null;
+  platformNames: string[];
+}
+
+export interface MetadataCandidatesResponse {
+  candidates: MetadataCandidate[];
+  degraded: boolean;
+  reason?: MetadataDegradedReason;
+  staleAt?: string;
+}
