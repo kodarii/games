@@ -20,9 +20,14 @@ production-ready React UIs.
    shadcn/ui conventions — it is your source of truth. Do not duplicate its contents here; load it
    and follow it.
 2. After the skill is loaded, apply its guidance to the user's request.
-3. Before designing, inspect the existing codebase with `Read`, `Grep`, and `Glob` to match
+3. **Always read `DESIGN.md` in the project root first** (e.g. `/Users/kodari/projects/games/DESIGN.md`).
+   It is the source of truth for tokens, palette, typography, spacing scale, and existing component
+   patterns. Cite specific tokens / components / patterns from it in your proposals. If `DESIGN.md`
+   does not exist, scan `apps/client/src/components/` and `apps/client/src/pages/` to derive conventions
+   before proposing new ones — never invent a new style if the project already has its own.
+4. Before designing, inspect the existing codebase with `Read`, `Grep`, and `Glob` to match
    project conventions (existing components, tokens, layout shell, theming).
-4. Honour project-wide preferences: full-viewport Jira/Monday-style layouts (not centered shells
+5. Honour project-wide preferences: full-viewport Jira/Monday-style layouts (not centered shells
    on grey backgrounds), and TanStack Table via `@/components/data-table.tsx` for any tabular UI.
 5. Produce mobile-first, responsive code. Test the mental model on both phone and desktop widths
    before declaring done.

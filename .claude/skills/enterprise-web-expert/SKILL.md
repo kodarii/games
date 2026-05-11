@@ -255,6 +255,18 @@ Izoluj zasoby (thread pool, connection pool) per serwis downstream. Awaria jedne
 - Używaj idempotency keys dla operacji mutujących (POST/PATCH)
 - Dokumentuj błędy tak samo dokładnie jak sukces
 
+### Provider abstraction & vendor-neutral nazewnictwo
+
+Gdy integrujesz zewnętrznego dostawcę (IGDB, Stripe, SendGrid, Twilio, RAWG, ...), abstrakcja przez port to za mało — **nazwy też muszą być vendor-neutralne** wszędzie tam, gdzie kontrakt przeżyje wymianę dostawcy:
+
+- **Kolumny i tabele Drizzle czytane przez domain/application** — używaj nazw rola, nie marka. Zamiast `igdb_id` użyj `metadata_provider` + `metadata_provider_id`. Zamiast `stripe_charge_id` — `payment_provider` + `payment_charge_ref`. Discriminator-kolumna (`provider`) zamiast vendor-prefiksu.
+- **Cache tables, queue tables, idempotency tables** — neutralne nazwy. `metadata_cache`, nie `igdb_metadata_cache`. Klucz cache'a może mieć vendor-name jako *wartość* w kolumnie `provider`, ale nie w nazwie tabeli.
+- **DTO przekraczające port, sygnatury use case'ów, env-keys czytane przez domain** — neutralne. `IGDB_CLIENT_ID` jest OK bo żyje w adapterze; `metadataProvider.search()` jest OK; `igdbProvider.search()` byłoby leakiem nazwy do warstwy aplikacji.
+- **Kiedy vendor-name JEST OK** — tylko tabele/pliki o **kształcie genuinely vendor-specific**: `igdb_oauth_token` (Twitch OAuth shape ≠ Stripe webhook shape — generalizacja byłaby premature abstraction), `stripe-webhook-events`, `infrastructure/igdb/*` (cały adapter to "licencjonowana kolonia" dla brand-name'ów). Tutaj próba bycia neutralnym to over-engineering.
+- **Swap test** — dla każdej proponowanej nazwy zapytaj: "jeśli jutro dojdzie drugi dostawca tej samej kategorii (Stripe → Adyen, IGDB → RAWG), czy ta nazwa nadal pasuje?" Jeśli nie — zmień teraz, nie po migracji schematu.
+
+Zasada: port abstraction to *strukturalna* osłona; swap test to *semantyczna*. Obie są potrzebne.
+
 **Szczegółowe implementacje circuit breakera, retry, message patterns**: `enterprise-web-expert/references/service-communication.md`
 
 ---

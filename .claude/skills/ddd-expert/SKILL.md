@@ -155,6 +155,21 @@ Format as a structured critique:
 - ❌ What's an anti-pattern (explain why and the cost)
 - 💡 Concrete suggestion for improvement
 
+### Self-check before submitting
+
+Before returning any recommendation that names artifacts (VOs, columns, use-case inputs,
+DTOs, files), scan your own output for vendor names (`Stripe`, `IGDB`, `SendGrid`,
+`Twilio`, `Postmark`, `RAWG`, etc.). For each occurrence, ask: **"is this inside
+`infrastructure/<vendor>/`?"**
+
+- Yes → fine, the adapter layer is the licensed colony for vendor vocabulary.
+- No → rename to a vendor-neutral form, OR explicitly justify why this is the one place
+  the vendor leak is genuinely required (e.g., a vendor-specific OAuth token table
+  whose shape cannot be shared).
+
+The user trusting "I added the port abstraction" is not enough. Apply the swap test
+(see "Key Heuristics") to every name you propose.
+
 ---
 
 ## Key Heuristics to Apply
@@ -182,6 +197,23 @@ Format as a structured critique:
 - If you see `Manager`, `Handler`, `Processor`, `Data`, `Info` in domain model names — red flag
 - Names should mean something specific to a domain expert, not a developer
 
+**Vendor neutrality (the swap test):**
+
+- For every name in `domain/`, `application/`, and persistence columns the domain reads,
+  ask: "if a second provider was added tomorrow (Stripe → Adyen, IGDB → RAWG, SendGrid →
+  Postmark), would this name still make sense?"
+- If the name has the vendor in it — `StripeChargeId`, `igdb_id`, `SendGridDeliveryStatus`
+  — rename it BEFORE writing the code. Use the role, not the brand: `PaymentChargeRef`,
+  `metadata_provider_id`, `EmailDeliveryStatus`. Add a `provider` discriminator column
+  if you need to distinguish sources.
+- Vendor names are LEGAL inside `infrastructure/<vendor>/` (adapters, vendor-specific
+  config, vendor-specific auth/state tables — Twitch OAuth shape ≠ Stripe webhook shape,
+  generalizing them is premature abstraction). They are ILLEGAL at every boundary the
+  adapter does not own: ports, DTOs crossing the port, domain VOs, use-case input shapes,
+  persistence columns the domain reads.
+- The standard "we added a port abstraction" is structural-only — it does not save you
+  if the names downstream of the port still scream the vendor.
+
 ---
 
 ## Common Anti-Patterns to Flag
@@ -202,6 +234,7 @@ Format as a structured critique:
 | Missing port                       | Domain calls infrastructure directly (e.g. `new SendGridClient()` inside domain service) | Untestable, hard to swap implementations          |
 | Unnamed policy                     | Business rule as if-chain in application service with no domain name                     | Rule invisible to domain experts, duplicated      |
 | Specification sprawl               | Boolean logic repeated across multiple services                                          | Rules diverge silently, no single source of truth |
+| Vendor name in domain/persistence  | VO, column, or use-case input named after the provider (`IgdbGameRef`, `igdb_id`, `stripeChargeId`) even though a port abstraction exists | Schema migration + rename across codebase when a second provider is added; the port is structural-only and does not protect names downstream of it |
 
 ---
 
