@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { signUp } from '@/lib/auth-client';
+import { signUp, useSession } from '@/lib/auth-client';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -13,20 +13,23 @@ interface FieldErrors {
 
 export function RegisterPage() {
   const navigate = useNavigate();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const { refetch: refetchSession } = useSession();
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [isPending, setIsPending] = useState(false);
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    const name = String(data.get('name') ?? '').trim();
+    const email = String(data.get('email') ?? '').trim();
+    const password = String(data.get('password') ?? '');
+    const confirmPassword = String(data.get('confirmPassword') ?? '');
     setError(null);
 
     const errs: FieldErrors = {};
-    if (!name.trim()) errs.name = 'Name is required.';
+    if (!name) errs.name = 'Name is required.';
     if (password.length < 8) errs.password = 'Password must be at least 8 characters.';
     if (password !== confirmPassword) errs.confirmPassword = 'Passwords do not match.';
 
@@ -37,9 +40,9 @@ export function RegisterPage() {
     setFieldErrors({});
     setIsPending(true);
     const { error: signUpError } = await signUp.email({ email, password, name });
-    setIsPending(false);
 
     if (signUpError) {
+      setIsPending(false);
       if (signUpError.code === 'USER_ALREADY_EXISTS') {
         setFieldErrors({ email: 'This email is already registered.' });
       } else {
@@ -48,6 +51,8 @@ export function RegisterPage() {
       return;
     }
 
+    await refetchSession();
+    setIsPending(false);
     navigate('/games', { replace: true });
   };
 
@@ -69,11 +74,10 @@ export function RegisterPage() {
           </label>
           <Input
             id="name"
+            name="name"
             type="text"
             required
             autoComplete="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
             className="mt-1"
           />
           {fieldErrors.name && <p className="mt-1 text-xs text-red-600">{fieldErrors.name}</p>}
@@ -84,11 +88,10 @@ export function RegisterPage() {
           </label>
           <Input
             id="email"
+            name="email"
             type="email"
             required
             autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
             className="mt-1"
           />
           {fieldErrors.email && <p className="mt-1 text-xs text-red-600">{fieldErrors.email}</p>}
@@ -99,11 +102,10 @@ export function RegisterPage() {
           </label>
           <Input
             id="password"
+            name="password"
             type="password"
             required
             autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
             className="mt-1"
           />
           {fieldErrors.password && (

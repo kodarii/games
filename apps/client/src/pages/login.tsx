@@ -1,24 +1,27 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { signIn } from '@/lib/auth-client';
+import { signIn, useSession } from '@/lib/auth-client';
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const { refetch: refetchSession } = useSession();
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    const email = String(data.get('email') ?? '').trim();
+    const password = String(data.get('password') ?? '');
     setError(null);
     setIsPending(true);
     const { error: signInError } = await signIn.email({ email, password });
-    setIsPending(false);
     if (signInError) {
+      setIsPending(false);
       setError(
         signInError.code === 'INVALID_EMAIL_OR_PASSWORD'
           ? 'Invalid email or password.'
@@ -26,6 +29,8 @@ export function LoginPage() {
       );
       return;
     }
+    await refetchSession();
+    setIsPending(false);
     const from = (location.state as { from?: string } | null)?.from ?? '/games';
     navigate(from, { replace: true });
   };
@@ -48,11 +53,10 @@ export function LoginPage() {
           </label>
           <Input
             id="email"
+            name="email"
             type="email"
             required
             autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
             className="mt-1"
           />
         </div>
@@ -62,11 +66,10 @@ export function LoginPage() {
           </label>
           <Input
             id="password"
+            name="password"
             type="password"
             required
             autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
             className="mt-1"
           />
         </div>
