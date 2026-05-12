@@ -1,0 +1,106 @@
+# Requirements: Apex — Game Collection Tracker
+
+**Defined:** 2026-05-12
+**Core Value:** Właściciel zawsze wie co ma i co chce kupić, i może to sprawdzić w kilka sekund — precyzja, szybkość, fokus.
+
+**Milestone scope:** Settings page + Integrations panel + Hardening. Wcześniej shipped funkcje (auth, gry, słowniki, wishlist, IGDB, eksport/import, idempotency) traktowane jako Validated baseline — patrz PROJECT.md > Requirements > Validated.
+
+## v1 Requirements
+
+### Settings
+
+- [ ] **SET-01**: User może otworzyć stronę `/settings` z bocznym menu (side-nav) i prawym panelem zawartości; struktura przygotowana na dodawanie kolejnych sekcji
+- [ ] **SET-02**: Sekcja "Konto" pokazuje aktualny email zalogowanego użytkownika
+- [ ] **SET-03**: User może zmienić hasło z poziomu sekcji "Konto" (formularz: stare hasło, nowe hasło, potwierdzenie; walidacja przez better-auth)
+- [ ] **SET-04**: User może wylogować wszystkie aktywne sesje (revoke all sessions) jednym kliknięciem
+- [ ] **SET-05**: Strona ustawień jest dostępna tylko dla zalogowanego użytkownika (ProtectedRoute)
+
+### Integrations
+
+- [ ] **INT-01**: User widzi listę dostępnych integracji w sekcji `/settings` > Integracje (tabela: nazwa, status, akcje)
+- [ ] **INT-02**: User może skonfigurować IGDB przez formularz w UI (client_id, client_secret) — bez restartu procesu i bez edycji `.env`
+- [ ] **INT-03**: Sekrety integracji są zaszyfrowane at-rest w SQLite (AES-GCM, klucz z `SETTINGS_ENC_KEY` env-var)
+- [ ] **INT-04**: User może wyzwolić "Test connection" dla IGDB — UI pokazuje sukces (token otrzymany) albo błąd (401/network/etc.)
+- [ ] **INT-05**: User może włączyć/wyłączyć integrację toggle'em; wyłączona integracja powoduje 503 z endpointów IGDB (jak dzisiejsze zachowanie gdy env-vary puste) bez restartu procesu
+- [ ] **INT-06**: One-time seed przy starcie: jeśli baza nie ma rekordu IGDB a env-vary `IGDB_CLIENT_ID`/`IGDB_CLIENT_SECRET` są ustawione — zaimportuj raz, zaszyfruj, zapisz; potem env-vary mogą zniknąć bez utraty konfiguracji
+- [ ] **INT-07**: Status integracji (last-tested-at, last-error) pokazany w UI tabeli integracji
+- [ ] **INT-08**: User może usunąć skonfigurowaną integrację (delete credentials); reset do stanu "niezainicjalizowana"
+
+### Security hardening
+
+- [ ] **SEC-01**: Mutujące route'y `/api/games`, `/api/platforms`, `/api/genres`, `/api/developers`, `/api/upload/*`, `/api/games/:id/metadata` mają rate-limit per-user (np. 60/min na user-id, konfigurowalny)
+- [ ] **SEC-02**: CSRF defense: weryfikacja `Origin`/`Sec-Fetch-Site` w middleware przed `requireAuth` lub aktywacja better-auth CSRF helpera
+- [ ] **SEC-03**: Session cookie ustawia `SameSite=Strict` (jeśli to nie psuje OAuth-style flowów — w aktualnym setupie powinno działać)
+- [ ] **SEC-04**: Walidacja env odrzuca domyślne sentinel-secrets (`replace-with-32-byte-random-...`) — boot fail z czytelnym komunikatem
+- [ ] **SEC-05**: Test E2E lub integracyjny weryfikuje że rate-limit zwraca 429 po przekroczeniu progu
+- [ ] **SEC-06**: Test integracyjny weryfikuje że request z obcym Originem lub bez Sec-Fetch-Site jest odrzucany 403 (CSRF)
+- [ ] **SEC-07**: `SETTINGS_ENC_KEY` walidowany przez Zod w env-config (wymagany, min długość; brak = boot fail)
+
+### Frontend stability
+
+- [ ] **FE-01**: Globalny `ErrorBoundary` opakowuje `<RouterProvider>` w `main.tsx`; renderuje fallback UI (komunikat + przycisk "Załaduj ponownie")
+- [ ] **FE-02**: `useCredentialsForm({ fields, onSubmit })` hook ekstrahuje wspólny pattern login/register (uncontrolled + FormData + pending/error state); oba page'y używają go zamiast ręcznej duplikacji
+- [ ] **FE-03**: Hand-rolled dropdown w `game-view.tsx` zastąpiony przez `@radix-ui/react-dropdown-menu` (keyboard nav, Escape, role="menu" za darmo)
+- [ ] **FE-04**: `game-view.tsx` (669 linii) podzielony na komponenty: `game-view-header`, `game-view-actions`, `game-view-fields` (każdy <250 linii); zachowane existing API i URL state
+- [ ] **FE-05**: Inline SVG-i w `game-view.tsx` przeniesione do `@/components/icons.tsx` jako `<Icon.name />`
+- [ ] **FE-06**: Regression testy dla login/register zapinające oba niedawne bugi: (a) refetchSession przed navigate, (b) uncontrolled+FormData zamiast controlled useState
+- [ ] **FE-07**: Strona ustawień używa istniejących wzorców (`AppLayout`, shadcn komponenty, neutralna paleta Linear-style) — wizualnie spójna z resztą aplikacji
+
+### Backend correctness
+
+- [ ] **BE-01**: Migracje wyciągnięte z `infrastructure/db/client.ts:25` do osobnego skryptu `bun run db:migrate`; deploy script wywołuje przed `bun run start`; `client.ts` tylko otwiera DB
+- [ ] **BE-02**: Helper `toGameInsertRow(userId, game)` w `infrastructure/db/schema.ts` (lub obok), użyty w `applyMerge`, `applyReplace`, `DrizzleGameRepository.create` — dedup row-buildera
+- [ ] **BE-03**: `applyMerge` w `drizzle-import-repository.ts` używa batch SELECT z `IN (externalIds)` + `Map<externalId, row>` zamiast N+1 czytań w pętli
+- [ ] **BE-04**: Brakujące indeksy dla pól sortowania (`hours_played`, `genre`, `format`, `status`) — dodane w nowej migracji lub świadomie udokumentowane jako akceptowany koszt
+- [ ] **BE-05**: Assertion test w `apps/api/src/routes/games.test.ts` weryfikuje że `GET /api/games/metadata/candidates` zwraca status różny od 404 (gwarancja Hono route ordering)
+- [ ] **BE-06**: `wiring.ts` ma test (smoke) że `igdbConfigured === false` skutkuje 503 na endpointach IGDB, oraz że singleton identity zachowana między requestami
+
+## v2 Requirements
+
+Deferred do następnych milestone'ów (świadomie poza zakresem).
+
+### Integrations expansion
+
+- **INT-V2-01**: Migracja UploadThing do panelu integracji (token + allowed-emails w UI, encrypt at-rest, toggle on/off)
+- **INT-V2-02**: Generic factory dla nowych integracji (interface `Integration<Config>` + UI wrapper) — pozwala dodać kolejną integrację <100 linii
+
+### Settings expansion
+
+- **SET-V2-01**: Sekcja "Dane" — eksport/import przeniesione z route'ów do UI; przycisk "usuń wszystko"
+- **SET-V2-02**: Sekcja "Wygląd" — tryb jasny/ciemny/system, gęstość tabel, domyślny widok
+
+### Security expansion
+
+- **SEC-V2-01**: External error sink (Sentry / Axiom) dla 5xx w produkcji
+- **SEC-V2-02**: Skrypt `rotate-enc-key` (re-encrypt-all dla rotacji `SETTINGS_ENC_KEY`)
+- **SEC-V2-03**: CI lint/format gate na PR
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Statystyki kolekcji / dashboard | Odłożone do kolejnego milestone'u ficzerowego; aktualny milestone fokus na stabilizacji + ustawieniach |
+| Power-user UX (Cmd+K, bulk actions, keyboard shortcuts) | Pasuje do Linear/Raycast feel ale nie blokuje stabilności; odłożone |
+| Smart wishlist (priorytety, budżet, alerty) | Aktualny `kind=wishlist` wystarcza w v2; odłożone |
+| Migracja do Postgres | SQLite WAL wystarcza dla single-user na VPS; scale-out nie jest celem |
+| Mobile / PWA | Anti-cel — aplikacja desktop-first per PRODUCT.md ("biurko, monitor, pełen skupienia") |
+| Wielouser, ratingsy społecznościowe, gamifikacja | Explicit anti-references w PRODUCT.md |
+| Rotacja `SETTINGS_ENC_KEY` w tym milestone | Skrypt re-encrypt — follow-up, nie blokuje shipu integracji |
+| Sentry / Datadog integracja | Structured stdout logger wystarcza dla single-user; defer do v2 |
+
+## Traceability
+
+Wypełniona przez `gsd-roadmapper`. Każdy v1 requirement mapowany do dokładnie jednej fazy.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| (mapowanie wypełni roadmapper) | | Pending |
+
+**Coverage:**
+- v1 requirements: 28 total (SET: 5, INT: 8, SEC: 7, FE: 7, BE: 6 — minus FE-07 duplikat z SET-07; rzeczywiście 28)
+- Mapped to phases: 0 (przed roadmappingiem)
+- Unmapped: 28 ⚠️ (do wypełnienia przez roadmapper)
+
+---
+*Requirements defined: 2026-05-12*
+*Last updated: 2026-05-12 after initial definition*
