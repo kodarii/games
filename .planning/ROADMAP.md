@@ -37,7 +37,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [x] 01-01-PLAN.md — Settings shell: install shadcn primitives (alert-dialog, card, label), extend icons + Button destructive variant, create SettingsLayout + SettingsNav + AccountPage stub, mount nested /settings route in main.tsx (SET-01, FE-07)
 - [x] 01-02-PLAN.md — Account profile + password change: extend auth-client with changePassword, create AccountPasswordForm (uncontrolled + FormData), render Profil card with email from useSession (SET-02, SET-03, FE-07)
-- [ ] 01-03-PLAN.md — Revoke-all-sessions + ProtectedRoute pin: add revokeSessions to auth-client, create AccountSessionsCard with AlertDialog + strict 4-step flow, regression test for /settings/* unauth redirect (SET-04, SET-05)
+- [x] 01-03-PLAN.md — Revoke-all-sessions + ProtectedRoute pin: add revokeSessions to auth-client, create AccountSessionsCard with AlertDialog + strict 4-step flow, regression test for /settings/* unauth redirect (SET-04, SET-05)
 
 ### Phase 2: Integrations Panel (IGDB)
 **Goal:** User configures IGDB credentials in UI without touching `.env` or restarting the process; secrets are encrypted at-rest with `SETTINGS_ENC_KEY` and the existing IGDB chain (token store, breaker, rate-limiter) honors the new toggle/credential source

@@ -12,8 +12,8 @@
 - [x] **SET-01**: User może otworzyć stronę `/settings` z bocznym menu (side-nav) i prawym panelem zawartości; struktura przygotowana na dodawanie kolejnych sekcji
 - [x] **SET-02**: Sekcja "Konto" pokazuje aktualny email zalogowanego użytkownika
 - [x] **SET-03**: User może zmienić hasło z poziomu sekcji "Konto" (formularz: stare hasło, nowe hasło, potwierdzenie; walidacja przez better-auth)
-- [ ] **SET-04**: User może wylogować wszystkie aktywne sesje (revoke all sessions) jednym kliknięciem
-- [ ] **SET-05**: Strona ustawień jest dostępna tylko dla zalogowanego użytkownika (ProtectedRoute)
+- [x] **SET-04**: User może wylogować wszystkie aktywne sesje (revoke all sessions) jednym kliknięciem
+- [x] **SET-05**: Strona ustawień jest dostępna tylko dla zalogowanego użytkownika (ProtectedRoute)
 
 ### Integrations
 
@@ -97,8 +97,8 @@ Wypełnione przez `gsd-roadmapper` 2026-05-12. Każdy v1 requirement mapowany do
 | SET-01 | Phase 1 — Settings Shell + Konto | Complete |
 | SET-02 | Phase 1 — Settings Shell + Konto | Complete |
 | SET-03 | Phase 1 — Settings Shell + Konto | Complete |
-| SET-04 | Phase 1 — Settings Shell + Konto | Pending |
-| SET-05 | Phase 1 — Settings Shell + Konto | Pending |
+| SET-04 | Phase 1 — Settings Shell + Konto | Complete |
+| SET-05 | Phase 1 — Settings Shell + Konto | Complete |
 | FE-07  | Phase 1 — Settings Shell + Konto | Complete |
 | INT-01 | Phase 2 — Integrations Panel (IGDB) | Pending |
 | INT-02 | Phase 2 — Integrations Panel (IGDB) | Pending |
