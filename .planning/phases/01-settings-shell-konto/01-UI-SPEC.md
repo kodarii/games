@@ -5,6 +5,7 @@ status: draft
 shadcn_initialized: true
 preset: new-york + neutral (project-native, from apps/client/components.json)
 created: 2026-05-12
+revised: 2026-05-12 (revision 1 — checker fixes)
 ---
 
 # Phase 1 — UI Design Contract
@@ -42,13 +43,13 @@ Install command (from `apps/client/`): `bunx shadcn@latest add alert-dialog card
 
 ## Spacing Scale
 
-Project uses Tailwind defaults (4px base unit, no custom `spacing` extension in `tailwind.config.js`). Phase 1 conforms to the 8-point scale:
+Project uses Tailwind defaults (4px base unit, no custom `spacing` extension in `tailwind.config.js`). Phase 1 conforms strictly to the 4px / 8-point scale — **no exceptions, no arbitrary pixel values**.
 
 | Token | Tailwind class | Value | Usage in Phase 1 |
 |-------|----------------|-------|-------------------|
-| xs | `gap-1`, `p-1` | 4px | Icon gap inside nav-link (`<Svg size={14}/>` to label) |
-| sm | `gap-2`, `p-2`, `space-y-2` | 8px | Field gaps inside form rows; checkbox + label |
-| md | `gap-4`, `p-4`, `space-y-4` | 16px | Form field stack inside cards; nav-link vertical rhythm |
+| xs | `gap-1`, `p-1`, `pb-1` | 4px | Icon gap inside nav-link (`<Svg size={14}/>` to label); section-label bottom tracking |
+| sm | `gap-2`, `p-2`, `py-2`, `space-y-2` | 8px | Field gaps inside form rows; checkbox + label; nav-link inner vertical padding |
+| md | `gap-4`, `p-4`, `pt-4`, `space-y-4` | 16px | Form field stack inside cards; nav-link vertical rhythm; section-label top tracking |
 | lg | `p-6`, `space-y-6` | 24px | Card inner padding (Specifics: "card style padding ~24px"); gap between cards on Account page |
 | xl | `gap-8`, `py-8`, `space-y-8` | 32px | Page heading → first card gap; settings layout left/right gutter |
 | 2xl | `py-12` | 48px | Reserved (not used in Phase 1) |
@@ -58,25 +59,27 @@ Project uses Tailwind defaults (4px base unit, no custom `spacing` extension in 
 
 **Side-nav width:** fixed `w-[220px]` (matches existing app sidebar density rhythm; Linear `/settings` secondary-sidebar reference).
 
-**Exceptions:**
-- Nav-link inner height `py-[10px]` (10px) — inherited from existing `NavRow` pattern in `sidebar.tsx:52` for visual rhythm consistency (FE-07 requires match).
-- Section-label tracking `pb-[6px] pt-4` — inherited from `SectionLabel` in `sidebar.tsx:95`.
-- Card titles use `text-[14px]` (14px) per Specifics; sits between Tailwind `text-sm` (14) and `text-base` (16).
+**FE-07 visual parity note:**
+- Nav-link inner vertical padding uses `py-2` (8px) — approximates `sidebar.tsx:52` `py-[10px]` to the 4px grid. Visual parity with the existing sidebar is approximated, not pixel-exact.
+- Section-label bottom tracking uses `pb-1` (4px) with `pt-4` (16px) on top — approximates `sidebar.tsx:95` `pb-[6px] pt-4` to the 4px grid.
+- Card titles use `text-sm` (14px) per Specifics — see Typography table.
 
 ---
 
 ## Typography
 
-Inter family throughout. Four declared sizes, two weights (regular 400 + semibold 600). Line-heights inherit from Tailwind defaults except where specified.
+Inter family throughout. Four declared sizes, **two weights (regular 400 + semibold 600)**. Line-heights inherit from Tailwind defaults except where specified.
 
 | Role | Tailwind | Size | Weight | Line Height | Where used in Phase 1 |
 |------|----------|------|--------|-------------|------------------------|
 | Body | `text-sm` | 14px | 400 | 1.5 (`leading-normal`) | Form helper text, card body text, value rendering (`{user.email}`) |
-| Label | `text-sm font-medium` | 14px | 500 (medium, fallback when no semibold needed) | 1.4 (`leading-snug`) | Form `<label>` (Aktualne hasło, Nowe hasło, Potwierdź…) — matches `login.tsx:51` `text-sm font-medium` |
+| Label | `text-sm` | 14px | 400 | 1.4 (`leading-snug`) | Form `<label>` (Aktualne hasło, Nowe hasło, Potwierdź…) — matches `login.tsx:51` regular-weight pattern |
 | Heading (h2 page title) | `text-2xl font-semibold` | 24px | 600 | 1.2 (`leading-tight`) | "Konto" page heading (D-20) |
-| Section title (h3, card title) | `text-[14px] font-semibold` | 14px | 600 | 1.3 (`leading-snug`) | "Profil" / "Zmień hasło" / "Bezpieczeństwo" inside cards (Specifics) |
+| Section title (h3, card title) | `text-sm font-semibold` | 14px | 600 | 1.3 (`leading-snug`) | "Profil" / "Zmień hasło" / "Bezpieczeństwo" inside cards (Specifics) |
 
-**Auxiliary (already-established, reused — not counted toward new declarations):**
+**Two-weight contract:** regular (400) for body + labels; semibold (600) for headings + card titles + active nav state. No medium (500), no bold (700).
+
+**Auxiliary (already-established, reused — not counted toward new declarations; inherited from `sidebar.tsx` for FE-07 parity):**
 - Section labels in side-nav (`KONTO`, `POZOSTAŁE`): `text-[10px] font-semibold uppercase tracking-[0.08em] text-apex-hint` — inherited verbatim from `sidebar.tsx:95`.
 - Nav-link label: `text-[13.5px]` — inherited from existing `NavRow` for FE-07 visual parity.
 - Card subtitle / muted helper: `text-[13px] text-apex-muted` (Specifics).
@@ -93,7 +96,7 @@ Using existing `apex-*` token palette + shadcn CSS vars. No new tokens introduce
 |------|-------|----------------|-------------------|
 | Dominant (60%) | `#ffffff` | `bg-white` / `bg-background` | Page background, card surfaces, AppLayout content area |
 | Secondary (30%) | `#f5f5f5` / `#f8f8f8` | `bg-apex-surface-hover`, `bg-apex-surface-chip` | Settings side-nav active-row background (`oklch(95% 0.02 220)`); nav hover; (optional) page bg under cards |
-| Accent (10%) | `#4F6EF7` | `text-apex-accent`, `bg-apex-accent` | **Primary submit button** ("Zapisz"); **active side-nav link** text + icon; focus ring |
+| Accent (10%) | `#4F6EF7` | `text-apex-accent`, `bg-apex-accent` | **Primary submit button** ("Zapisz hasło"); **active side-nav link** text + icon; focus ring |
 | Destructive | `hsl(var(--destructive))` = `0 84.2% 60.2%` | `bg-destructive`, `text-destructive-foreground` | "Wyloguj wszystkie sesje" button (destructive variant); AlertDialog confirm action |
 | Borders (cards, nav) | `#ebebeb` / `#f0f0f0` | `border-apex-line-4`, `border-apex-line-5` | Card borders, side-nav separator, nav-link divider |
 | Ink (text) | `#1c1c1e` / `#4a4a4a` / `#666666` / `#9a9a9a` | `text-apex-ink`, `text-apex-ink-3`, `text-apex-ink-5`, `text-apex-muted` | Primary text / secondary text / helper text / disabled |
@@ -102,7 +105,7 @@ Using existing `apex-*` token palette + shadcn CSS vars. No new tokens introduce
 
 **Accent reserved exclusively for** (no other elements):
 1. Active side-nav link in `settings-nav.tsx` (text + leading icon)
-2. Primary submit button "Zapisz" in `account-password-form.tsx`
+2. Primary submit button "Zapisz hasło" in `account-password-form.tsx`
 3. Default focus ring on form inputs (Tailwind `ring` token already targets `apex-accent` via existing design system — do not override)
 
 **Destructive reserved exclusively for:**
@@ -113,6 +116,12 @@ Using existing `apex-*` token palette + shadcn CSS vars. No new tokens introduce
 - Disabled nav items (Integracje, Dane, Wygląd in Phase 1) MUST use `text-apex-disabled` or `text-apex-muted` + `cursor-not-allowed`. No accent, no destructive.
 - "Anuluj" button in AlertDialog uses default/outline variant — never accent, never destructive.
 - Success toast (sonner `richColors`) renders green automatically — no custom color override.
+
+---
+
+## Visuals / Focal Point
+
+**Primary focal point on `/settings/account` first load:** the "Zmień hasło" card. It is the only interactive section above the fold (Profil is read-only; Bezpieczeństwo sits below) and its form structure — three labeled inputs stacked, checkbox, accent-colored CTA — naturally draws the eye. Visual hierarchy is achieved through spacing, typography weight, and the single accent CTA — never through additional color or ornament.
 
 ---
 
@@ -156,7 +165,7 @@ Using existing `apex-*` token palette + shadcn CSS vars. No new tokens introduce
 | Field 2 label | `Nowe hasło` |
 | Field 3 label | `Potwierdź nowe hasło` |
 | Checkbox label | `Wyloguj wszystkie inne sesje` (defaultChecked) |
-| **Primary CTA** | `Zapisz` |
+| **Primary CTA** | `Zapisz hasło` |
 | CTA pending state | `Zapisywanie…` |
 | Success toast (sonner) | `Hasło zmienione` |
 | Inline error — mismatch (client-side, D-78 exception) | `Nowe hasło i potwierdzenie muszą być identyczne.` |
@@ -253,6 +262,7 @@ Unchanged (referenced only):
 - Pattern: uncontrolled inputs + `FormData` (MEMORY: `feedback_react_autofill_uncontrolled`); see `login.tsx:14-36` as canonical.
 - Local state: `error: string | null`, `isPending: boolean`. No per-field controlled state.
 - Submit handler: `e.preventDefault()` → `new FormData(form)` → client-side mismatch check → `authClient.changePassword({ currentPassword, newPassword, revokeOtherSessions: <checkbox> })`.
+- Primary CTA label: `Zapisz hasło` (idle) / `Zapisywanie…` (pending). Disabled while `isPending`.
 - Success: `toast.success('Hasło zmienione')` + `form.reset()`. **No** `refetchSession()`, **no** navigate.
 - Failure: map `error.code` via inline switch → set `error` state → render inline red banner above form (same DOM structure as `login.tsx:43-47`).
 
@@ -298,6 +308,7 @@ Per CLAUDE.md "Brand" + PRODUCT.md + Specifics:
 - **Polish microcopy** — short, direct, no exclamation marks, no emoji.
 - Toast confirmations are 2 words ("Hasło zmienione") — no celebratory padding.
 - Destructive copy is informative, not alarmist ("Zostaniesz przekierowany…", not "UWAGA!").
+- Primary CTAs are specific verb + noun ("Zapisz hasło", "Wyloguj wszystkie sesje") — never bare generic verbs ("Zapisz", "OK").
 
 ---
 
