@@ -37,7 +37,7 @@ function DisabledNavItem({
   );
 }
 
-export function SettingsNav() {
+export function SettingsNav({ onNavigate }: { onNavigate?: () => void } = {}) {
   return (
     <TooltipProvider delayDuration={150}>
       <nav className="flex h-full flex-col gap-1">
@@ -46,6 +46,7 @@ export function SettingsNav() {
           <li>
             <NavLink
               to="/settings/account"
+              onClick={onNavigate}
               className={({ isActive }) =>
                 cn(
                   'mx-[6px] flex items-center gap-2 rounded-[7px] px-4 py-2 text-[13px] select-none',
