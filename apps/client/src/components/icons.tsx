@@ -506,6 +506,77 @@ export const Icon = {
     </>,
     '0 0 20 20',
   ),
+  user: svg(
+    <>
+      <circle cx="8" cy="6" r="2.5" stroke="currentColor" strokeWidth="1.4" />
+      <path
+        d="M3 13.5c0-2.5 2.2-4 5-4s5 1.5 5 4"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </>,
+  ),
+  plug: svg(
+    <>
+      <path
+        d="M6 2v3M10 2v3"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+      <rect
+        x="4.5"
+        y="5"
+        width="7"
+        height="4"
+        rx="1"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+      <path
+        d="M8 9v2.5a2 2 0 002 2h.5"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </>,
+  ),
+  database: svg(
+    <>
+      <ellipse
+        cx="8"
+        cy="4"
+        rx="5"
+        ry="1.8"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+      <path
+        d="M3 4v4c0 1 2.2 1.8 5 1.8s5-.8 5-1.8V4"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+      <path
+        d="M3 8v4c0 1 2.2 1.8 5 1.8s5-.8 5-1.8V8"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+    </>,
+  ),
+  palette: svg(
+    <>
+      <path
+        d="M8 2.5c-3.3 0-5.5 2.4-5.5 5.3 0 2 1.4 3.4 3.2 3.4.9 0 1.3-.4 1.3-1 0-.6-.4-.8-.4-1.3 0-.5.4-.9 1-.9h1.4c2.2 0 4-1.5 4-3.5 0-1.4-1.8-2-5-2z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+      <circle cx="5.5" cy="6" r="0.7" fill="currentColor" />
+      <circle cx="8" cy="4.5" r="0.7" fill="currentColor" />
+      <circle cx="10.5" cy="6" r="0.7" fill="currentColor" />
+    </>,
+  ),
 } as const;
 
 export type IconName = keyof typeof Icon;
