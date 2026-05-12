@@ -31,8 +31,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User wypełnia formularz "Zmień hasło" (stare/nowe/potwierdzenie) i po sukcesie dostaje toast potwierdzający; better-auth waliduje stare hasło
   4. User klika "Wyloguj wszystkie sesje" i po `await refetchSession()` zostaje przekierowany na `/login` (regression z MEMORY: refetchSession przed navigate)
   5. Niezalogowany user wchodzący na `/settings/*` zostaje przekierowany przez `ProtectedRoute` na `/login`
-**Plans:** TBD
+**Plans:** 3 plans
 **UI hint:** yes
+
+Plans:
+- [ ] 01-01-PLAN.md — Settings shell: install shadcn primitives (alert-dialog, card, label), extend icons + Button destructive variant, create SettingsLayout + SettingsNav + AccountPage stub, mount nested /settings route in main.tsx (SET-01, FE-07)
+- [ ] 01-02-PLAN.md — Account profile + password change: extend auth-client with changePassword, create AccountPasswordForm (uncontrolled + FormData), render Profil card with email from useSession (SET-02, SET-03, FE-07)
+- [ ] 01-03-PLAN.md — Revoke-all-sessions + ProtectedRoute pin: add revokeSessions to auth-client, create AccountSessionsCard with AlertDialog + strict 4-step flow, regression test for /settings/* unauth redirect (SET-04, SET-05)
 
 ### Phase 2: Integrations Panel (IGDB)
 **Goal:** User configures IGDB credentials in UI without touching `.env` or restarting the process; secrets are encrypted at-rest with `SETTINGS_ENC_KEY` and the existing IGDB chain (token store, breaker, rate-limiter) honors the new toggle/credential source
@@ -99,7 +104,7 @@ Phases execute in numeric order: 1 → 2 → (3, 4, 5 can run in parallel)
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Settings Shell + Konto | 0/TBD | Not started | - |
+| 1. Settings Shell + Konto | 0/3 | Not started | - |
 | 2. Integrations Panel (IGDB) | 0/TBD | Not started | - |
 | 3. Security Hardening | 0/TBD | Not started | - |
 | 4. Frontend Stability | 0/TBD | Not started | - |
