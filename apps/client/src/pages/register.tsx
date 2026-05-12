@@ -118,11 +118,10 @@ export function RegisterPage() {
           </label>
           <Input
             id="confirmPassword"
+            name="confirmPassword"
             type="password"
             required
             autoComplete="new-password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
             className="mt-1"
           />
           {fieldErrors.confirmPassword && (
