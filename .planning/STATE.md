@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Plan 01-01 complete — proceeding to Plan 02 (Konto page content)
-last_updated: "2026-05-12T20:02:25.775Z"
+last_updated: "2026-05-12T20:08:54.985Z"
 last_activity: 2026-05-12
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 33
+  completed_plans: 2
+  percent: 67
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 ## Current Position
 
 Phase: 01 (settings-shell-konto) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-05-12
 
-Progress: [███░░░░░░░] 33%
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [███░░░░░░░] 33%
 
 *Updated after each plan completion*
 | Phase 01-settings-shell-konto P01 | 4 | 3 tasks | 12 files |
+| Phase 01-settings-shell-konto P02 | 5 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,8 @@ Recent decisions affecting current work:
 - Migrations out-of-boot (separate `bun run db:migrate`) — eliminates boot-time race, enables read-only forensic boot
 - Full hardening (security + frontend + backend) in one milestone — stabilization before next feature milestone
 - [Phase ?]: Plan 01-01 shadcn CLI workspace quirk: files land at apps/client/@/components/ui/, manual mv required to canonical apps/client/src/components/ui/
+- [Phase ?]: Plan 01-02: bare <input type='checkbox'> instead of shadcn Checkbox for revokeOtherSessions — keeps form strictly uncontrolled so FormData captures the value natively (D-11 + MEMORY autofill rule)
+- [Phase ?]: Plan 01-02: submit button placed in CardFooter and linked to form via form='account-password-form' attribute — preserves Card visual hierarchy without losing native HTML form-submit semantics
 
 ### Pending Todos
 
@@ -97,7 +100,7 @@ Items acknowledged and carried forward as v2 / out-of-scope:
 
 ## Session Continuity
 
-Last session: 2026-05-12T20:02:25.771Z
+Last session: 2026-05-12T20:08:54.982Z
 Stopped at: Plan 01-01 complete — proceeding to Plan 02 (Konto page content)
 Resume file: 
 None
