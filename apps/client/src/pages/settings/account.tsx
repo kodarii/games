@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSession } from '@/lib/auth-client';
 import { AccountPasswordForm } from './account-password-form';
+import { AccountSessionsCard } from './account-sessions-card';
 
 export function AccountPage() {
   const { data: session } = useSession();
@@ -12,6 +13,7 @@ export function AccountPage() {
       <h2 className="text-2xl font-semibold text-apex-ink">Konto</h2>
       <ProfileCard email={user.email} name={user.name ?? null} />
       <AccountPasswordForm />
+      <AccountSessionsCard />
     </div>
   );
 }
