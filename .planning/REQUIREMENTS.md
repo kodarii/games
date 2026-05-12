@@ -90,17 +90,52 @@ Deferred do następnych milestone'ów (świadomie poza zakresem).
 
 ## Traceability
 
-Wypełniona przez `gsd-roadmapper`. Każdy v1 requirement mapowany do dokładnie jednej fazy.
+Wypełnione przez `gsd-roadmapper` 2026-05-12. Każdy v1 requirement mapowany do dokładnie jednej fazy.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (mapowanie wypełni roadmapper) | | Pending |
+| SET-01 | Phase 1 — Settings Shell + Konto | Pending |
+| SET-02 | Phase 1 — Settings Shell + Konto | Pending |
+| SET-03 | Phase 1 — Settings Shell + Konto | Pending |
+| SET-04 | Phase 1 — Settings Shell + Konto | Pending |
+| SET-05 | Phase 1 — Settings Shell + Konto | Pending |
+| FE-07  | Phase 1 — Settings Shell + Konto | Pending |
+| INT-01 | Phase 2 — Integrations Panel (IGDB) | Pending |
+| INT-02 | Phase 2 — Integrations Panel (IGDB) | Pending |
+| INT-03 | Phase 2 — Integrations Panel (IGDB) | Pending |
+| INT-04 | Phase 2 — Integrations Panel (IGDB) | Pending |
+| INT-05 | Phase 2 — Integrations Panel (IGDB) | Pending |
+| INT-06 | Phase 2 — Integrations Panel (IGDB) | Pending |
+| INT-07 | Phase 2 — Integrations Panel (IGDB) | Pending |
+| INT-08 | Phase 2 — Integrations Panel (IGDB) | Pending |
+| SEC-07 | Phase 2 — Integrations Panel (IGDB) | Pending |
+| SEC-01 | Phase 3 — Security Hardening | Pending |
+| SEC-02 | Phase 3 — Security Hardening | Pending |
+| SEC-03 | Phase 3 — Security Hardening | Pending |
+| SEC-04 | Phase 3 — Security Hardening | Pending |
+| SEC-05 | Phase 3 — Security Hardening | Pending |
+| SEC-06 | Phase 3 — Security Hardening | Pending |
+| FE-01  | Phase 4 — Frontend Stability | Pending |
+| FE-02  | Phase 4 — Frontend Stability | Pending |
+| FE-03  | Phase 4 — Frontend Stability | Pending |
+| FE-04  | Phase 4 — Frontend Stability | Pending |
+| FE-05  | Phase 4 — Frontend Stability | Pending |
+| FE-06  | Phase 4 — Frontend Stability | Pending |
+| BE-01  | Phase 5 — Backend Correctness | Pending |
+| BE-02  | Phase 5 — Backend Correctness | Pending |
+| BE-03  | Phase 5 — Backend Correctness | Pending |
+| BE-04  | Phase 5 — Backend Correctness | Pending |
+| BE-05  | Phase 5 — Backend Correctness | Pending |
+| BE-06  | Phase 5 — Backend Correctness | Pending |
 
 **Coverage:**
-- v1 requirements: 28 total (SET: 5, INT: 8, SEC: 7, FE: 7, BE: 6 — minus FE-07 duplikat z SET-07; rzeczywiście 28)
-- Mapped to phases: 0 (przed roadmappingiem)
-- Unmapped: 28 ⚠️ (do wypełnienia przez roadmapper)
+- v1 requirements: 33 total (SET: 5, INT: 8, SEC: 7, FE: 7, BE: 6)
+- Mapped to phases: 33 ✓
+- Unmapped: 0
+- Per-phase distribution: Phase 1 = 6, Phase 2 = 9, Phase 3 = 6, Phase 4 = 6, Phase 5 = 6
+
+> **Note:** Original header in initial REQUIREMENTS.md said "28 total" — manual recount during roadmapping shows 33 (5+8+7+7+6). Discrepancy was a stale comment, not a missing requirement; nothing dropped.
 
 ---
 *Requirements defined: 2026-05-12*
-*Last updated: 2026-05-12 after initial definition*
+*Last updated: 2026-05-12 — traceability filled by `gsd-roadmapper`*
