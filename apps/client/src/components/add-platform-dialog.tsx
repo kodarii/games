@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ApiError } from '@/lib/api';
 import { useCreatePlatform } from '@/lib/queries';
 import type { Platform } from '@/types';
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
@@ -44,8 +45,8 @@ export function AddPlatformDialog({ open, onOpenChange, onCreated }: AddPlatform
       const platform = await createMutation.mutateAsync({ name: trimmed });
       onCreated?.(platform);
       onOpenChange(false);
-    } catch (err: any) {
-      if (err?.status === 409) {
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
         setFieldError(`Platform '${trimmed}' already exists`);
       }
     }
@@ -89,9 +90,7 @@ export function AddPlatformDialog({ open, onOpenChange, onCreated }: AddPlatform
                 }
               }}
             />
-            {fieldError && (
-              <div className="mt-[6px] text-[12px] text-red-600">{fieldError}</div>
-            )}
+            {fieldError && <div className="mt-[6px] text-[12px] text-red-600">{fieldError}</div>}
           </div>
 
           <div className="mt-7 flex justify-end gap-2">
@@ -103,12 +102,7 @@ export function AddPlatformDialog({ open, onOpenChange, onCreated }: AddPlatform
             >
               Cancel
             </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={onSubmit}
-              disabled={!canSubmit}
-            >
+            <Button variant="primary" size="sm" onClick={onSubmit} disabled={!canSubmit}>
               {createMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </div>

@@ -1,11 +1,59 @@
 import { describe, expect, it } from 'bun:test';
-import { Game, type GameUpdate, type NewGame } from '../../../domain/games/game';
+import type { ProviderName } from '../../../domain/games/external-metadata-ref';
+import { Game } from '../../../domain/games/game';
+import type { GameMetadataCandidate } from '../../../domain/games/game-metadata-provider';
 import type {
   GameRepository,
   ListGamesQuery,
   ListGamesResult,
 } from '../../../domain/games/game-repository';
-import { EnrichGameMetadata } from '../enrich-game-metadata';
+import type { GameUpdate } from '../../../domain/games/game-update';
+import type { NewGame } from '../../../domain/games/new-game';
+import { InlineTransactionRunner } from '../../shared/__tests__/inline-transaction-runner';
+import { EnrichGameMetadata, type MetadataCandidateLookup } from '../enrich-game-metadata';
+
+const PROVIDER = 'igdb' as ProviderName;
+
+const isCoverHostAllowed = (host: string) =>
+  host === 'images.igdb.com' || host === 'utfs.io' || host.endsWith('.ufs.sh');
+
+/**
+ * Stub configured per-test to return a specific cached candidate. The
+ * legacy tests in this file predate snapshot validation; they exercise the
+ * IDOR / domain / invalid_input branches and need a lookup whose
+ * fingerprint matches whatever snapshot the call carries.
+ */
+function lookupReturning(candidate: GameMetadataCandidate | null): MetadataCandidateLookup {
+  return {
+    findCandidate: async () =>
+      candidate === null ? null : { candidate, fetchedAt: new Date('2025-01-01') },
+  };
+}
+
+const VALID_CANDIDATE: GameMetadataCandidate = {
+  providerName: PROVIDER,
+  providerId: '12345',
+  title: 'Resident Evil 4',
+  developer: 'Capcom',
+  releaseYear: 2005,
+  coverImageUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big/abc.jpg',
+  platformNames: ['PS2'],
+};
+
+const NULL_FIELDS_CANDIDATE: GameMetadataCandidate = {
+  providerName: PROVIDER,
+  providerId: '7',
+  title: 'Whatever',
+  developer: null,
+  releaseYear: null,
+  coverImageUrl: null,
+  platformNames: [],
+};
+
+const EVIL_CANDIDATE: GameMetadataCandidate = {
+  ...VALID_CANDIDATE,
+  coverImageUrl: 'https://evil.example.com/x.jpg',
+};
 
 class FakeGameRepository implements GameRepository {
   private readonly store: Map<string, Game> = new Map();
@@ -15,11 +63,18 @@ class FakeGameRepository implements GameRepository {
     for (const g of games) this.store.set(`${g.userId}:${g.externalId}`, g);
   }
 
+  withTx = (_tx: unknown): GameRepository => this;
+
   async findByExternalId(userId: string, externalId: string): Promise<Game | null> {
     return this.store.get(`${userId}:${externalId}`) ?? null;
   }
 
-  async saveMetadata(userId: string, externalId: string, game: Game): Promise<Game | null> {
+  async saveMetadata(
+    userId: string,
+    externalId: string,
+    game: Game,
+    _expectedUpdatedAt: Date,
+  ): Promise<Game | null> {
     this.saveCalls += 1;
     const key = `${userId}:${externalId}`;
     if (!this.store.has(key)) return null;
@@ -39,7 +94,12 @@ class FakeGameRepository implements GameRepository {
   create = async (_g: NewGame): Promise<Game> => {
     throw new Error('not implemented');
   };
-  update = async (_u: string, _e: string, _g: GameUpdate): Promise<Game | null> => {
+  update = async (
+    _u: string,
+    _e: string,
+    _g: GameUpdate,
+    _expectedUpdatedAt: Date,
+  ): Promise<Game | null> => {
     throw new Error('not implemented');
   };
   delete = async (): Promise<Game | null> => {
@@ -89,7 +149,12 @@ describe('EnrichGameMetadata', () => {
     const userId = 'user-A';
     const externalId = 'ext-1';
     const repo = new FakeGameRepository([makeGame(userId, externalId)]);
-    const usecase = new EnrichGameMetadata(repo);
+    const usecase = new EnrichGameMetadata(
+      repo,
+      new InlineTransactionRunner(),
+      lookupReturning(VALID_CANDIDATE),
+      isCoverHostAllowed,
+    );
 
     const result = await usecase.execute(externalId, VALID_INPUT, userId);
     expect(result.ok).toBe(true);
@@ -105,7 +170,12 @@ describe('EnrichGameMetadata', () => {
 
   it('IDOR: game owned by a different user returns not_found', async () => {
     const repo = new FakeGameRepository([makeGame('user-A', 'ext-1')]);
-    const usecase = new EnrichGameMetadata(repo);
+    const usecase = new EnrichGameMetadata(
+      repo,
+      new InlineTransactionRunner(),
+      lookupReturning(VALID_CANDIDATE),
+      isCoverHostAllowed,
+    );
 
     const result = await usecase.execute('ext-1', VALID_INPUT, 'user-B');
     expect(result.ok).toBe(false);
@@ -116,7 +186,12 @@ describe('EnrichGameMetadata', () => {
 
   it('non-existent externalId returns not_found', async () => {
     const repo = new FakeGameRepository([makeGame('user-A', 'ext-1')]);
-    const usecase = new EnrichGameMetadata(repo);
+    const usecase = new EnrichGameMetadata(
+      repo,
+      new InlineTransactionRunner(),
+      lookupReturning(VALID_CANDIDATE),
+      isCoverHostAllowed,
+    );
     const result = await usecase.execute('ext-missing', VALID_INPUT, 'user-A');
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -125,7 +200,12 @@ describe('EnrichGameMetadata', () => {
 
   it('coverImageUrl with disallowed host fails domain validation', async () => {
     const repo = new FakeGameRepository([makeGame('user-A', 'ext-1')]);
-    const usecase = new EnrichGameMetadata(repo);
+    const usecase = new EnrichGameMetadata(
+      repo,
+      new InlineTransactionRunner(),
+      lookupReturning(EVIL_CANDIDATE),
+      isCoverHostAllowed,
+    );
     const input = {
       ...VALID_INPUT,
       snapshot: { ...VALID_INPUT.snapshot, coverImageUrl: 'https://evil.example.com/x.jpg' },
@@ -138,7 +218,12 @@ describe('EnrichGameMetadata', () => {
 
   it('empty providerId fails Zod with invalid_input', async () => {
     const repo = new FakeGameRepository([makeGame('user-A', 'ext-1')]);
-    const usecase = new EnrichGameMetadata(repo);
+    const usecase = new EnrichGameMetadata(
+      repo,
+      new InlineTransactionRunner(),
+      lookupReturning(VALID_CANDIDATE),
+      isCoverHostAllowed,
+    );
     const input = { ...VALID_INPUT, providerId: '' };
     const result = await usecase.execute('ext-1', input, 'user-A');
     expect(result.ok).toBe(false);
@@ -150,7 +235,12 @@ describe('EnrichGameMetadata', () => {
     const userId = 'user-A';
     const externalId = 'ext-1';
     const repo = new FakeGameRepository([makeGame(userId, externalId)]);
-    const usecase = new EnrichGameMetadata(repo);
+    const usecase = new EnrichGameMetadata(
+      repo,
+      new InlineTransactionRunner(),
+      lookupReturning(NULL_FIELDS_CANDIDATE),
+      isCoverHostAllowed,
+    );
     const input = {
       providerName: 'igdb' as const,
       providerId: '7',

@@ -10,42 +10,27 @@ import type {
   Platform,
 } from '@/types';
 import type { ImportMode, ImportReport } from '@apex/shared';
+import { apiFetch } from './api-fetch';
+
+export { ApiError } from './api-fetch';
 
 /**
- * Reads an error message from a non-OK response body, preferring RFC 7807 fields
- * (`detail`, `title`) over the legacy `{ error }` shape, falling back to a hardcoded
- * verb-based message. Returns `[message, body]` so callers that need the full body
- * (e.g. for `issues` or status attachment) can still access it.
+ * Generates a fresh Idempotency-Key (UUID v4) for a mutation. The caller is
+ * responsible for keeping the value stable across retries of the *same logical
+ * operation* — i.e. generate once at the call site, pass to fetch, reuse if
+ * the network attempt is retried. Producing a new UUID per retry defeats the
+ * server-side idempotency cache.
  */
-async function readErrorMessage(
-  r: Response,
-  fallback: string,
-): Promise<[message: string, body: unknown]> {
-  const body = (await r.json().catch(() => ({}))) as {
-    detail?: string;
-    title?: string;
-    error?: string;
-  };
-  return [body?.detail ?? body?.title ?? body?.error ?? fallback, body];
+function newIdempotencyKey(): string {
+  return crypto.randomUUID();
 }
 
-export async function fetchGames(
-  params: URLSearchParams,
-  signal?: AbortSignal,
-): Promise<GamesResponse> {
-  const r = await fetch(`/api/games?${params.toString()}`, { credentials: 'include', signal });
-  if (!r.ok) {
-    throw new Error(`Failed to fetch games: ${r.status}`);
-  }
-  return r.json();
+export function fetchGames(params: URLSearchParams, signal?: AbortSignal): Promise<GamesResponse> {
+  return apiFetch<GamesResponse>(`/api/games?${params.toString()}`, { signal });
 }
 
-export async function fetchGame(id: string | number): Promise<Game> {
-  const r = await fetch(`/api/games/${id}`, { credentials: 'include' });
-  if (!r.ok) {
-    throw new Error(`Failed to fetch game: ${r.status}`);
-  }
-  return r.json();
+export function fetchGame(id: string | number): Promise<Game> {
+  return apiFetch<Game>(`/api/games/${id}`);
 }
 
 export interface CreateGameInput {
@@ -74,60 +59,30 @@ export interface CreateWishlistInput {
   developer?: string;
 }
 
-export async function createWishlistItem(input: CreateWishlistInput): Promise<Game> {
-  const r = await fetch('/api/games', {
+export function createWishlistItem(input: CreateWishlistInput): Promise<Game> {
+  return apiFetch<Game>('/api/games', {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: input,
+    idempotencyKey: newIdempotencyKey(),
   });
-  if (!r.ok) {
-    const [message] = await readErrorMessage(r, `Failed to create wishlist item: ${r.status}`);
-    throw new Error(message);
-  }
-  return r.json();
 }
 
-export async function createGame(input: CreateGameInput): Promise<Game> {
-  const r = await fetch('/api/games', {
+export function createGame(input: CreateGameInput): Promise<Game> {
+  return apiFetch<Game>('/api/games', {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: input,
+    idempotencyKey: newIdempotencyKey(),
   });
-  if (!r.ok) {
-    const [message] = await readErrorMessage(r, `Failed to create game: ${r.status}`);
-    throw new Error(message);
-  }
-  return r.json();
 }
 
 export type UpdateGameInput = CreateGameInput;
 
-export async function updateGame(id: string, input: UpdateGameInput): Promise<Game> {
-  const r = await fetch(`/api/games/${id}`, {
-    method: 'PUT',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-  if (!r.ok) {
-    const [message] = await readErrorMessage(r, `Failed to update game: ${r.status}`);
-    throw new Error(message);
-  }
-  return r.json();
+export function updateGame(id: string, input: UpdateGameInput): Promise<Game> {
+  return apiFetch<Game>(`/api/games/${id}`, { method: 'PUT', body: input });
 }
 
-export async function deleteGame(id: string): Promise<Game> {
-  const r = await fetch(`/api/games/${id}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-  if (!r.ok) {
-    const [message] = await readErrorMessage(r, `Failed to delete game: ${r.status}`);
-    throw new Error(message);
-  }
-  return r.json();
+export function deleteGame(id: string): Promise<Game> {
+  return apiFetch<Game>(`/api/games/${id}`, { method: 'DELETE' });
 }
 
 export interface EnrichGameMetadataInput {
@@ -140,200 +95,104 @@ export interface EnrichGameMetadataInput {
   };
 }
 
-export async function enrichGameMetadata(
+export function enrichGameMetadata(
   externalId: string,
   body: EnrichGameMetadataInput,
 ): Promise<Game> {
-  const r = await fetch(`/api/games/${externalId}/metadata`, {
+  return apiFetch<Game>(`/api/games/${externalId}/metadata`, {
     method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body,
   });
-  if (!r.ok) {
-    const [message] = await readErrorMessage(r, `Failed to enrich game metadata: ${r.status}`);
-    throw new Error(message);
-  }
-  return r.json();
 }
 
-export async function fetchMetadataCandidates(
+export function fetchMetadataCandidates(
   title: string,
   platform: string,
   signal?: AbortSignal,
 ): Promise<MetadataCandidatesResponse> {
   const sp = new URLSearchParams({ title, platform });
-  const r = await fetch(`/api/games/metadata/candidates?${sp.toString()}`, {
-    credentials: 'include',
+  return apiFetch<MetadataCandidatesResponse>(`/api/games/metadata/candidates?${sp.toString()}`, {
     signal,
   });
-  if (!r.ok) {
-    const [message] = await readErrorMessage(r, `Failed to fetch metadata candidates: ${r.status}`);
-    throw new Error(message);
-  }
-  return r.json();
 }
 
-export async function fetchPlatforms(): Promise<Platform[]> {
-  const r = await fetch('/api/platforms', { credentials: 'include' });
-  if (!r.ok) throw new Error(`Failed to fetch platforms: ${r.status}`);
-  return r.json();
+export interface MetadataStatusResponse {
+  igdbConfigured: boolean;
 }
 
-export async function createPlatform(input: { name: string }): Promise<Platform> {
-  const r = await fetch('/api/platforms', {
+export function fetchMetadataStatus(signal?: AbortSignal): Promise<MetadataStatusResponse> {
+  return apiFetch<MetadataStatusResponse>('/api/games/metadata/status', { signal });
+}
+
+export function fetchPlatforms(): Promise<Platform[]> {
+  return apiFetch<Platform[]>('/api/platforms');
+}
+
+export function createPlatform(input: { name: string }): Promise<Platform> {
+  return apiFetch<Platform>('/api/platforms', { method: 'POST', body: input });
+}
+
+export function deletePlatform(id: number): Promise<Platform> {
+  return apiFetch<Platform>(`/api/platforms/${id}`, { method: 'DELETE' });
+}
+
+export function fetchGenres(): Promise<Genre[]> {
+  return apiFetch<Genre[]>('/api/genres');
+}
+
+export function createGenre(input: { name: string }): Promise<Genre> {
+  return apiFetch<Genre>('/api/genres', { method: 'POST', body: input });
+}
+
+export function deleteGenre(id: number): Promise<Genre> {
+  return apiFetch<Genre>(`/api/genres/${id}`, { method: 'DELETE' });
+}
+
+export function fetchDevelopers(): Promise<Developer[]> {
+  return apiFetch<Developer[]>('/api/developers');
+}
+
+export function createDeveloper(input: { name: string }): Promise<Developer> {
+  return apiFetch<Developer>('/api/developers', { method: 'POST', body: input });
+}
+
+export function deleteDeveloper(id: number): Promise<Developer> {
+  return apiFetch<Developer>(`/api/developers/${id}`, { method: 'DELETE' });
+}
+
+export function importData(snapshot: unknown, mode: ImportMode): Promise<ImportReport> {
+  return apiFetch<ImportReport>('/api/import', {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: { mode, snapshot },
+    idempotencyKey: newIdempotencyKey(),
   });
-  if (!r.ok) {
-    const [message, body] = await readErrorMessage(r, `Failed to create platform: ${r.status}`);
-    const e = new Error(message);
-    (e as any).status = r.status;
-    (e as any).body = body;
-    throw e;
-  }
-  return r.json();
 }
 
-export async function deletePlatform(id: number): Promise<Platform> {
-  const r = await fetch(`/api/platforms/${id}`, { method: 'DELETE', credentials: 'include' });
-  if (!r.ok) {
-    const [message, body] = await readErrorMessage(r, `Failed to delete platform: ${r.status}`);
-    const e = new Error(message);
-    (e as any).status = r.status;
-    (e as any).body = body;
-    throw e;
-  }
-  return r.json();
-}
-
-export async function fetchGenres(): Promise<Genre[]> {
-  const r = await fetch('/api/genres', { credentials: 'include' });
-  if (!r.ok) throw new Error(`Failed to fetch genres: ${r.status}`);
-  return r.json();
-}
-
-export async function createGenre(input: { name: string }): Promise<Genre> {
-  const r = await fetch('/api/genres', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-  if (!r.ok) {
-    const [message] = await readErrorMessage(r, `Failed to create genre: ${r.status}`);
-    const e = new Error(message);
-    (e as any).status = r.status;
-    throw e;
-  }
-  return r.json();
-}
-
-export async function deleteGenre(id: number): Promise<Genre> {
-  const r = await fetch(`/api/genres/${id}`, { method: 'DELETE', credentials: 'include' });
-  if (!r.ok) {
-    const [message] = await readErrorMessage(r, `Failed to delete genre: ${r.status}`);
-    const e = new Error(message);
-    (e as any).status = r.status;
-    throw e;
-  }
-  return r.json();
-}
-
-export async function fetchDevelopers(): Promise<Developer[]> {
-  const r = await fetch('/api/developers', { credentials: 'include' });
-  if (!r.ok) throw new Error(`Failed to fetch developers: ${r.status}`);
-  return r.json();
-}
-
-export async function createDeveloper(input: { name: string }): Promise<Developer> {
-  const r = await fetch('/api/developers', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-  if (!r.ok) {
-    const [message] = await readErrorMessage(r, `Failed to create developer: ${r.status}`);
-    const e = new Error(message);
-    (e as any).status = r.status;
-    throw e;
-  }
-  return r.json();
-}
-
-export async function deleteDeveloper(id: number): Promise<Developer> {
-  const r = await fetch(`/api/developers/${id}`, { method: 'DELETE', credentials: 'include' });
-  if (!r.ok) {
-    const [message] = await readErrorMessage(r, `Failed to delete developer: ${r.status}`);
-    const e = new Error(message);
-    (e as any).status = r.status;
-    throw e;
-  }
-  return r.json();
-}
-
-export async function importData(snapshot: unknown, mode: ImportMode): Promise<ImportReport> {
-  const r = await fetch('/api/import', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mode, snapshot }),
-  });
-  if (!r.ok) {
-    const [message, body] = await readErrorMessage(r, `Failed to import: ${r.status}`);
-    const e = new Error(message);
-    (e as any).status = r.status;
-    (e as any).body = body;
-    throw e;
-  }
-  return r.json();
-}
-
-export async function uploadCover(file: File): Promise<{ url: string }> {
+export function uploadCover(file: File): Promise<{ url: string }> {
   const fd = new FormData();
   fd.append('file', file);
-  const r = await fetch('/api/upload/cover', {
+  return apiFetch<{ url: string }>('/api/upload/cover', {
     method: 'POST',
-    credentials: 'include',
     body: fd,
+    idempotencyKey: newIdempotencyKey(),
   });
-  if (!r.ok) {
-    const [message] = await readErrorMessage(r, 'upload_failed');
-    const e = new Error(message);
-    (e as any).status = r.status;
-    throw e;
-  }
-  return r.json();
 }
 
-export async function fetchMyPermissions(): Promise<{ canUploadCovers: boolean }> {
-  const r = await fetch('/api/me/permissions', { credentials: 'include' });
-  if (!r.ok) throw new Error(`Failed to fetch permissions: ${r.status}`);
-  return r.json();
+export function fetchMyPermissions(): Promise<{ canUploadCovers: boolean }> {
+  return apiFetch<{ canUploadCovers: boolean }>('/api/me/permissions');
 }
 
-export async function moveToCollection(externalId: string): Promise<{ game: Game }> {
-  const r = await fetch(`/api/games/${externalId}/move-to-collection`, {
+export function moveToCollection(externalId: string): Promise<{ game: Game }> {
+  return apiFetch<{ game: Game }>(`/api/games/${externalId}/move-to-collection`, {
     method: 'POST',
-    credentials: 'include',
+    idempotencyKey: newIdempotencyKey(),
   });
-  if (!r.ok) {
-    const [message] = await readErrorMessage(r, `Failed to move to collection: ${r.status}`);
-    throw new Error(message);
-  }
-  return r.json();
 }
 
 export async function exportData(): Promise<{ blob: Blob; filename: string }> {
-  const r = await fetch('/api/export', { credentials: 'include' });
-  if (!r.ok) {
-    throw new Error(`Failed to export: ${r.status}`);
-  }
-  const blob = await r.blob();
-  const cd = r.headers.get('Content-Disposition') ?? '';
+  const response = await apiFetch<Response>('/api/export', { responseType: 'response' });
+  const blob = await response.blob();
+  const cd = response.headers.get('Content-Disposition') ?? '';
   const match = cd.match(/filename="([^"]+)"/);
   const filename = match?.[1] ?? 'apex-export.json';
   return { blob, filename };

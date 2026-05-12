@@ -99,6 +99,27 @@
       "when": 1778527894254,
       "tag": "0014_add_metadata_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1778576028430,
+      "tag": "0015_add_games_updated_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1778666028430,
+      "tag": "0016_add_cron_locks",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1778752428430,
+      "tag": "0017_add_idempotency_keys",
+      "breakpoints": true
     }
   ]
 }

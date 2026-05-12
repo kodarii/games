@@ -1,5 +1,5 @@
 import type { ImportMode, ImportReport } from '@apex/shared';
-import type { NewGame } from '../games/game';
+import type { NewGame } from '../games/new-game';
 import type { NewPlatform } from '../platforms/platform';
 
 export interface ImportPlan {

@@ -1,12 +1,6 @@
 import { Hono } from 'hono';
-import { ExportData } from '../application/export/export-data';
-import { DrizzleGameRepository } from '../infrastructure/games/drizzle-game-repository';
-import { DrizzlePlatformRepository } from '../infrastructure/platforms/drizzle-platform-repository';
+import { exportData } from '../wiring';
 import type { AuthVariables } from './middleware/require-auth';
-
-const gameRepo = new DrizzleGameRepository();
-const platformRepo = new DrizzlePlatformRepository();
-const exportData = new ExportData(gameRepo, platformRepo);
 
 export const exportRoute = new Hono<{ Variables: AuthVariables }>();
 

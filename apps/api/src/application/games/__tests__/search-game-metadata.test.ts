@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import type { ProviderName } from '../../../domain/games/external-metadata-ref';
 import type {
   GameMetadataCandidate,
   GameMetadataProvider,
@@ -13,7 +14,7 @@ import { SearchGameMetadata } from '../search-game-metadata';
 
 function makeCandidate(over: Partial<GameMetadataCandidate> = {}): GameMetadataCandidate {
   return {
-    providerName: 'igdb',
+    providerName: 'igdb' as ProviderName,
     providerId: '1',
     title: 'Game',
     developer: null,

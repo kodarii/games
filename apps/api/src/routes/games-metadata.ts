@@ -5,17 +5,25 @@ import type { AuthVariables } from './middleware/require-auth';
 
 export interface GamesMetadataRouterDeps {
   readonly searchGameMetadata: SearchGameMetadata;
+  readonly igdbConfigured: boolean;
 }
 
 export function createGamesMetadataRouter(deps: GamesMetadataRouterDeps) {
   const r = new Hono<{ Variables: AuthVariables }>();
 
+  r.get('/status', (c) => c.json({ igdbConfigured: deps.igdbConfigured }, 200));
+
   r.get('/candidates', async (c) => {
-    const userId = c.get('user').id;
     const title = c.req.query('title') ?? '';
     const platform = c.req.query('platform') ?? '';
-    console.log(JSON.stringify({ event: 'igdb.search.request', userId, title, platform }));
-    const result = await deps.searchGameMetadata.execute({ title, platform });
+    // Title is end-user input; PII risk is low (game titles) but bound the
+    // logged payload anyway and surface the length for shape analysis.
+    c.get('logger').event('igdb.search.request', {
+      titleLength: title.length,
+      title: title.slice(0, 100),
+      platform,
+    });
+    const result = await deps.searchGameMetadata.execute({ title, platform }, c.get('logger'));
     if (!result.ok) {
       if (result.error.kind === 'invalid_input') {
         return c.json(zodIssuesToProblemJson(result.error.issues), 400);

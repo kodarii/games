@@ -1,19 +1,20 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
 import { eq, inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
-import { EnrichGameMetadata } from '../../application/games/enrich-game-metadata';
+import type { EnrichGameMetadata } from '../../application/games/enrich-game-metadata';
 import { SearchGameMetadata } from '../../application/games/search-game-metadata';
 import { db } from '../../infrastructure/db/client';
 import { games as gamesTable, igdbOauthToken, metadataCache } from '../../infrastructure/db/schema';
-import { DrizzleGameRepository } from '../../infrastructure/games/drizzle-game-repository';
 import { CircuitBreaker } from '../../infrastructure/igdb/circuit-breaker';
 import { DrizzleIgdbTokenStorage } from '../../infrastructure/igdb/drizzle-igdb-token-storage';
 import { IgdbGameMetadataProvider } from '../../infrastructure/igdb/igdb-game-metadata-provider';
 import { IgdbHttpClient } from '../../infrastructure/igdb/igdb-http-client';
 import { IgdbTokenStore } from '../../infrastructure/igdb/igdb-token-store';
+import { requestContext } from '../../infrastructure/logging/request-context-middleware';
 import { CachingGameMetadataProvider } from '../../infrastructure/metadata/caching-game-metadata-provider';
 import { MetadataCacheRepository } from '../../infrastructure/metadata/metadata-cache-repository';
 import { TokenBucketRateLimiter } from '../../infrastructure/metadata/rate-limiter';
+import { enrichGameMetadata as wiredEnrichGameMetadata } from '../../wiring';
 import { createGamesMetadataRouter } from '../games-metadata';
 import type { AuthVariables } from '../middleware/require-auth';
 
@@ -114,9 +115,16 @@ function buildApp(state: FakeIgdbState): BuiltApp {
     negativeTtlDays: 1,
   });
   const searchGameMetadata = new SearchGameMetadata(cachingProvider, cacheRepo);
-  const enrichGameMetadata = new EnrichGameMetadata(new DrizzleGameRepository());
+  // EnrichGameMetadata is wired in the composition root; we import the
+  // production instance here rather than reaching into infrastructure
+  // directly. The metadata-router tests only exercise the search side, so
+  // `wiredEnrichGameMetadata` is referenced below to keep its import live.
+  const enrichGameMetadata: EnrichGameMetadata = wiredEnrichGameMetadata;
 
   const app = new Hono<{ Variables: AuthVariables }>();
+  // Install the same request-context middleware production wires in
+  // `index.ts` so `c.get('logger')` is populated for every handler.
+  app.use('*', requestContext());
   app.use('/api/games/*', async (c, next) => {
     c.set('user', { id: TEST_USER_ID } as AuthVariables['user']);
     await next();
@@ -125,7 +133,10 @@ function buildApp(state: FakeIgdbState): BuiltApp {
   // the production mounting where `games.route('/metadata', …)` is registered
   // BEFORE `:externalId` in `games.ts`.
   const gamesRouter = new Hono<{ Variables: AuthVariables }>();
-  gamesRouter.route('/metadata', createGamesMetadataRouter({ searchGameMetadata }));
+  gamesRouter.route(
+    '/metadata',
+    createGamesMetadataRouter({ searchGameMetadata, igdbConfigured: true }),
+  );
   app.route('/api/games', gamesRouter);
 
   // Expose injected use cases for tests that need direct repo access.
@@ -249,6 +260,50 @@ describe('GET /api/games/metadata/candidates (integration with fake IGDB)', () =
   });
 });
 
+describe('GET /api/games/metadata/status', () => {
+  function buildStatusApp(igdbConfigured: boolean): Hono<{ Variables: AuthVariables }> {
+    const fakeSearchGameMetadata = {
+      execute: async () => ({
+        ok: true as const,
+        value: { candidates: [], degraded: false },
+      }),
+    } as unknown as SearchGameMetadata;
+
+    const app = new Hono<{ Variables: AuthVariables }>();
+    app.use('*', requestContext());
+    app.use('/api/games/*', async (c, next) => {
+      c.set('user', { id: TEST_USER_ID } as AuthVariables['user']);
+      await next();
+    });
+    const gamesRouter = new Hono<{ Variables: AuthVariables }>();
+    gamesRouter.route(
+      '/metadata',
+      createGamesMetadataRouter({
+        searchGameMetadata: fakeSearchGameMetadata,
+        igdbConfigured,
+      }),
+    );
+    app.route('/api/games', gamesRouter);
+    return app;
+  }
+
+  it('returns igdbConfigured: true when wired with true', async () => {
+    const app = buildStatusApp(true);
+    const res = await app.request('/api/games/metadata/status');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { igdbConfigured: boolean };
+    expect(body).toEqual({ igdbConfigured: true });
+  });
+
+  it('returns igdbConfigured: false when wired with false', async () => {
+    const app = buildStatusApp(false);
+    const res = await app.request('/api/games/metadata/status');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { igdbConfigured: boolean };
+    expect(body).toEqual({ igdbConfigured: false });
+  });
+});
+
 describe('GET /api/games/metadata/candidates — route order (literal before param)', () => {
   it('mounts via routes/games.ts BEFORE :externalId and returns 200, NOT 404', async () => {
     // Asserts the production registration order in routes/games.ts: the
@@ -258,6 +313,7 @@ describe('GET /api/games/metadata/candidates — route order (literal before par
     // would match `metadata` and yield 404 from `getGame.execute`.
     const { games: realGames } = await import('../games');
     const app = new Hono<{ Variables: AuthVariables }>();
+    app.use('*', requestContext());
     app.use('/api/games/*', async (c, next) => {
       c.set('user', { id: TEST_USER_ID } as AuthVariables['user']);
       await next();

@@ -7,10 +7,20 @@ export type CoverImageUrlError =
   | { kind: 'cover_url_invalid' }
   | { kind: 'cover_url_host_not_allowed' };
 
+/**
+ * Predicate the caller injects so the domain stays agnostic about which CDNs
+ * a particular deployment whitelists. The list lives in
+ * `infrastructure/config/cover-hosts.ts` and is wired into use cases.
+ */
+export type IsCoverHostAllowed = (host: string) => boolean;
+
 export class CoverImageUrl {
   private constructor(public readonly value: string) {}
 
-  static create(raw: string): Result<CoverImageUrl, CoverImageUrlError> {
+  static create(
+    raw: string,
+    opts: { isHostAllowed: IsCoverHostAllowed },
+  ): Result<CoverImageUrl, CoverImageUrlError> {
     const trimmed = raw.trim();
     if (trimmed.length === 0) {
       return err({ kind: 'cover_url_empty' });
@@ -27,9 +37,7 @@ export class CoverImageUrl {
       return err({ kind: 'cover_url_not_https' });
     }
 
-    const host = url.host;
-    const allowed = host === 'images.igdb.com' || host === 'utfs.io' || host.endsWith('.ufs.sh');
-    if (!allowed) {
+    if (!opts.isHostAllowed(url.host)) {
       return err({ kind: 'cover_url_host_not_allowed' });
     }
 

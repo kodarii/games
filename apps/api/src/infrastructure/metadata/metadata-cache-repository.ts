@@ -10,6 +10,11 @@ export interface CachedMetadataLookup {
   readonly fetchedAt: Date;
 }
 
+export interface CachedCandidateLookup {
+  readonly candidate: GameMetadataCandidate;
+  readonly fetchedAt: Date;
+}
+
 /**
  * Vendor-neutral cache for game metadata search results.
  *
@@ -32,6 +37,34 @@ export class MetadataCacheRepository {
     if (!row) return null;
     const parsed = JSON.parse(row.candidatesJson) as GameMetadataCandidate[];
     return { candidates: parsed, fetchedAt: row.fetchedAt };
+  }
+
+  /**
+   * Search every cached row for `provider` and return the candidate with a
+   * matching `providerId`. Used by `EnrichGameMetadata` to validate the
+   * client-supplied snapshot against trusted provider data — a malicious
+   * client cannot fabricate fingerprint fields, only choose an existing
+   * cache entry.
+   *
+   * Cache is keyed by `(provider, cacheKey)` where `cacheKey` is the search
+   * query hash. We accept a linear scan of provider rows: the cache is
+   * bounded (one row per user-issued search), `providerId` lookups are
+   * O(rows × candidates-per-row), and a per-providerId index is not worth
+   * the schema churn before usage justifies it.
+   */
+  async findCandidate(provider: string, providerId: string): Promise<CachedCandidateLookup | null> {
+    const rows = await this.db
+      .select()
+      .from(metadataCache)
+      .where(eq(metadataCache.provider, provider));
+    for (const row of rows) {
+      const parsed = JSON.parse(row.candidatesJson) as GameMetadataCandidate[];
+      const match = parsed.find((c) => c.providerId === providerId);
+      if (match) {
+        return { candidate: match, fetchedAt: row.fetchedAt };
+      }
+    }
+    return null;
   }
 
   async upsert(

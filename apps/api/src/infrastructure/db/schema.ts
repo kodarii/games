@@ -1,4 +1,11 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import {
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core';
 import { user } from './auth-schema';
 
 export const games = sqliteTable(
@@ -28,6 +35,9 @@ export const games = sqliteTable(
     metadataMatchedAt: text('metadata_matched_at'),
     externalId: text('external_id').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .$defaultFn(() => new Date())
+      .$onUpdateFn(() => new Date()),
   },
   (table) => [
     index('games_user_id_idx').on(table.userId),
@@ -132,3 +142,47 @@ export const igdbOauthToken = sqliteTable('igdb_oauth_token', {
 
 export type IgdbOauthTokenRow = typeof igdbOauthToken.$inferSelect;
 export type NewIgdbOauthTokenRow = typeof igdbOauthToken.$inferInsert;
+
+/**
+ * Distributed advisory lock for cron jobs (single-region, SQLite-based).
+ * `locked_until` is unix epoch seconds — see CronLock for the UPSERT pattern.
+ */
+export const cronLocks = sqliteTable('cron_locks', {
+  name: text('name').primaryKey(),
+  lockedUntil: integer('locked_until').notNull(),
+  owner: text('owner').notNull(),
+});
+
+export type CronLockRow = typeof cronLocks.$inferSelect;
+export type NewCronLockRow = typeof cronLocks.$inferInsert;
+
+/**
+ * Idempotency-Key cache for mutating endpoints (RFC: Idempotency-Key header).
+ *
+ * Composite PRIMARY KEY (key, user_id) scopes uniqueness per-user so two
+ * different accounts can independently reuse the same client-generated key
+ * without colliding. Only 2xx responses are stored — 5xx must remain
+ * retryable. `request_hash` lets us detect "same key, different body" and
+ * answer with a 409 conflict per Stripe's convention.
+ *
+ * `created_at` (unix epoch ms) is indexed so the cleanup cron can prune rows
+ * older than the configured TTL in a single index-scan.
+ */
+export const idempotencyKeys = sqliteTable(
+  'idempotency_keys',
+  {
+    key: text('key').notNull(),
+    userId: text('user_id').notNull(),
+    requestHash: text('request_hash').notNull(),
+    status: integer('status').notNull(),
+    responseBody: text('response_body').notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.key, table.userId] }),
+    index('idempotency_keys_created_at_idx').on(table.createdAt),
+  ],
+);
+
+export type IdempotencyKeyRow = typeof idempotencyKeys.$inferSelect;
+export type NewIdempotencyKeyRow = typeof idempotencyKeys.$inferInsert;

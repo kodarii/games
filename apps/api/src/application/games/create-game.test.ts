@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
-import { Game, type NewGame } from '../../domain/games/game';
+import type { ProviderName } from '../../domain/games/external-metadata-ref';
+import { Game } from '../../domain/games/game';
 import type { GameRepository } from '../../domain/games/game-repository';
+import type { NewGame } from '../../domain/games/new-game';
 import { type NewPlatform, Platform } from '../../domain/platforms/platform';
 import type { PlatformRepository } from '../../domain/platforms/platform-repository';
 import { CreateGame } from './create-game';
 
 class FakeGameRepository implements GameRepository {
+  withTx = (_tx: unknown): GameRepository => this;
   list = async () => ({ items: [], total: 0 });
   listAll = async (): Promise<Game[]> => [];
   findById = async () => null;
@@ -46,6 +49,8 @@ class FakeGameRepository implements GameRepository {
 class FakePlatformRepository implements PlatformRepository {
   private store = new Map<number, Platform>();
   private nextId = 1;
+
+  withTx = (_tx: unknown): PlatformRepository => this;
 
   async list(userId: string): Promise<Platform[]> {
     return [...this.store.values()].filter((p) => p.userId === userId);
@@ -195,8 +200,8 @@ describe('CreateGame', () => {
     );
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.toJSON().price).toBe(12999);
-      expect(result.value.toJSON().purchasedAt).toBe('2024-06-15');
+      expect(result.value.price?.value).toBe(12999);
+      expect(result.value.purchasedAt?.value).toBe('2024-06-15');
     }
   });
 
@@ -204,8 +209,8 @@ describe('CreateGame', () => {
     const result = await useCase.execute(validInput, 'user-A');
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.toJSON().price).toBeNull();
-      expect(result.value.toJSON().purchasedAt).toBeNull();
+      expect(result.value.price).toBeNull();
+      expect(result.value.purchasedAt).toBeNull();
     }
   });
 
@@ -288,7 +293,7 @@ describe('CreateGame', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.metadataRef).not.toBeNull();
-      expect(result.value.metadataRef?.providerName).toBe('igdb');
+      expect(result.value.metadataRef?.providerName).toBe('igdb' as ProviderName);
       expect(result.value.metadataRef?.providerId).toBe('igdb-abc-123');
     }
   });

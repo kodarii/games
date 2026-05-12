@@ -1,14 +1,12 @@
 import { z } from 'zod';
-import {
-  type Game,
-  type GameProps,
-  type GameValidationError,
-  NewGame,
-} from '../../domain/games/game';
+import type { Game } from '../../domain/games/game';
 import type { GameRepository } from '../../domain/games/game-repository';
+import type { GameValidationError } from '../../domain/games/game-value-objects';
+import { NewGame, type NewGameProps } from '../../domain/games/new-game';
 import type { PlatformRepository } from '../../domain/platforms/platform-repository';
 import { err, ok } from '../../domain/shared/result';
 import type { Result } from '../../domain/shared/result';
+import { isProviderSupported } from '../../infrastructure/config/providers';
 
 const purchasedAtSchema = z
   .string()
@@ -21,7 +19,11 @@ const purchasedAtSchema = z
 
 const metadataRefSchema = z
   .object({
-    providerName: z.literal('igdb'),
+    providerName: z
+      .string()
+      .trim()
+      .min(1)
+      .refine(isProviderSupported, { message: 'Unsupported provider' }),
     providerId: z.string().trim().min(1),
   })
   .optional();
@@ -105,7 +107,7 @@ export class CreateGame {
       });
     }
 
-    const props: GameProps =
+    const props: NewGameProps =
       data.kind === 'wishlist'
         ? {
             kind: 'wishlist',

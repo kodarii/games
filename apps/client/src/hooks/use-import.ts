@@ -1,16 +1,16 @@
-import { useState } from 'react';
-import { z } from 'zod';
+import { ApiError, importData } from '@/lib/api';
 import {
+  type ImportMode,
+  type ImportReport,
   ImportSnapshotExternalSchema,
   ImportSnapshotV1Schema,
   ImportSnapshotV2Schema,
   ImportSnapshotV3Schema,
   ImportSnapshotV4Schema,
-  type ImportMode,
-  type ImportReport,
 } from '@apex/shared';
 import { useQueryClient } from '@tanstack/react-query';
-import { importData } from '@/lib/api';
+import { useState } from 'react';
+import { z } from 'zod';
 
 const SnapshotSchema = z.discriminatedUnion('version', [
   ImportSnapshotV1Schema,
@@ -108,9 +108,8 @@ export function useImport() {
       await queryClient.invalidateQueries({ queryKey: ['games'] });
       await queryClient.invalidateQueries({ queryKey: ['platforms'] });
       setState({ kind: 'succeeded', report });
-    } catch (e: any) {
-      const errKind = e?.body?.error ?? 'unknown';
-      setState({ kind: 'failed', message: mapError(errKind) });
+    } catch (e) {
+      setState({ kind: 'failed', message: mapError(extractImportErrorKind(e)) });
     }
   }
 
@@ -121,17 +120,35 @@ export function useImport() {
   return { state, selectFile, submit, reset };
 }
 
+function extractImportErrorKind(e: unknown): string {
+  if (e instanceof ApiError && e.body && typeof e.body === 'object') {
+    const body = e.body as { error?: unknown };
+    if (typeof body.error === 'string') return body.error;
+  }
+  return 'unknown';
+}
+
 function mapError(kind: string): string {
   switch (kind) {
-    case 'payload_too_large': return 'File too large (max 5MB).';
-    case 'invalid_body': return 'Invalid request body.';
-    case 'invalid_json': return 'File is not valid JSON.';
-    case 'invalid_shape': return 'File structure does not match expected format.';
-    case 'unsupported_version': return 'This file uses an unsupported schema version.';
-    case 'duplicate_external_id': return 'File contains duplicate item IDs.';
-    case 'duplicate_platform_name': return 'File contains duplicate platform names.';
-    case 'unknown_platform': return 'A game references a platform that does not exist in the file or in your library.';
-    case 'domain_error': return 'File contains invalid data in one of the records.';
-    default: return 'Something went wrong. Please try again.';
+    case 'payload_too_large':
+      return 'File too large (max 5MB).';
+    case 'invalid_body':
+      return 'Invalid request body.';
+    case 'invalid_json':
+      return 'File is not valid JSON.';
+    case 'invalid_shape':
+      return 'File structure does not match expected format.';
+    case 'unsupported_version':
+      return 'This file uses an unsupported schema version.';
+    case 'duplicate_external_id':
+      return 'File contains duplicate item IDs.';
+    case 'duplicate_platform_name':
+      return 'File contains duplicate platform names.';
+    case 'unknown_platform':
+      return 'A game references a platform that does not exist in the file or in your library.';
+    case 'domain_error':
+      return 'File contains invalid data in one of the records.';
+    default:
+      return 'Something went wrong. Please try again.';
   }
 }

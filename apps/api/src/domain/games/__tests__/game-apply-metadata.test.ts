@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { ExternalMetadataRef } from '../external-metadata-ref';
+import { ExternalMetadataRef, type ProviderName } from '../external-metadata-ref';
 import { Game } from '../game';
 
 function buildBareGame(
@@ -39,6 +39,11 @@ function buildRef(): ExternalMetadataRef {
   });
 }
 
+const HOST_OPTS = {
+  isCoverHostAllowed: (host: string) =>
+    host === 'images.igdb.com' || host === 'utfs.io' || host.endsWith('.ufs.sh'),
+};
+
 describe('Game.applyMetadata', () => {
   it('overwrites cover, releaseYear, developer and sets metadataRef when snapshot is full', () => {
     const game = buildBareGame();
@@ -50,6 +55,7 @@ describe('Game.applyMetadata', () => {
         developer: 'CD Projekt RED',
       },
       ref,
+      HOST_OPTS,
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -71,6 +77,7 @@ describe('Game.applyMetadata', () => {
         developer: 'Some Studio',
       },
       ref,
+      HOST_OPTS,
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -84,6 +91,7 @@ describe('Game.applyMetadata', () => {
     const result = game.applyMetadata(
       { coverImageUrl: null, releaseYear: 1500, developer: null },
       ref,
+      HOST_OPTS,
     );
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.kind).toBe('release_year_out_of_range');
@@ -95,6 +103,7 @@ describe('Game.applyMetadata', () => {
     const result = game.applyMetadata(
       { coverImageUrl: 'https://evil.com/x.jpg', releaseYear: null, developer: null },
       ref,
+      HOST_OPTS,
     );
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.kind).toBe('cover_url_host_not_allowed');
@@ -106,6 +115,7 @@ describe('Game.applyMetadata', () => {
     const result = game.applyMetadata(
       { coverImageUrl: null, releaseYear: 2020, developer: null },
       ref,
+      HOST_OPTS,
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -125,6 +135,7 @@ describe('Game.applyMetadata', () => {
         developer: 'New Studio',
       },
       ref,
+      HOST_OPTS,
     );
     expect(result.ok).toBe(true);
     expect(game.releaseYear?.value).toBe(2010);
@@ -160,7 +171,7 @@ describe('Game.fromPersistence with metadata fields', () => {
       metadataMatchedAt: '2026-05-11T10:00:00.000Z',
     });
     expect(game.metadataRef).not.toBeNull();
-    expect(game.metadataRef?.providerName).toBe('igdb');
+    expect(game.metadataRef?.providerName).toBe('igdb' as ProviderName);
     expect(game.metadataRef?.providerId).toBe('99');
     expect(game.metadataRef?.matchedAt.toISOString()).toBe('2026-05-11T10:00:00.000Z');
   });

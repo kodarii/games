@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import type { ProviderName } from '../../../domain/games/external-metadata-ref';
 import type {
   GameMetadataCandidate,
   GameMetadataProvider,
@@ -18,7 +19,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 function makeCandidate(over: Partial<GameMetadataCandidate> = {}): GameMetadataCandidate {
   return {
-    providerName: 'igdb',
+    providerName: 'igdb' as ProviderName,
     providerId: 'p-1',
     title: 'Resident Evil 4',
     developer: 'Capcom',

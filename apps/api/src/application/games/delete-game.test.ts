@@ -1,24 +1,23 @@
 import { describe, expect, it } from 'bun:test';
-import { Game, type GameUpdate, type NewGame } from '../../domain/games/game';
+import { Game } from '../../domain/games/game';
 import type { GameRepository } from '../../domain/games/game-repository';
-import type { CoverStorage } from '../cover-storage/cover-storage';
+import type { GameUpdate } from '../../domain/games/game-update';
+import type { NewGame } from '../../domain/games/new-game';
+import { InlineTransactionRunner } from '../shared/__tests__/inline-transaction-runner';
 import { DeleteGame } from './delete-game';
-
-class FakeCoverStorage implements CoverStorage {
-  deleted: string[] = [];
-  upload = async () => ({ url: 'https://fake/uploaded' });
-  delete = async (url: string) => {
-    this.deleted.push(url);
-  };
-  listOlderThan = async () => [];
-}
 
 class FakeGameRepository implements GameRepository {
   private games = new Map<number, Game>();
 
+  withTx = (_tx: unknown): GameRepository => this;
   list = async () => ({ items: [], total: 0 });
   listAll = async (): Promise<Game[]> => [];
-  findByExternalId = async (): Promise<Game | null> => null;
+  findByExternalId = async (userId: string, externalId: string): Promise<Game | null> => {
+    return (
+      [...this.games.values()].find((g) => g.externalId === externalId && g.userId === userId) ??
+      null
+    );
+  };
   create = async (g: NewGame) => {
     return Game.fromPersistence({
       id: Date.now(),
@@ -36,7 +35,12 @@ class FakeGameRepository implements GameRepository {
       format: g.format,
     });
   };
-  update = async (_userId: string, _externalId: string, _game: GameUpdate): Promise<Game | null> => {
+  update = async (
+    _userId: string,
+    _externalId: string,
+    _game: GameUpdate,
+    _expectedUpdatedAt: Date,
+  ): Promise<Game | null> => {
     return null;
   };
 
@@ -44,8 +48,10 @@ class FakeGameRepository implements GameRepository {
     return this.games.get(id) ?? null;
   }
 
-  async delete(userId: string, externalId: string): Promise<Game | null> {
-    const game = [...this.games.values()].find(g => g.externalId === externalId && g.userId === userId);
+  async delete(userId: string, externalId: string, _expectedUpdatedAt: Date): Promise<Game | null> {
+    const game = [...this.games.values()].find(
+      (g) => g.externalId === externalId && g.userId === userId,
+    );
     if (!game) return null;
     this.games.delete(game.id);
     return game;
@@ -54,8 +60,12 @@ class FakeGameRepository implements GameRepository {
   async countByPlatform(_userId: string, _platformName: string): Promise<number> {
     return 0;
   }
-  async countByGenre(): Promise<number> { return 0; }
-  async countByDeveloper(): Promise<number> { return 0; }
+  async countByGenre(): Promise<number> {
+    return 0;
+  }
+  async countByDeveloper(): Promise<number> {
+    return 0;
+  }
 
   async findAllCoverImages(): Promise<string[]> {
     return [];
@@ -89,8 +99,7 @@ describe('DeleteGame', () => {
   it('deletes game and returns ok', async () => {
     const repo = new FakeGameRepository();
     repo.seed(existingGame);
-    const coverStorage = new FakeCoverStorage();
-    const useCase = new DeleteGame(repo, coverStorage);
+    const useCase = new DeleteGame(repo, new InlineTransactionRunner());
 
     const result = await useCase.execute('ext-game-1', 'user-A');
 
@@ -103,8 +112,7 @@ describe('DeleteGame', () => {
 
   it('returns not_found when game does not exist', async () => {
     const repo = new FakeGameRepository();
-    const coverStorage = new FakeCoverStorage();
-    const useCase = new DeleteGame(repo, coverStorage);
+    const useCase = new DeleteGame(repo, new InlineTransactionRunner());
 
     const result = await useCase.execute('nonexistent', 'user-A');
 
@@ -117,8 +125,7 @@ describe('DeleteGame', () => {
   it('returns not_found and leaves game intact when user does not own it (IDOR)', async () => {
     const repo = new FakeGameRepository();
     repo.seed(existingGame);
-    const coverStorage = new FakeCoverStorage();
-    const useCase = new DeleteGame(repo, coverStorage);
+    const useCase = new DeleteGame(repo, new InlineTransactionRunner());
 
     const result = await useCase.execute('ext-game-1', 'user-B');
 
@@ -130,7 +137,7 @@ describe('DeleteGame', () => {
     expect(stillExists).not.toBeNull();
   });
 
-  it('deletes cover from storage when game with cover is deleted', async () => {
+  it('does NOT touch cover storage when deleting a game with a cover (cron-only cleanup)', async () => {
     const repo = new FakeGameRepository();
     const gameWithCover = Game.fromPersistence({
       id: 1,
@@ -149,22 +156,13 @@ describe('DeleteGame', () => {
       coverImage: 'https://utfs.io/f/some-key',
     });
     repo.seed(gameWithCover);
-    const coverStorage = new FakeCoverStorage();
-    const useCase = new DeleteGame(repo, coverStorage);
+    const useCase = new DeleteGame(repo, new InlineTransactionRunner());
 
-    await useCase.execute('ext-game-1', 'user-A');
-    await Promise.resolve();
-    expect(coverStorage.deleted).toEqual(['https://utfs.io/f/some-key']);
-  });
-
-  it('does not call storage when game has no cover', async () => {
-    const repo = new FakeGameRepository();
-    repo.seed(existingGame);
-    const coverStorage = new FakeCoverStorage();
-    const useCase = new DeleteGame(repo, coverStorage);
-
-    await useCase.execute('ext-game-1', 'user-A');
-    await Promise.resolve();
-    expect(coverStorage.deleted).toEqual([]);
+    const result = await useCase.execute('ext-game-1', 'user-A');
+    expect(result.ok).toBe(true);
+    // Regression guard: the constructor must NOT accept a CoverStorage
+    // dependency. The cron sweep is the single source of truth for
+    // orphan cleanup.
+    expect(useCase.constructor.length).toBe(2);
   });
 });

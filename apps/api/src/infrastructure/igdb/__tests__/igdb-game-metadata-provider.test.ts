@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import type { ProviderName } from '../../../domain/games/external-metadata-ref';
 import { IgdbGameMetadataProvider } from '../igdb-game-metadata-provider';
 import { IgdbHttpError } from '../igdb-http-client';
 
@@ -92,7 +93,7 @@ describe('IgdbGameMetadataProvider', () => {
     expect(candidates).toHaveLength(2);
 
     const first = candidates[0];
-    expect(first?.providerName).toBe('igdb');
+    expect(first?.providerName).toBe('igdb' as ProviderName);
     expect(first?.providerId).toBe('12345');
     expect(first?.title).toBe('Resident Evil 4');
     expect(first?.developer).toBe('Capcom');

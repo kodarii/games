@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ProviderName } from '../../domain/games/external-metadata-ref';
 import type {
   GameMetadataCandidate,
   GameMetadataProvider,
@@ -134,7 +135,7 @@ export class IgdbGameMetadataProvider implements GameMetadataProvider {
     }
 
     const candidates: GameMetadataCandidate[] = validated.data.map((game) => ({
-      providerName: 'igdb',
+      providerName: 'igdb' as ProviderName,
       providerId: String(game.id),
       title: game.name,
       developer: pickDeveloper(game),

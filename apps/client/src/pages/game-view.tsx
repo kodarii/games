@@ -5,19 +5,15 @@ import { GameCover } from '@/components/game-cover';
 import { Icon } from '@/components/icons';
 import { RematchButton } from '@/components/rematch-button';
 import { StatusBadge } from '@/components/status-badge';
-import { UploadCoverButton } from '@/components/upload-cover-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { UploadCoverButton } from '@/components/upload-cover-button';
+import { useGameDraft } from '@/hooks/use-game-draft';
 import { coverColorFor } from '@/lib/avatar';
 import { statusFor } from '@/lib/game-status';
-import {
-  formatPriceZl,
-  formatPurchasedAt,
-  groszeToZl,
-  zlToGrosze,
-} from '@/lib/money';
+import { formatPriceZl, formatPurchasedAt } from '@/lib/money';
 import {
   useDeleteGameMutation,
   useGameQuery,
@@ -26,7 +22,7 @@ import {
   useUpdateGameMutation,
 } from '@/lib/queries';
 import { cn } from '@/lib/utils';
-import type { Game, GameFormat, GamePlatform, GameStatus } from '@/types';
+import type { Game, GameFormat, GameStatus } from '@/types';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -35,42 +31,6 @@ const FORMAT_OPTS: { value: GameFormat; label: string }[] = [
   { value: 'physical', label: 'Physical' },
   { value: 'digital', label: 'Digital' },
 ];
-
-type DraftState = {
-  title: string;
-  developer: string;
-  genre: string;
-  releaseYear: string;
-  platform: string;
-  edition: string;
-  hoursPlayed: string;
-  status: GameStatus | null;
-  format: GameFormat;
-  coverColor: string;
-  coverImage: string | null;
-  priceZl: string;
-  purchasedAt: string;
-  notes: string;
-};
-
-function gameToDraft(g: Game): DraftState {
-  return {
-    title: g.title,
-    developer: g.developer ?? '',
-    genre: g.genre,
-    releaseYear: g.releaseYear != null ? String(g.releaseYear) : '',
-    platform: g.platform,
-    edition: g.edition ?? '',
-    hoursPlayed: g.hoursPlayed != null ? String(g.hoursPlayed) : '',
-    status: g.status,
-    format: g.format,
-    coverColor: coverColorFor(g),
-    coverImage: g.coverImage ?? null,
-    priceZl: g.price != null ? groszeToZl(g.price) : '',
-    purchasedAt: g.purchasedAt ?? '',
-    notes: g.notes ?? '',
-  };
-}
 
 function FormatChip({ format }: { format: GameFormat }) {
   return (
@@ -82,9 +42,29 @@ function FormatChip({ format }: { format: GameFormat }) {
         </svg>
       ) : (
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <polyline points="8 17 12 21 16 17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          <line x1="12" y1="12" x2="12" y2="21" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-          <path d="M20.88 18.09A5 5 0 0018 9h-1.26A8 8 0 103 16.29" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          <polyline
+            points="8 17 12 21 16 17"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <line
+            x1="12"
+            y1="12"
+            x2="12"
+            y2="21"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+          />
+          <path
+            d="M20.88 18.09A5 5 0 0018 9h-1.26A8 8 0 103 16.29"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       )}
       {format === 'physical' ? 'Physical' : 'Digital'}
@@ -128,25 +108,56 @@ function ActionsDropdown({
         <div className="absolute right-0 top-[38px] z-50 min-w-[160px] overflow-hidden rounded-[9px] border border-apex-line-4 bg-white shadow-apex-2">
           <button
             type="button"
-            onClick={() => { setOpen(false); onEdit(); }}
+            onClick={() => {
+              setOpen(false);
+              onEdit();
+            }}
             className="flex w-full cursor-pointer items-center gap-2.5 border-none bg-transparent px-4 py-[10px] text-left text-[13px] text-apex-ink hover:bg-apex-surface-hover"
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              <path
+                d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+              <path
+                d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
             </svg>
             Edit game
           </button>
           <div className="mx-3 h-px bg-apex-line-5" />
           <button
             type="button"
-            onClick={() => { setOpen(false); onDelete(); }}
+            onClick={() => {
+              setOpen(false);
+              onDelete();
+            }}
             className="flex w-full cursor-pointer items-center gap-2.5 border-none bg-transparent px-4 py-[10px] text-left text-[13px] text-[#e63946] hover:bg-[#fff5f5]"
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <polyline points="3 6 5 6 21 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              <path d="M19 6l-1 14H6L5 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              <polyline
+                points="3 6 5 6 21 6"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+              <path
+                d="M19 6l-1 14H6L5 6"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+              <path
+                d="M10 11v6M14 11v6"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
               <path d="M9 6V4h6v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
             </svg>
             Delete game
@@ -204,88 +215,6 @@ export function GameViewPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: game, error } = useGameQuery(id);
-  const updateMutation = useUpdateGameMutation();
-  const deleteMutation = useDeleteGameMutation();
-  const moveMutation = useMoveToCollectionMutation();
-
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [editMode, setEditMode] = useState(false);
-  const [draft, setDraft] = useState<DraftState | null>(null);
-  const [addPlatformOpen, setAddPlatformOpen] = useState(false);
-  const { data: platforms = [], isLoading: platformsLoading } = usePlatformsQuery();
-  const notesRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    if (editMode && notesRef.current) {
-      notesRef.current.style.height = 'auto';
-      notesRef.current.style.height = `${notesRef.current.scrollHeight}px`;
-    }
-  }, [editMode]);
-
-  const set = <K extends keyof DraftState>(k: K, v: DraftState[K]) =>
-    setDraft((d) => (d ? { ...d, [k]: v } : d));
-
-  const startEdit = () => {
-    if (game) {
-      setDraft(gameToDraft(game));
-      setEditMode(true);
-    }
-  };
-
-  const cancelEdit = () => {
-    setEditMode(false);
-    setDraft(null);
-  };
-
-  const saveEdit = () => {
-    if (!draft || !game || !draft.platform) return;
-    const isWishlist = game.kind === 'wishlist';
-    updateMutation.mutate(
-      {
-        id: game.id,
-        input: {
-          kind: game.kind,
-          title: draft.title.trim(),
-          developer: draft.developer.trim() || undefined,
-          genre: draft.genre.trim(),
-          releaseYear: draft.releaseYear ? Number(draft.releaseYear) : undefined,
-          platform: draft.platform as GamePlatform,
-          edition: draft.edition.trim() || undefined,
-          hoursPlayed: isWishlist ? undefined : (draft.status != null ? (Number(draft.hoursPlayed) || 0) : undefined),
-          status: isWishlist ? undefined : (draft.status ?? undefined),
-          format: draft.format,
-          coverColor: draft.coverColor,
-          coverImage: draft.coverImage,
-          price: draft.priceZl.trim() ? (zlToGrosze(draft.priceZl) ?? null) : null,
-          ...(isWishlist ? {} : { purchasedAt: draft.purchasedAt || null }),
-          notes: draft.notes.trim() || null,
-        },
-      },
-      {
-        onSuccess: () => {
-          setEditMode(false);
-          setDraft(null);
-        },
-      },
-    );
-  };
-
-  const handleDelete = async () => {
-    if (!game) return;
-    try {
-      await deleteMutation.mutateAsync(game.id);
-      navigate(game.kind === 'wishlist' ? '/wishlist' : '/games');
-    } catch (e) {
-      alert(`Failed to delete: ${e}`);
-    }
-  };
-
-  const handleMove = () => {
-    if (!game) return;
-    moveMutation.mutate(game.id, {
-      onSuccess: () => navigate(`/games/${game.id}`),
-    });
-  };
 
   if (error) {
     return (
@@ -296,9 +225,77 @@ export function GameViewPage() {
   }
   if (!game) return null;
 
-  const liveTitle = editMode && draft ? draft.title || game.title : game.title;
-  const liveCoverColor = editMode && draft ? draft.coverColor : coverColorFor(game);
-  const liveCoverImage = editMode && draft ? draft.coverImage : (game.coverImage ?? null);
+  return <GameViewBody game={game} navigate={navigate} />;
+}
+
+function GameViewBody({
+  game,
+  navigate,
+}: {
+  game: Game;
+  navigate: ReturnType<typeof useNavigate>;
+}) {
+  const updateMutation = useUpdateGameMutation();
+  const deleteMutation = useDeleteGameMutation();
+  const moveMutation = useMoveToCollectionMutation();
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [addPlatformOpen, setAddPlatformOpen] = useState(false);
+  const { data: platforms = [], isLoading: platformsLoading } = usePlatformsQuery();
+  const notesRef = useRef<HTMLTextAreaElement>(null);
+
+  const { draft, set, reset, toPayload } = useGameDraft(game);
+
+  useEffect(() => {
+    if (editMode && notesRef.current) {
+      notesRef.current.style.height = 'auto';
+      notesRef.current.style.height = `${notesRef.current.scrollHeight}px`;
+    }
+  }, [editMode]);
+
+  const startEdit = () => {
+    reset();
+    setEditMode(true);
+  };
+
+  const cancelEdit = () => {
+    setEditMode(false);
+    reset();
+  };
+
+  const saveEdit = () => {
+    if (!draft.platform) return;
+    updateMutation.mutate(
+      { id: game.id, input: toPayload({ kind: game.kind }) },
+      {
+        onSuccess: () => {
+          setEditMode(false);
+        },
+      },
+    );
+  };
+
+  const handleDelete = () => {
+    deleteMutation.mutate(game.id, {
+      onSuccess: () => {
+        navigate(game.kind === 'wishlist' ? '/wishlist' : '/games');
+      },
+      onError: (err) => {
+        alert(`Failed to delete: ${err.message}`);
+      },
+    });
+  };
+
+  const handleMove = () => {
+    moveMutation.mutate(game.id, {
+      onSuccess: () => navigate(`/games/${game.id}`),
+    });
+  };
+
+  const liveTitle = editMode ? draft.title || game.title : game.title;
+  const liveCoverColor = editMode ? draft.coverColor : coverColorFor(game);
+  const liveCoverImage = editMode ? draft.coverImage : (game.coverImage ?? null);
   const subtitle = [game.developer, game.platform].filter(Boolean).join(' · ');
   const backPath = game.kind === 'wishlist' ? '/wishlist' : '/games';
   const backLabel = game.kind === 'wishlist' ? 'Wishlist' : 'Games';
@@ -353,10 +350,7 @@ export function GameViewPage() {
                   {moveMutation.isPending ? 'Moving…' : 'Move to collection'}
                 </Button>
               )}
-              <ActionsDropdown
-                onEdit={startEdit}
-                onDelete={() => setDeleteDialogOpen(true)}
-              />
+              <ActionsDropdown onEdit={startEdit} onDelete={() => setDeleteDialogOpen(true)} />
             </>
           )}
         </div>
@@ -370,13 +364,9 @@ export function GameViewPage() {
           style={{ background: `color-mix(in oklch, ${liveCoverColor} 7%, white)` }}
         >
           <div className="px-5 pb-10 pt-6">
-            <GameCover
-              name={liveTitle}
-              color={liveCoverColor}
-              src={liveCoverImage}
-            />
+            <GameCover name={liveTitle} color={liveCoverColor} src={liveCoverImage} />
 
-            {editMode && draft ? (
+            {editMode ? (
               <div className="mt-5 space-y-4">
                 <div>
                   <div className="mb-[6px] text-[10px] font-semibold uppercase tracking-[0.07em] text-apex-muted">
@@ -412,24 +402,20 @@ export function GameViewPage() {
         {/* Right panel */}
         <div className="scroll-thin flex-1 overflow-y-auto">
           <div className="px-6 pb-24 pt-7 lg:px-8">
-
             {/* Mobile: compact cover + title row */}
             <div className="mb-6 md:hidden">
               <div className="flex gap-4">
                 <div className="w-[88px] shrink-0">
-                  <GameCover
-                    name={liveTitle}
-                    color={liveCoverColor}
-                    src={liveCoverImage}
-                  />
+                  <GameCover name={liveTitle} color={liveCoverColor} src={liveCoverImage} />
                 </div>
                 <div className="min-w-0 pt-1">
-                  <h1 className="text-[17px] font-bold leading-tight text-apex-ink" style={{ textWrap: 'balance' } as React.CSSProperties}>
+                  <h1
+                    className="text-[17px] font-bold leading-tight text-apex-ink"
+                    style={{ textWrap: 'balance' } as React.CSSProperties}
+                  >
                     {liveTitle}
                   </h1>
-                  {subtitle && (
-                    <p className="mt-1 text-[12px] text-apex-muted">{subtitle}</p>
-                  )}
+                  {subtitle && <p className="mt-1 text-[12px] text-apex-muted">{subtitle}</p>}
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     {game.kind === 'owned' && game.status && (
                       <StatusBadge
@@ -446,7 +432,7 @@ export function GameViewPage() {
                   )}
                 </div>
               </div>
-              {editMode && draft && (
+              {editMode && (
                 <div className="mt-4 space-y-4">
                   <div>
                     <div className="mb-[6px] text-[10px] font-semibold uppercase tracking-[0.07em] text-apex-muted">
@@ -473,32 +459,24 @@ export function GameViewPage() {
               >
                 {liveTitle}
               </h1>
-              {subtitle && (
-                <p className="mt-[6px] text-[13px] text-apex-muted">{subtitle}</p>
-              )}
+              {subtitle && <p className="mt-[6px] text-[13px] text-apex-muted">{subtitle}</p>}
             </div>
 
             {/* Game Details section */}
             <SectionLabel>Game Details</SectionLabel>
             <dl className="grid grid-cols-1 gap-x-10 gap-y-5 sm:grid-cols-2">
               <FieldItem label="Title" value={game.title} editMode={editMode}>
-                <Input
-                  value={draft?.title ?? ''}
-                  onChange={(e) => set('title', e.target.value)}
-                />
+                <Input value={draft.title} onChange={(e) => set('title', e.target.value)} />
               </FieldItem>
 
               <FieldItem label="Developer" value={game.developer ?? null} editMode={editMode}>
-                <Input
-                  value={draft?.developer ?? ''}
-                  onChange={(e) => set('developer', e.target.value)}
-                />
+                <Input value={draft.developer} onChange={(e) => set('developer', e.target.value)} />
               </FieldItem>
 
               <FieldItem label="Genre" value={game.genre || null} editMode={editMode}>
                 <Input
                   placeholder="e.g. Action RPG"
-                  value={draft?.genre ?? ''}
+                  value={draft.genre}
                   onChange={(e) => set('genre', e.target.value)}
                 />
               </FieldItem>
@@ -511,7 +489,7 @@ export function GameViewPage() {
               >
                 <Input
                   type="number"
-                  value={draft?.releaseYear ?? ''}
+                  value={draft.releaseYear}
                   onChange={(e) => set('releaseYear', e.target.value)}
                 />
               </FieldItem>
@@ -523,7 +501,9 @@ export function GameViewPage() {
                   </Select>
                 ) : platforms.length === 0 ? (
                   <div className="flex flex-col gap-2 rounded-[7px] border border-apex-line-3 bg-white px-3 py-3">
-                    <span className="text-[12px] text-apex-muted">No platforms — add one first</span>
+                    <span className="text-[12px] text-apex-muted">
+                      No platforms — add one first
+                    </span>
                     <Button variant="outline" size="sm" onClick={() => setAddPlatformOpen(true)}>
                       <Icon.plus size={12} />
                       Add platform
@@ -532,12 +512,14 @@ export function GameViewPage() {
                 ) : (
                   <>
                     <Select
-                      value={draft?.platform ?? ''}
+                      value={draft.platform}
                       onChange={(e) => set('platform', e.target.value)}
                     >
                       <option value="">Select platform</option>
                       {platforms.map((p) => (
-                        <option key={p.id} value={p.name}>{p.name}</option>
+                        <option key={p.id} value={p.name}>
+                          {p.name}
+                        </option>
                       ))}
                     </Select>
                     <button
@@ -557,11 +539,13 @@ export function GameViewPage() {
                 editMode={editMode}
               >
                 <Select
-                  value={draft?.format ?? 'physical'}
+                  value={draft.format}
                   onChange={(e) => set('format', e.target.value as GameFormat)}
                 >
                   {FORMAT_OPTS.map(({ value, label }) => (
-                    <option key={value} value={value}>{label}</option>
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
                   ))}
                 </Select>
               </FieldItem>
@@ -569,7 +553,7 @@ export function GameViewPage() {
               <FieldItem label="Edition" value={game.edition || null} editMode={editMode}>
                 <Input
                   placeholder="e.g. Deluxe"
-                  value={draft?.edition ?? ''}
+                  value={draft.edition}
                   onChange={(e) => set('edition', e.target.value)}
                 />
               </FieldItem>
@@ -577,11 +561,13 @@ export function GameViewPage() {
               {game.kind === 'owned' && (
                 <FieldItem label="Status" value={game.status ?? null} editMode={editMode}>
                   <Select
-                    value={draft?.status ?? 'Backlog'}
+                    value={draft.status ?? 'Backlog'}
                     onChange={(e) => set('status', e.target.value as GameStatus)}
                   >
                     {STATUS_OPTS.map((s) => (
-                      <option key={s} value={s}>{s}</option>
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
                     ))}
                   </Select>
                 </FieldItem>
@@ -596,7 +582,7 @@ export function GameViewPage() {
                 >
                   <Input
                     type="number"
-                    value={draft?.hoursPlayed ?? ''}
+                    value={draft.hoursPlayed}
                     onChange={(e) => set('hoursPlayed', e.target.value)}
                   />
                 </FieldItem>
@@ -613,7 +599,7 @@ export function GameViewPage() {
                   step="0.01"
                   min="0"
                   placeholder="e.g. 129.99"
-                  value={draft?.priceZl ?? ''}
+                  value={draft.priceZl}
                   onChange={(e) => set('priceZl', e.target.value)}
                 />
               </FieldItem>
@@ -626,7 +612,7 @@ export function GameViewPage() {
                 >
                   <Input
                     type="date"
-                    value={draft?.purchasedAt ?? ''}
+                    value={draft.purchasedAt}
                     onChange={(e) => set('purchasedAt', e.target.value)}
                   />
                 </FieldItem>
@@ -641,7 +627,7 @@ export function GameViewPage() {
                 {editMode ? (
                   <textarea
                     ref={notesRef}
-                    value={draft?.notes ?? ''}
+                    value={draft.notes}
                     onChange={(e) => {
                       set('notes', e.target.value);
                       e.target.style.height = 'auto';

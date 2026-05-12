@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { db } from '../infrastructure/db/client';
 import { games as gamesTable } from '../infrastructure/db/schema';
+import { requestContext } from '../infrastructure/logging/request-context-middleware';
 import { attachProblemJsonErrorHandler } from './_problem-json';
 import { games } from './games';
 import type { AuthVariables } from './middleware/require-auth';
@@ -12,6 +13,7 @@ const TEST_USER_ID = `test-user-routes-${crypto.randomUUID()}`;
 function makeTestApp() {
   const app = new Hono<{ Variables: AuthVariables }>();
   attachProblemJsonErrorHandler(app);
+  app.use('*', requestContext());
   app.use('/api/games/*', async (c, next) => {
     c.set('user', { id: TEST_USER_ID } as AuthVariables['user']);
     await next();

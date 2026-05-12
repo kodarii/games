@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { ExternalMetadataRef } from '../external-metadata-ref';
+import { ExternalMetadataRef, type ProviderName } from '../external-metadata-ref';
 
 describe('ExternalMetadataRef', () => {
   it('creates ref with all fields when providerId is non-empty', () => {
@@ -11,7 +11,7 @@ describe('ExternalMetadataRef', () => {
     });
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.value.providerName).toBe('igdb');
+      expect(r.value.providerName).toBe('igdb' as ProviderName);
       expect(r.value.providerId).toBe('12345');
       expect(r.value.matchedAt).toEqual(matchedAt);
     }
@@ -45,6 +45,36 @@ describe('ExternalMetadataRef', () => {
     });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.value.providerId).toBe('42');
+  });
+
+  it('rejects empty providerName with provider_name_empty', () => {
+    const r = ExternalMetadataRef.create({
+      providerName: '',
+      providerId: '12345',
+      matchedAt: new Date(),
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.kind).toBe('provider_name_empty');
+  });
+
+  it('rejects whitespace-only providerName with provider_name_empty', () => {
+    const r = ExternalMetadataRef.create({
+      providerName: '   ',
+      providerId: '12345',
+      matchedAt: new Date(),
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.kind).toBe('provider_name_empty');
+  });
+
+  it('accepts an arbitrary providerName string (domain has no allowlist)', () => {
+    const r = ExternalMetadataRef.create({
+      providerName: 'rawg',
+      providerId: '99',
+      matchedAt: new Date(),
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value.providerName).toBe('rawg' as ProviderName);
   });
 
   it('fromTrusted bypasses validation', () => {

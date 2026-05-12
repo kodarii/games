@@ -5,7 +5,6 @@ import { queryClient } from '@/lib/query-client';
 import { DataPage } from '@/pages/data';
 import { DictionariesPage } from '@/pages/dictionaries';
 import { GameEditPage } from '@/pages/game-edit';
-import { GameNewPage } from '@/pages/game-new';
 import { GameViewPage } from '@/pages/game-view';
 import { GamesPage } from '@/pages/games';
 import { LoginPage } from '@/pages/login';
@@ -36,7 +35,6 @@ const router = createBrowserRouter(
           children: [
             { index: true, element: <Navigate to="/games" replace /> },
             { path: 'games', element: <GamesPage /> },
-            { path: 'games/new', element: <GameNewPage /> },
             { path: 'games/:id', element: <GameViewPage /> },
             { path: 'games/:id/edit', element: <GameEditPage /> },
             { path: 'wishlist', element: <WishlistPage /> },

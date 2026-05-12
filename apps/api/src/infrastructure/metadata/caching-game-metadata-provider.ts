@@ -8,6 +8,7 @@ import type {
 } from '../../domain/games/game-metadata-provider';
 import { err, ok } from '../../domain/shared/result';
 import type { Result } from '../../domain/shared/result';
+import { type Logger, baseLogger } from '../logging/logger';
 import { normalizeTitle } from './normalize-title';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -36,6 +37,7 @@ export interface CachingGameMetadataProviderOptions {
   readonly positiveTtlDays: number;
   readonly negativeTtlDays: number;
   readonly now?: () => Date;
+  readonly logger?: Logger;
 }
 
 /**
@@ -67,6 +69,7 @@ export class CachingGameMetadataProvider implements GameMetadataProvider {
   private readonly positiveTtlMs: number;
   private readonly negativeTtlMs: number;
   private readonly now: () => Date;
+  private readonly logger: Logger;
 
   constructor(opts: CachingGameMetadataProviderOptions) {
     this.inner = opts.inner;
@@ -75,6 +78,7 @@ export class CachingGameMetadataProvider implements GameMetadataProvider {
     this.positiveTtlMs = opts.positiveTtlDays * DAY_MS;
     this.negativeTtlMs = opts.negativeTtlDays * DAY_MS;
     this.now = opts.now ?? (() => new Date());
+    this.logger = opts.logger ?? baseLogger;
   }
 
   buildCacheKey(title: string, platform: string): string {
@@ -113,15 +117,14 @@ export class CachingGameMetadataProvider implements GameMetadataProvider {
         fetchedAt,
       );
     } catch (cacheError) {
-      // Non-fatal: serve live candidates even if cache write fails.
-      const message = cacheError instanceof Error ? cacheError.message : 'unknown';
-      console.log(
-        JSON.stringify({
-          event: 'igdb.cache.write_failed',
-          cacheKey,
-          err: message,
-        }),
-      );
+      // Non-fatal: serve live candidates even if cache write fails. Log via
+      // process-level logger — this decorator is a process singleton with no
+      // request context.
+      this.logger.warn({
+        event: 'igdb.cache.write_failed',
+        cacheKey,
+        err: cacheError instanceof Error ? cacheError : new Error(String(cacheError)),
+      });
     }
     return innerResult;
   }

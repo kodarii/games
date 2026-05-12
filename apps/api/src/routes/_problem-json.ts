@@ -1,5 +1,6 @@
 import type { Hono } from 'hono';
 import { ZodError, type ZodIssue } from 'zod';
+import { type Logger, baseLogger } from '../infrastructure/logging/logger';
 
 export type ProblemJson = {
   type: string;
@@ -29,6 +30,17 @@ export function domainProblem(error: { kind: string } | string, status = 400): P
   };
 }
 
+export function optimisticLockProblem(
+  detail = 'Resource was modified by another request',
+): ProblemJson {
+  return {
+    type: '/errors/optimistic-lock',
+    title: 'Conflict',
+    status: 409,
+    detail,
+  };
+}
+
 export function payloadTooLargeProblem(detail: string): ProblemJson {
   return {
     type: '/errors/payload-too-large',
@@ -53,7 +65,13 @@ export function attachProblemJsonErrorHandler(app: Hono<any, any, any>) {
     if (err instanceof ZodError) {
       return c.json(zodIssuesToProblemJson(err.issues), 400);
     }
-    console.error('[unhandled]', err);
+    // Prefer the request-scoped logger (has requestId/userId). Fall back to
+    // baseLogger if the error fires before requestContext set it.
+    const ctxLogger = (c.get('logger') as Logger | undefined) ?? baseLogger;
+    ctxLogger.error({
+      event: 'http.unhandled',
+      err: err instanceof Error ? err : new Error(String(err)),
+    });
     return c.json(internalProblem(), 500);
   });
 }

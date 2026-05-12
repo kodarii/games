@@ -1,10 +1,4 @@
-import type { NewPlatform, Platform } from './platform';
+import type { DictionaryRepository } from '../dictionary/dictionary';
+import type { PlatformKind } from './platform';
 
-export interface PlatformRepository {
-  list(userId: string): Promise<Platform[]>;
-  findById(id: number): Promise<Platform | null>;
-  findByName(userId: string, name: string): Promise<Platform | null>;
-  findByExternalId(userId: string, externalId: string): Promise<Platform | null>;
-  create(platform: NewPlatform): Promise<Platform>;
-  delete(id: number): Promise<Platform | null>;
-}
+export type PlatformRepository = DictionaryRepository<PlatformKind>;

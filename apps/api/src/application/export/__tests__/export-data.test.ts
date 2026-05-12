@@ -1,15 +1,27 @@
 import { describe, expect, it } from 'bun:test';
-import { Game, type GameFormat, type GamePlatform, type GameStatus } from '../../../domain/games/game';
-import type { GameRepository, ListGamesQuery, ListGamesResult } from '../../../domain/games/game-repository';
-import type { NewGame, GameUpdate } from '../../../domain/games/game';
+import { Game } from '../../../domain/games/game';
+import type {
+  GameRepository,
+  ListGamesQuery,
+  ListGamesResult,
+} from '../../../domain/games/game-repository';
+import type { GameUpdate } from '../../../domain/games/game-update';
+import type {
+  GameFormat,
+  GamePlatform,
+  GameStatus,
+} from '../../../domain/games/game-value-objects';
+import type { NewGame } from '../../../domain/games/new-game';
 import { Platform } from '../../../domain/platforms/platform';
-import type { PlatformRepository } from '../../../domain/platforms/platform-repository';
 import type { NewPlatform } from '../../../domain/platforms/platform';
+import type { PlatformRepository } from '../../../domain/platforms/platform-repository';
 import { ExportData } from '../export-data';
 import { toSnapshot } from '../export-snapshot';
 
 class FakeGameRepository implements GameRepository {
   constructor(private readonly games: Game[]) {}
+
+  withTx = (_tx: unknown): GameRepository => this;
 
   async listAll(userId: string): Promise<Game[]> {
     return this.games.filter((g) => g.userId === userId);
@@ -27,17 +39,30 @@ class FakeGameRepository implements GameRepository {
   async create(_game: NewGame): Promise<Game> {
     throw new Error('not used in this test');
   }
-  async update(_userId: string, _externalId: string, _game: GameUpdate): Promise<Game | null> {
+  async update(
+    _userId: string,
+    _externalId: string,
+    _game: GameUpdate,
+    _expectedUpdatedAt: Date,
+  ): Promise<Game | null> {
     throw new Error('not used in this test');
   }
-  async delete(_userId: string, _externalId: string): Promise<Game | null> {
+  async delete(
+    _userId: string,
+    _externalId: string,
+    _expectedUpdatedAt: Date,
+  ): Promise<Game | null> {
     throw new Error('not used in this test');
   }
   async countByPlatform(_userId: string, _platformName: string): Promise<number> {
     throw new Error('not used in this test');
   }
-  async countByGenre(): Promise<number> { throw new Error('not used in this test'); }
-  async countByDeveloper(): Promise<number> { throw new Error('not used in this test'); }
+  async countByGenre(): Promise<number> {
+    throw new Error('not used in this test');
+  }
+  async countByDeveloper(): Promise<number> {
+    throw new Error('not used in this test');
+  }
 
   async findAllCoverImages(): Promise<string[]> {
     return [];
@@ -49,6 +74,8 @@ class FakeGameRepository implements GameRepository {
 
 class FakePlatformRepository implements PlatformRepository {
   constructor(private readonly platforms: Platform[]) {}
+
+  withTx = (_tx: unknown): PlatformRepository => this;
 
   async list(userId: string): Promise<Platform[]> {
     return this.platforms.filter((p) => p.userId === userId);
@@ -221,10 +248,7 @@ describe('ExportData', () => {
       makeGame({ id: 2, userId: 'u1', title: 'GameB', releaseYear: 2021 }),
       makeGame({ id: 3, userId: 'u2', title: 'GameC', releaseYear: 2019 }),
     ];
-    const platforms = [
-      makePlatform(1, 'u1', 'PC'),
-      makePlatform(2, 'u2', 'Xbox'),
-    ];
+    const platforms = [makePlatform(1, 'u1', 'PC'), makePlatform(2, 'u2', 'Xbox')];
 
     const useCase = new ExportData(
       new FakeGameRepository(games),

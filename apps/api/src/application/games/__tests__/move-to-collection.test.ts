@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test';
-import { Game, type GameUpdate } from '../../../domain/games/game';
-import type { GameRepository, ListGamesQuery, ListGamesResult } from '../../../domain/games/game-repository';
+import { Game } from '../../../domain/games/game';
+import type {
+  GameRepository,
+  ListGamesQuery,
+  ListGamesResult,
+} from '../../../domain/games/game-repository';
+import type { GameUpdate } from '../../../domain/games/game-update';
+import { InlineTransactionRunner } from '../../shared/__tests__/inline-transaction-runner';
 import { MoveToCollection } from '../move-to-collection';
 
 class FakeGameRepository implements GameRepository {
@@ -10,6 +16,8 @@ class FakeGameRepository implements GameRepository {
     for (const g of games) this.store.set(g.id, g);
   }
 
+  withTx = (_tx: unknown): GameRepository => this;
+
   findByExternalId = async (userId: string, externalId: string): Promise<Game | null> => {
     for (const g of this.store.values()) {
       if (g.userId === userId && g.externalId === externalId) return g;
@@ -17,8 +25,15 @@ class FakeGameRepository implements GameRepository {
     return null;
   };
 
-  update = async (userId: string, externalId: string, newGame: GameUpdate): Promise<Game | null> => {
-    const existing = [...this.store.values()].find(g => g.externalId === externalId && g.userId === userId);
+  update = async (
+    userId: string,
+    externalId: string,
+    newGame: GameUpdate,
+    _expectedUpdatedAt: Date,
+  ): Promise<Game | null> => {
+    const existing = [...this.store.values()].find(
+      (g) => g.externalId === externalId && g.userId === userId,
+    );
     if (!existing) return null;
     const updated = Game.fromPersistence({
       id: existing.id,
@@ -43,11 +58,21 @@ class FakeGameRepository implements GameRepository {
     return updated;
   };
 
-  list = async (_q: ListGamesQuery): Promise<ListGamesResult> => { throw new Error('not implemented'); };
-  listAll = async (): Promise<Game[]> => { throw new Error('not implemented'); };
-  findById = async (): Promise<Game | null> => { throw new Error('not implemented'); };
-  create = async (): Promise<Game> => { throw new Error('not implemented'); };
-  delete = async (): Promise<Game | null> => { throw new Error('not implemented'); };
+  list = async (_q: ListGamesQuery): Promise<ListGamesResult> => {
+    throw new Error('not implemented');
+  };
+  listAll = async (): Promise<Game[]> => {
+    throw new Error('not implemented');
+  };
+  findById = async (): Promise<Game | null> => {
+    throw new Error('not implemented');
+  };
+  create = async (): Promise<Game> => {
+    throw new Error('not implemented');
+  };
+  delete = async (): Promise<Game | null> => {
+    throw new Error('not implemented');
+  };
   countByPlatform = async (): Promise<number> => 0;
   countByGenre = async (): Promise<number> => 0;
   countByDeveloper = async (): Promise<number> => 0;
@@ -57,7 +82,9 @@ class FakeGameRepository implements GameRepository {
   };
 }
 
-function makeWishlistGame(overrides: Partial<Parameters<typeof Game.fromPersistence>[0]> = {}): Game {
+function makeWishlistGame(
+  overrides: Partial<Parameters<typeof Game.fromPersistence>[0]> = {},
+): Game {
   return Game.fromPersistence({
     id: 1,
     externalId: 'ext-wish-1',
@@ -84,7 +111,7 @@ describe('MoveToCollection', () => {
   it('moves a wishlist game to owned with status=Backlog and hoursPlayed=0', async () => {
     const game = makeWishlistGame();
     const repo = new FakeGameRepository([game]);
-    const useCase = new MoveToCollection(repo);
+    const useCase = new MoveToCollection(repo, new InlineTransactionRunner());
 
     const result = await useCase.execute('ext-wish-1', 'user-A');
 
@@ -98,7 +125,7 @@ describe('MoveToCollection', () => {
   it('preserves all other fields after move', async () => {
     const game = makeWishlistGame();
     const repo = new FakeGameRepository([game]);
-    const useCase = new MoveToCollection(repo);
+    const useCase = new MoveToCollection(repo, new InlineTransactionRunner());
 
     const result = await useCase.execute('ext-wish-1', 'user-A');
 
@@ -117,7 +144,7 @@ describe('MoveToCollection', () => {
 
   it('returns not_found when game does not exist', async () => {
     const repo = new FakeGameRepository([]);
-    const useCase = new MoveToCollection(repo);
+    const useCase = new MoveToCollection(repo, new InlineTransactionRunner());
 
     const result = await useCase.execute('nonexistent', 'user-A');
 
@@ -129,7 +156,7 @@ describe('MoveToCollection', () => {
   it('returns not_found when game belongs to another user', async () => {
     const game = makeWishlistGame({ userId: 'user-B' });
     const repo = new FakeGameRepository([game]);
-    const useCase = new MoveToCollection(repo);
+    const useCase = new MoveToCollection(repo, new InlineTransactionRunner());
 
     const result = await useCase.execute('ext-wish-1', 'user-A');
 
@@ -155,7 +182,7 @@ describe('MoveToCollection', () => {
       format: 'digital',
     });
     const repo = new FakeGameRepository([game]);
-    const useCase = new MoveToCollection(repo);
+    const useCase = new MoveToCollection(repo, new InlineTransactionRunner());
 
     const result = await useCase.execute('ext-owned-2', 'user-A');
 
@@ -167,7 +194,7 @@ describe('MoveToCollection', () => {
   it('preserves null developer after move', async () => {
     const game = makeWishlistGame({ developer: null });
     const repo = new FakeGameRepository([game]);
-    const useCase = new MoveToCollection(repo);
+    const useCase = new MoveToCollection(repo, new InlineTransactionRunner());
 
     const result = await useCase.execute('ext-wish-1', 'user-A');
 

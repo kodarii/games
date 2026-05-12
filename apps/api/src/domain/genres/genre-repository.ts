@@ -1,9 +1,4 @@
-import type { Genre, NewGenre } from './genre';
+import type { DictionaryRepository } from '../dictionary/dictionary';
+import type { GenreKind } from './genre';
 
-export interface GenreRepository {
-  list(userId: string): Promise<Genre[]>;
-  findById(id: number): Promise<Genre | null>;
-  findByName(userId: string, name: string): Promise<Genre | null>;
-  create(genre: NewGenre): Promise<Genre>;
-  delete(id: number): Promise<Genre | null>;
-}
+export type GenreRepository = DictionaryRepository<GenreKind>;
