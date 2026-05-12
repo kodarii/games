@@ -1,15 +1,12 @@
 import { z } from 'zod';
-import {
-  type Game,
-  GameUpdate,
-  type GameProps,
-  type GameValidationError,
-} from '../../domain/games/game';
-import type { GameRepository } from '../../domain/games/game-repository';
+import type { Game } from '../../domain/games/game';
+import { type GameRepository, OptimisticLockError } from '../../domain/games/game-repository';
+import { GameUpdate, type GameUpdateProps } from '../../domain/games/game-update';
+import type { GameValidationError } from '../../domain/games/game-value-objects';
 import type { PlatformRepository } from '../../domain/platforms/platform-repository';
 import { err, ok } from '../../domain/shared/result';
 import type { Result } from '../../domain/shared/result';
-import type { CoverStorage } from '../cover-storage/cover-storage';
+import type { TransactionRunner } from '../shared/transaction-runner';
 
 const purchasedAtSchema = z
   .string()
@@ -42,23 +39,25 @@ const OwnedSchema = z.object({
   notes: z.string().nullable().optional(),
 });
 
-const WishlistSchema = z.object({
-  kind: z.literal('wishlist'),
-  title: z.string().min(1),
-  developer: z.string().optional().nullable(),
-  genre: z.string().optional().default(''),
-  releaseYear: z.coerce.number().int().min(1970).max(2100).optional(),
-  platform: z.string().min(1),
-  edition: z.string().optional().default(''),
-  format: z.enum(['physical', 'digital']).default('digital'),
-  coverColor: z
-    .string()
-    .regex(/^#[0-9a-fA-F]{6}$/)
-    .optional(),
-  coverImage: z.string().url().nullable().optional(),
-  price: z.number().int().min(0).nullable().optional(),
-  notes: z.string().nullable().optional(),
-}).strict();
+const WishlistSchema = z
+  .object({
+    kind: z.literal('wishlist'),
+    title: z.string().min(1),
+    developer: z.string().optional().nullable(),
+    genre: z.string().optional().default(''),
+    releaseYear: z.coerce.number().int().min(1970).max(2100).optional(),
+    platform: z.string().min(1),
+    edition: z.string().optional().default(''),
+    format: z.enum(['physical', 'digital']).default('digital'),
+    coverColor: z
+      .string()
+      .regex(/^#[0-9a-fA-F]{6}$/)
+      .optional(),
+    coverImage: z.string().url().nullable().optional(),
+    price: z.number().int().min(0).nullable().optional(),
+    notes: z.string().nullable().optional(),
+  })
+  .strict();
 
 const UpdateGameInputSchema = z.discriminatedUnion('kind', [OwnedSchema, WishlistSchema]);
 
@@ -67,13 +66,21 @@ export type UpdateGameInput = z.infer<typeof UpdateGameInputSchema>;
 export type UpdateGameError =
   | { kind: 'invalid_input'; issues: z.ZodIssue[] }
   | { kind: 'domain'; error: GameValidationError }
-  | { kind: 'not_found' };
+  | { kind: 'not_found' }
+  | { kind: 'conflict' };
 
+/**
+ * NOTE: cover-image cleanup of the prior URL is intentionally NOT performed
+ * here. A pre-commit delete races the transaction; a post-commit
+ * `void storage.delete()` races a SIGTERM. The hourly `CleanupOrphans` cron
+ * is the single source of truth — any storage file older than the safety
+ * window whose URL no longer appears in `games.cover_image` is swept.
+ */
 export class UpdateGame {
   constructor(
     private readonly repo: GameRepository,
     private readonly platformRepo: PlatformRepository,
-    private readonly coverStorage: CoverStorage,
+    private readonly tx: TransactionRunner,
   ) {}
 
   async execute(
@@ -91,78 +98,97 @@ export class UpdateGame {
       return err({ kind: 'invalid_input', issues: parsed.error.issues });
     }
 
-    const existing = await this.repo.findByExternalId(userId, externalId);
-    if (!existing) {
-      return err({ kind: 'not_found' });
-    }
-
     const data = parsed.data;
 
-    const platform = await this.platformRepo.findByName(userId, data.platform);
-    if (!platform) {
-      return err({
-        kind: 'domain',
-        error: { kind: 'platform_invalid', value: data.platform },
-      });
-    }
+    type TxResult = { ok: true; updated: Game } | { ok: false; error: UpdateGameError };
 
-    const props: GameProps =
-      data.kind === 'wishlist'
-        ? {
-            kind: 'wishlist',
-            userId: existing.userId,
-            title: data.title,
-            developer: data.developer ?? null,
-            genre: data.genre,
-            releaseYear: data.releaseYear,
-            platform: data.platform,
-            edition: data.edition || undefined,
-            hoursPlayed: null,
-            status: null,
-            format: data.format,
-            coverColor: data.coverColor,
-            coverImage: data.coverImage ?? undefined,
-            price: data.price ?? undefined,
-            purchasedAt: null,
-            notes: data.notes ?? null,
-          }
-        : {
-            kind: 'owned',
-            userId: existing.userId,
-            title: data.title,
-            developer: data.developer ?? null,
-            genre: data.genre,
-            releaseYear: data.releaseYear,
-            platform: data.platform,
-            edition: data.edition || undefined,
-            hoursPlayed: data.hoursPlayed,
-            status: data.status,
-            format: data.format,
-            coverColor: data.coverColor,
-            coverImage: data.coverImage ?? undefined,
-            price: data.price ?? undefined,
-            purchasedAt: data.purchasedAt ?? undefined,
-            notes: data.notes ?? null,
+    let txOutcome: TxResult;
+    try {
+      txOutcome = await this.tx.run<TxResult>(async (tx) => {
+        const repo = this.repo.withTx(tx);
+        const platformRepo = this.platformRepo.withTx(tx);
+
+        const existing = await repo.findByExternalId(userId, externalId);
+        if (!existing) {
+          return { ok: false, error: { kind: 'not_found' } };
+        }
+
+        // Platform validation runs AFTER the IDOR check so a cross-user
+        // attempt yields `not_found` rather than leaking the platform list.
+        const platform = await platformRepo.findByName(userId, data.platform);
+        if (!platform) {
+          return {
+            ok: false,
+            error: {
+              kind: 'domain',
+              error: { kind: 'platform_invalid', value: data.platform },
+            },
           };
+        }
 
-    const gameUpdateResult = GameUpdate.create(props);
-    if (!gameUpdateResult.ok) {
-      return err({ kind: 'domain', error: gameUpdateResult.error });
-    }
+        const props: GameUpdateProps =
+          data.kind === 'wishlist'
+            ? {
+                kind: 'wishlist',
+                userId: existing.userId,
+                title: data.title,
+                developer: data.developer ?? null,
+                genre: data.genre,
+                releaseYear: data.releaseYear,
+                platform: data.platform,
+                edition: data.edition || undefined,
+                hoursPlayed: null,
+                status: null,
+                format: data.format,
+                coverColor: data.coverColor,
+                coverImage: data.coverImage ?? undefined,
+                price: data.price ?? undefined,
+                purchasedAt: null,
+                notes: data.notes ?? null,
+              }
+            : {
+                kind: 'owned',
+                userId: existing.userId,
+                title: data.title,
+                developer: data.developer ?? null,
+                genre: data.genre,
+                releaseYear: data.releaseYear,
+                platform: data.platform,
+                edition: data.edition || undefined,
+                hoursPlayed: data.hoursPlayed,
+                status: data.status,
+                format: data.format,
+                coverColor: data.coverColor,
+                coverImage: data.coverImage ?? undefined,
+                price: data.price ?? undefined,
+                purchasedAt: data.purchasedAt ?? undefined,
+                notes: data.notes ?? null,
+              };
 
-    const updated = await this.repo.update(userId, externalId, gameUpdateResult.value);
-    if (!updated) {
-      return err({ kind: 'not_found' });
-    }
+        const gameUpdateResult = GameUpdate.create(props);
+        if (!gameUpdateResult.ok) {
+          return { ok: false, error: { kind: 'domain', error: gameUpdateResult.error } };
+        }
 
-    const oldUrl = existing.coverImage;
-    const newUrl = updated.coverImage;
-    if (oldUrl && oldUrl !== newUrl) {
-      void this.coverStorage.delete(oldUrl).catch((updateErr) => {
-        console.warn('[update-game] cover cleanup failed', { externalId, oldUrl, updateErr });
+        const updated = await repo.update(
+          userId,
+          externalId,
+          gameUpdateResult.value,
+          existing.updatedAt,
+        );
+        if (!updated) {
+          return { ok: false, error: { kind: 'not_found' } };
+        }
+        return { ok: true, updated };
       });
+    } catch (e) {
+      if (e instanceof OptimisticLockError) {
+        return err({ kind: 'conflict' });
+      }
+      throw e;
     }
 
-    return ok(updated);
+    if (!txOutcome.ok) return err(txOutcome.error);
+    return ok(txOutcome.updated);
   }
 }

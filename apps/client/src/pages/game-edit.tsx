@@ -18,5 +18,5 @@ export function GameEditPage() {
 
   const mode = game.kind ?? (location.pathname.startsWith('/wishlist/') ? 'wishlist' : 'owned');
 
-  return <GameForm key={game.id} action="edit" mode={mode} initialGame={game} />;
+  return <GameForm key={game.id} mode={mode} initialGame={game} />;
 }

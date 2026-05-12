@@ -1,4 +1,5 @@
-import type { Game, GameStatus } from '../../domain/games/game';
+import type { Game } from '../../domain/games/game';
+import type { GameStatus } from '../../domain/games/game-value-objects';
 import type { Platform } from '../../domain/platforms/platform';
 
 export const EXPORT_SCHEMA_VERSION = 4 as const;
@@ -42,7 +43,10 @@ export function toSnapshot(games: Game[], platforms: Platform[], now: Date): Exp
     .sort((a, b) => {
       const byTitle = a.title.localeCompare(b.title);
       if (byTitle !== 0) return byTitle;
-      return (a.releaseYear?.value ?? Infinity) - (b.releaseYear?.value ?? Infinity);
+      return (
+        (a.releaseYear?.value ?? Number.POSITIVE_INFINITY) -
+        (b.releaseYear?.value ?? Number.POSITIVE_INFINITY)
+      );
     })
     .map<ExportedGame>((g) => ({
       externalId: g.externalId,

@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
-import { Game, type NewGame } from '../../domain/games/game';
+import type { ProviderName } from '../../domain/games/external-metadata-ref';
+import { Game } from '../../domain/games/game';
 import type { GameRepository } from '../../domain/games/game-repository';
-import { Platform, type NewPlatform } from '../../domain/platforms/platform';
+import type { NewGame } from '../../domain/games/new-game';
+import { type NewPlatform, Platform } from '../../domain/platforms/platform';
 import type { PlatformRepository } from '../../domain/platforms/platform-repository';
 import { CreateGame } from './create-game';
 
 class FakeGameRepository implements GameRepository {
+  withTx = (_tx: unknown): GameRepository => this;
   list = async () => ({ items: [], total: 0 });
   listAll = async (): Promise<Game[]> => [];
   findById = async () => null;
@@ -16,8 +19,10 @@ class FakeGameRepository implements GameRepository {
   countByGenre = async () => 0;
   countByDeveloper = async () => 0;
   findAllCoverImages = async (): Promise<string[]> => [];
+  saveMetadata = async (): Promise<Game | null> => null;
 
   create = async (g: NewGame) => {
+    const ref = g.metadataRef;
     return Game.fromPersistence({
       id: 1,
       externalId: g.externalId,
@@ -34,6 +39,9 @@ class FakeGameRepository implements GameRepository {
       format: g.format,
       price: g.price?.value ?? null,
       purchasedAt: g.purchasedAt?.value ?? null,
+      metadataProvider: ref?.providerName ?? null,
+      metadataProviderId: ref?.providerId ?? null,
+      metadataMatchedAt: ref?.matchedAt.toISOString() ?? null,
     });
   };
 }
@@ -41,6 +49,8 @@ class FakeGameRepository implements GameRepository {
 class FakePlatformRepository implements PlatformRepository {
   private store = new Map<number, Platform>();
   private nextId = 1;
+
+  withTx = (_tx: unknown): PlatformRepository => this;
 
   async list(userId: string): Promise<Platform[]> {
     return [...this.store.values()].filter((p) => p.userId === userId);
@@ -59,7 +69,12 @@ class FakePlatformRepository implements PlatformRepository {
   }
 
   async create(np: NewPlatform): Promise<Platform> {
-    const p = Platform.fromPersistence({ id: this.nextId, externalId: `ext-p-${this.nextId}`, userId: np.userId, name: np.name });
+    const p = Platform.fromPersistence({
+      id: this.nextId,
+      externalId: `ext-p-${this.nextId}`,
+      userId: np.userId,
+      name: np.name,
+    });
     this.nextId++;
     this.store.set(p.id, p);
     return p;
@@ -73,7 +88,12 @@ class FakePlatformRepository implements PlatformRepository {
   }
 
   seed(userId: string, name: string): void {
-    const p = Platform.fromPersistence({ id: this.nextId, externalId: `ext-p-${this.nextId}`, userId, name });
+    const p = Platform.fromPersistence({
+      id: this.nextId,
+      externalId: `ext-p-${this.nextId}`,
+      userId,
+      name,
+    });
     this.nextId++;
     this.store.set(p.id, p);
   }
@@ -180,8 +200,8 @@ describe('CreateGame', () => {
     );
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.toJSON().price).toBe(12999);
-      expect(result.value.toJSON().purchasedAt).toBe('2024-06-15');
+      expect(result.value.price?.value).toBe(12999);
+      expect(result.value.purchasedAt?.value).toBe('2024-06-15');
     }
   });
 
@@ -189,8 +209,8 @@ describe('CreateGame', () => {
     const result = await useCase.execute(validInput, 'user-A');
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.toJSON().price).toBeNull();
-      expect(result.value.toJSON().purchasedAt).toBeNull();
+      expect(result.value.price).toBeNull();
+      expect(result.value.purchasedAt).toBeNull();
     }
   });
 
@@ -206,10 +226,7 @@ describe('CreateGame', () => {
   });
 
   it('returns invalid_input for bad purchasedAt format', async () => {
-    const result = await useCase.execute(
-      { ...validInput, purchasedAt: '2024/06/15' },
-      'user-A',
-    );
+    const result = await useCase.execute({ ...validInput, purchasedAt: '2024/06/15' }, 'user-A');
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.kind).toBe('invalid_input');
@@ -231,10 +248,7 @@ describe('CreateGame', () => {
   });
 
   it('returns domain purchased_at_in_future', async () => {
-    const result = await useCase.execute(
-      { ...validInput, purchasedAt: '2099-01-01' },
-      'user-A',
-    );
+    const result = await useCase.execute({ ...validInput, purchasedAt: '2099-01-01' }, 'user-A');
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.kind).toBe('domain');
@@ -265,6 +279,38 @@ describe('CreateGame', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.kind).toBe('invalid_input');
+    }
+  });
+
+  it('creates owned game with metadataRef and persists it', async () => {
+    const result = await useCase.execute(
+      {
+        ...validInput,
+        metadataRef: { providerName: 'igdb', providerId: 'igdb-abc-123' },
+      },
+      'user-A',
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.metadataRef).not.toBeNull();
+      expect(result.value.metadataRef?.providerName).toBe('igdb' as ProviderName);
+      expect(result.value.metadataRef?.providerId).toBe('igdb-abc-123');
+    }
+  });
+
+  it('creates wishlist game with metadataRef and persists it', async () => {
+    const result = await useCase.execute(
+      {
+        kind: 'wishlist',
+        title: 'Silksong',
+        platform: 'PS5',
+        metadataRef: { providerName: 'igdb', providerId: 'igdb-silksong' },
+      },
+      'user-A',
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.metadataRef?.providerId).toBe('igdb-silksong');
     }
   });
 

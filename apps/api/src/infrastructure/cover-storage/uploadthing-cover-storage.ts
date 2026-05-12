@@ -29,14 +29,16 @@ export class UploadThingCoverStorage implements CoverStorage {
     return { url: r.data.ufsUrl };
   }
 
+  /**
+   * Best-effort remote delete. Any failure propagates to the caller — the
+   * only caller is `CleanupOrphans`, which counts failures and retries on
+   * the next sweep. Swallowing the error here would mask transient
+   * UploadThing outages from cron metrics.
+   */
   async delete(url: string): Promise<void> {
     const key = urlToKey(url);
     if (!key) return;
-    try {
-      await this.utapi.deleteFiles([key]);
-    } catch (err) {
-      console.warn('[cover-storage] delete failed', { url, err });
-    }
+    await this.utapi.deleteFiles([key]);
   }
 
   async listOlderThan(olderThanHours: number): Promise<string[]> {

@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { db } from '../infrastructure/db/client';
 import { games as gamesTable } from '../infrastructure/db/schema';
+import { requestContext } from '../infrastructure/logging/request-context-middleware';
 import { attachProblemJsonErrorHandler } from './_problem-json';
 import { games } from './games';
 import type { AuthVariables } from './middleware/require-auth';
@@ -12,6 +13,7 @@ const TEST_USER_ID = `test-user-routes-${crypto.randomUUID()}`;
 function makeTestApp() {
   const app = new Hono<{ Variables: AuthVariables }>();
   attachProblemJsonErrorHandler(app);
+  app.use('*', requestContext());
   app.use('/api/games/*', async (c, next) => {
     c.set('user', { id: TEST_USER_ID } as AuthVariables['user']);
     await next();
@@ -134,6 +136,24 @@ describe('routes/games', () => {
       const body = (await res.json()) as { total: number; items: { title: string }[] };
       expect(body.total).toBe(1);
       expect(body.items[0]?.title).toBe('PC-Digital-2015');
+    });
+  });
+
+  describe('GET /api/games/metadata/candidates — auth coverage', () => {
+    it('returns 401 when no auth cookie / session is present', async () => {
+      // Mount the full games router behind the SAME requireAuth middleware
+      // used in production (apps/api/src/index.ts:42). With no cookie, the
+      // middleware short-circuits to 401 BEFORE the metadata sub-router has
+      // a chance to handle the request. Asserts that a future contributor
+      // who mounts the metadata router differently cannot silently strip
+      // the auth requirement.
+      const { requireAuth } = await import('./middleware/require-auth');
+      const noAuthApp = new Hono<{ Variables: AuthVariables }>();
+      attachProblemJsonErrorHandler(noAuthApp);
+      noAuthApp.use('/api/games/*', requireAuth);
+      noAuthApp.route('/api/games', games);
+      const res = await noAuthApp.request('/api/games/metadata/candidates?title=X&platform=PS2');
+      expect(res.status).toBe(401);
     });
   });
 

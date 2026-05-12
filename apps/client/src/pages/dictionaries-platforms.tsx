@@ -7,6 +7,7 @@ import { Icon } from '@/components/icons';
 import { AppHeader } from '@/components/layout/app-header';
 import { Toolbar, ToolbarSpacer } from '@/components/toolbar';
 import { Button } from '@/components/ui/button';
+import { ApiError } from '@/lib/api';
 import { useDeletePlatform, usePlatformsQuery } from '@/lib/queries';
 import type { Platform } from '@/types';
 import { getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table';
@@ -40,8 +41,8 @@ export function DictionariesPlatformsPage() {
         setPendingDelete(null);
         setDeleteError(null);
       },
-      onError: (err: any) => {
-        if (err?.status === 409) {
+      onError: (err) => {
+        if (err instanceof ApiError && err.status === 409) {
           setPendingDelete(null);
           setDeleteError('Platform is used by existing games and cannot be deleted.');
         }

@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { ApiError } from '@/lib/api';
 import { useMyPermissions, useUploadCoverMutation } from '@/lib/queries';
+import { useRef, useState } from 'react';
 
 const ACCEPT = 'image/jpeg,image/png,image/webp';
 
@@ -27,8 +28,8 @@ export function UploadCoverButton({
     try {
       const result = await uploadMutation.mutateAsync(file);
       onChange(result.url);
-    } catch (err: any) {
-      if (err?.status === 400) {
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 400) {
         setError('Only JPEG/PNG/WebP under 5MB');
       } else {
         setError('Upload failed, try again');

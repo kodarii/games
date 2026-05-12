@@ -1,14 +1,12 @@
 import { z } from 'zod';
-import {
-  type Game,
-  type GameProps,
-  type GameValidationError,
-  NewGame,
-} from '../../domain/games/game';
+import type { Game } from '../../domain/games/game';
 import type { GameRepository } from '../../domain/games/game-repository';
+import type { GameValidationError } from '../../domain/games/game-value-objects';
+import { NewGame, type NewGameProps } from '../../domain/games/new-game';
 import type { PlatformRepository } from '../../domain/platforms/platform-repository';
 import { err, ok } from '../../domain/shared/result';
 import type { Result } from '../../domain/shared/result';
+import { isProviderSupported } from '../../infrastructure/config/providers';
 
 const purchasedAtSchema = z
   .string()
@@ -17,6 +15,17 @@ const purchasedAtSchema = z
     const d = new Date(s);
     return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
   }, 'invalid date')
+  .optional();
+
+const metadataRefSchema = z
+  .object({
+    providerName: z
+      .string()
+      .trim()
+      .min(1)
+      .refine(isProviderSupported, { message: 'Unsupported provider' }),
+    providerId: z.string().trim().min(1),
+  })
   .optional();
 
 const OwnedSchema = z.object({
@@ -38,25 +47,29 @@ const OwnedSchema = z.object({
   price: z.number().int().min(0).optional(),
   purchasedAt: purchasedAtSchema,
   notes: z.string().nullable().optional(),
+  metadataRef: metadataRefSchema,
 });
 
-const WishlistSchema = z.object({
-  kind: z.literal('wishlist'),
-  title: z.string().min(1),
-  developer: z.string().optional().nullable(),
-  genre: z.string().optional().default(''),
-  releaseYear: z.coerce.number().int().min(1970).max(2100).optional(),
-  platform: z.string().min(1),
-  edition: z.string().optional().default(''),
-  format: z.enum(['physical', 'digital']).default('physical'),
-  coverColor: z
-    .string()
-    .regex(/^#[0-9a-fA-F]{6}$/)
-    .optional(),
-  coverImage: z.string().url().nullable().optional(),
-  price: z.number().int().min(0).optional(),
-  notes: z.string().nullable().optional(),
-}).strict();
+const WishlistSchema = z
+  .object({
+    kind: z.literal('wishlist'),
+    title: z.string().min(1),
+    developer: z.string().optional().nullable(),
+    genre: z.string().optional().default(''),
+    releaseYear: z.coerce.number().int().min(1970).max(2100).optional(),
+    platform: z.string().min(1),
+    edition: z.string().optional().default(''),
+    format: z.enum(['physical', 'digital']).default('physical'),
+    coverColor: z
+      .string()
+      .regex(/^#[0-9a-fA-F]{6}$/)
+      .optional(),
+    coverImage: z.string().url().nullable().optional(),
+    price: z.number().int().min(0).optional(),
+    notes: z.string().nullable().optional(),
+    metadataRef: metadataRefSchema,
+  })
+  .strict();
 
 const CreateGameInputSchema = z.discriminatedUnion('kind', [OwnedSchema, WishlistSchema]);
 
@@ -72,10 +85,7 @@ export class CreateGame {
     private readonly platformRepo: PlatformRepository,
   ) {}
 
-  async execute(
-    input: unknown,
-    userId: string,
-  ): Promise<Result<Game, CreateGameError>> {
+  async execute(input: unknown, userId: string): Promise<Result<Game, CreateGameError>> {
     const inputWithKind =
       typeof input === 'object' && input !== null && !('kind' in input)
         ? { ...input, kind: 'owned' }
@@ -97,7 +107,7 @@ export class CreateGame {
       });
     }
 
-    const props: GameProps =
+    const props: NewGameProps =
       data.kind === 'wishlist'
         ? {
             kind: 'wishlist',
@@ -116,6 +126,7 @@ export class CreateGame {
             price: data.price,
             purchasedAt: null,
             notes: data.notes ?? null,
+            metadataRef: data.metadataRef,
           }
         : {
             kind: 'owned',
@@ -134,6 +145,7 @@ export class CreateGame {
             price: data.price,
             purchasedAt: data.purchasedAt,
             notes: data.notes ?? null,
+            metadataRef: data.metadataRef,
           };
 
     const newGameResult = NewGame.create(props);

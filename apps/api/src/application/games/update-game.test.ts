@@ -1,31 +1,38 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
-import { Game, type GameUpdate, type NewGame } from '../../domain/games/game';
-import type { GameRepository, ListGamesQuery, ListGamesResult } from '../../domain/games/game-repository';
-import { Platform, type NewPlatform } from '../../domain/platforms/platform';
+import { Game } from '../../domain/games/game';
+import type {
+  GameRepository,
+  ListGamesQuery,
+  ListGamesResult,
+} from '../../domain/games/game-repository';
+import type { GameUpdate } from '../../domain/games/game-update';
+import type { NewGame } from '../../domain/games/new-game';
+import { type NewPlatform, Platform } from '../../domain/platforms/platform';
 import type { PlatformRepository } from '../../domain/platforms/platform-repository';
-import type { CoverStorage } from '../cover-storage/cover-storage';
+import { InlineTransactionRunner } from '../shared/__tests__/inline-transaction-runner';
 import { UpdateGame } from './update-game';
-
-class FakeCoverStorage implements CoverStorage {
-  deleted: string[] = [];
-  upload = async () => ({ url: 'https://fake/uploaded' });
-  delete = async (url: string) => {
-    this.deleted.push(url);
-  };
-  listOlderThan = async () => [];
-}
 
 class FakeGameRepository implements GameRepository {
   private games = new Map<number, Game>();
 
+  withTx = (_tx: unknown): GameRepository => this;
   list = async (_q: ListGamesQuery): Promise<ListGamesResult> => ({ items: [], total: 0 });
   listAll = async (): Promise<Game[]> => [];
   countByPlatform = async () => 0;
   countByGenre = async () => 0;
   countByDeveloper = async () => 0;
   findAllCoverImages = async (): Promise<string[]> => [];
+  saveMetadata = async (
+    _userId: string,
+    _externalId: string,
+    _game: Game,
+    _expectedUpdatedAt: Date,
+  ): Promise<Game | null> => null;
   findByExternalId = async (userId: string, externalId: string): Promise<Game | null> => {
-    return [...this.games.values()].find(g => g.externalId === externalId && g.userId === userId) ?? null;
+    return (
+      [...this.games.values()].find((g) => g.externalId === externalId && g.userId === userId) ??
+      null
+    );
   };
 
   create = async (g: NewGame) => {
@@ -54,8 +61,15 @@ class FakeGameRepository implements GameRepository {
     return this.games.get(id) ?? null;
   }
 
-  async update(userId: string, externalId: string, game: GameUpdate): Promise<Game | null> {
-    const existing = [...this.games.values()].find(g => g.externalId === externalId && g.userId === userId);
+  async update(
+    userId: string,
+    externalId: string,
+    game: GameUpdate,
+    _expectedUpdatedAt: Date,
+  ): Promise<Game | null> {
+    const existing = [...this.games.values()].find(
+      (g) => g.externalId === externalId && g.userId === userId,
+    );
     if (!existing) return null;
     const updated = Game.fromPersistence({
       id: existing.id,
@@ -74,13 +88,16 @@ class FakeGameRepository implements GameRepository {
       coverImage: game.coverImage ?? null,
       price: game.price?.value ?? null,
       purchasedAt: game.purchasedAt?.value ?? null,
+      updatedAt: new Date(),
     });
     this.games.set(existing.id, updated);
     return updated;
   }
 
-  async delete(userId: string, externalId: string): Promise<Game | null> {
-    const game = [...this.games.values()].find(g => g.externalId === externalId && g.userId === userId);
+  async delete(userId: string, externalId: string, _expectedUpdatedAt: Date): Promise<Game | null> {
+    const game = [...this.games.values()].find(
+      (g) => g.externalId === externalId && g.userId === userId,
+    );
     if (!game) return null;
     this.games.delete(game.id);
     return game;
@@ -94,6 +111,8 @@ class FakeGameRepository implements GameRepository {
 class FakePlatformRepository implements PlatformRepository {
   private store = new Map<number, Platform>();
   private nextId = 1;
+
+  withTx = (_tx: unknown): PlatformRepository => this;
 
   async list(userId: string): Promise<Platform[]> {
     return [...this.store.values()].filter((p) => p.userId === userId);
@@ -112,7 +131,12 @@ class FakePlatformRepository implements PlatformRepository {
   }
 
   async create(np: NewPlatform): Promise<Platform> {
-    const p = Platform.fromPersistence({ id: this.nextId, externalId: `ext-p-${this.nextId}`, userId: np.userId, name: np.name });
+    const p = Platform.fromPersistence({
+      id: this.nextId,
+      externalId: `ext-p-${this.nextId}`,
+      userId: np.userId,
+      name: np.name,
+    });
     this.nextId++;
     this.store.set(p.id, p);
     return p;
@@ -126,7 +150,12 @@ class FakePlatformRepository implements PlatformRepository {
   }
 
   seed(userId: string, name: string): void {
-    const p = Platform.fromPersistence({ id: this.nextId, externalId: `ext-p-${this.nextId}`, userId, name });
+    const p = Platform.fromPersistence({
+      id: this.nextId,
+      externalId: `ext-p-${this.nextId}`,
+      userId,
+      name,
+    });
     this.nextId++;
     this.store.set(p.id, p);
   }
@@ -164,16 +193,14 @@ const existingGame = Game.fromPersistence({
 describe('UpdateGame', () => {
   let repo: FakeGameRepository;
   let platformRepo: FakePlatformRepository;
-  let coverStorage: FakeCoverStorage;
   let useCase: UpdateGame;
 
   beforeEach(() => {
     repo = new FakeGameRepository();
     platformRepo = new FakePlatformRepository();
-    coverStorage = new FakeCoverStorage();
     platformRepo.seed('user-A', 'PS5');
     platformRepo.seed('user-A', 'PS3');
-    useCase = new UpdateGame(repo, platformRepo, coverStorage);
+    useCase = new UpdateGame(repo, platformRepo, new InlineTransactionRunner());
   });
 
   it('updates game and returns ok', async () => {
@@ -245,7 +272,11 @@ describe('UpdateGame', () => {
   it('returns invalid_input for releaseYear out of range', async () => {
     repo.seed(existingGame);
 
-    const result = await useCase.execute('ext-game-1', { ...validInput, releaseYear: 1900 }, 'user-A');
+    const result = await useCase.execute(
+      'ext-game-1',
+      { ...validInput, releaseYear: 1900 },
+      'user-A',
+    );
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -256,7 +287,11 @@ describe('UpdateGame', () => {
   it('returns invalid_input for negative hoursPlayed', async () => {
     repo.seed(existingGame);
 
-    const result = await useCase.execute('ext-game-1', { ...validInput, hoursPlayed: -5 }, 'user-A');
+    const result = await useCase.execute(
+      'ext-game-1',
+      { ...validInput, hoursPlayed: -5 },
+      'user-A',
+    );
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -267,7 +302,11 @@ describe('UpdateGame', () => {
   it('accepts format physical and returns ok', async () => {
     repo.seed(existingGame);
 
-    const result = await useCase.execute('ext-game-1', { ...validInput, format: 'physical' }, 'user-A');
+    const result = await useCase.execute(
+      'ext-game-1',
+      { ...validInput, format: 'physical' },
+      'user-A',
+    );
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -278,7 +317,11 @@ describe('UpdateGame', () => {
   it('returns invalid_input for invalid format', async () => {
     repo.seed(existingGame);
 
-    const result = await useCase.execute('ext-game-1', { ...validInput, format: 'cartridge' }, 'user-A');
+    const result = await useCase.execute(
+      'ext-game-1',
+      { ...validInput, format: 'cartridge' },
+      'user-A',
+    );
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -292,7 +335,11 @@ describe('UpdateGame', () => {
   it('returns domain platform_invalid when platform not in user dictionary', async () => {
     repo.seed(existingGame);
 
-    const result = await useCase.execute('ext-game-1', { ...validInput, platform: 'Wii U' }, 'user-A');
+    const result = await useCase.execute(
+      'ext-game-1',
+      { ...validInput, platform: 'Wii U' },
+      'user-A',
+    );
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -310,7 +357,7 @@ describe('UpdateGame', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('deletes old cover from storage when coverImage changes', async () => {
+  it('updates coverImage on the game row but does NOT touch cover storage (cron-only cleanup)', async () => {
     const seeded = Game.fromPersistence({
       id: 1,
       externalId: 'ext-game-1',
@@ -329,34 +376,19 @@ describe('UpdateGame', () => {
     });
     repo.seed(seeded);
 
-    await useCase.execute('ext-game-1', { ...validInput, coverImage: 'https://utfs.io/f/new-key' }, 'user-A');
+    const result = await useCase.execute(
+      'ext-game-1',
+      { ...validInput, coverImage: 'https://utfs.io/f/new-key' },
+      'user-A',
+    );
 
-    await Promise.resolve();
-    expect(coverStorage.deleted).toEqual(['https://utfs.io/f/old-key']);
-  });
-
-  it('does not delete when coverImage unchanged', async () => {
-    const seeded = Game.fromPersistence({
-      id: 1,
-      externalId: 'ext-game-1',
-      kind: 'owned',
-      userId: 'user-A',
-      title: 'Dark Souls',
-      developer: 'FromSoftware',
-      genre: 'ARPG',
-      releaseYear: 2011,
-      platform: 'PS3',
-      edition: null,
-      hoursPlayed: 50,
-      status: 'Completed',
-      format: 'physical',
-      coverImage: 'https://utfs.io/f/same',
-    });
-    repo.seed(seeded);
-
-    await useCase.execute('ext-game-1', { ...validInput, coverImage: 'https://utfs.io/f/same' }, 'user-A');
-    await Promise.resolve();
-    expect(coverStorage.deleted).toEqual([]);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.coverImage).toBe('https://utfs.io/f/new-key');
+    }
+    // UpdateGame must NOT inject a CoverStorage dependency — orphan cleanup
+    // is the cron's job. The constructor signature is the regression guard.
+    expect(useCase.constructor.length).toBe(3);
   });
 
   it('accepts price and purchasedAt on update', async () => {
@@ -368,8 +400,8 @@ describe('UpdateGame', () => {
     );
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.toJSON().price).toBe(12999);
-      expect(result.value.toJSON().purchasedAt).toBe('2024-06-15');
+      expect(result.value.price?.value).toBe(12999);
+      expect(result.value.purchasedAt?.value).toBe('2024-06-15');
     }
   });
 
@@ -438,7 +470,7 @@ describe('UpdateGame', () => {
     const result = await useCase.execute('ext-game-1', { ...validInput, price: null }, 'user-A');
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.toJSON().price).toBeNull();
+      expect(result.value.price).toBeNull();
     }
   });
 
@@ -467,7 +499,7 @@ describe('UpdateGame', () => {
     );
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.toJSON().purchasedAt).toBeNull();
+      expect(result.value.purchasedAt).toBeNull();
     }
   });
 
@@ -492,11 +524,11 @@ describe('UpdateGame', () => {
     const result = await useCase.execute('ext-game-1', validInput, 'user-A');
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.toJSON().price).toBeNull();
+      expect(result.value.price).toBeNull();
     }
   });
 
-  it('deletes old cover when user clears coverImage (sets null)', async () => {
+  it('clears coverImage on the game row when null is sent (cron sweeps the file later)', async () => {
     const seeded = Game.fromPersistence({
       id: 1,
       externalId: 'ext-game-1',
@@ -515,9 +547,15 @@ describe('UpdateGame', () => {
     });
     repo.seed(seeded);
 
-    await useCase.execute('ext-game-1', { ...validInput, coverImage: null }, 'user-A');
-    await Promise.resolve();
-    expect(coverStorage.deleted).toEqual(['https://utfs.io/f/will-go']);
+    const result = await useCase.execute(
+      'ext-game-1',
+      { ...validInput, coverImage: null },
+      'user-A',
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.coverImage).toBeUndefined();
+    }
   });
 
   it('updates wishlist game with kind=wishlist and null status/hoursPlayed', async () => {

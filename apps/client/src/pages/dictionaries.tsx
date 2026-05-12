@@ -8,6 +8,7 @@ import { Icon } from '@/components/icons';
 import { AppHeader } from '@/components/layout/app-header';
 import { Toolbar, ToolbarSpacer } from '@/components/toolbar';
 import { Button } from '@/components/ui/button';
+import { ApiError } from '@/lib/api';
 import {
   useCreateDeveloper,
   useCreateGenre,
@@ -105,9 +106,9 @@ function PlatformsTab() {
     if (!pendingDelete) return;
     deleteM.mutate(pendingDelete.id, {
       onSuccess: () => { setPendingDelete(null); setDeleteError(null); },
-      onError: (err: any) => {
+      onError: (err) => {
         setPendingDelete(null);
-        if (err?.status === 409) setDeleteError('This platform is used by existing games and cannot be deleted.');
+        if (err instanceof ApiError && err.status === 409) setDeleteError('This platform is used by existing games and cannot be deleted.');
       },
     });
   };
@@ -176,9 +177,9 @@ function GenresTab() {
     if (!pendingDelete) return;
     deleteM.mutate(pendingDelete.id, {
       onSuccess: () => { setPendingDelete(null); setDeleteError(null); },
-      onError: (err: any) => {
+      onError: (err) => {
         setPendingDelete(null);
-        if (err?.status === 409) setDeleteError('This genre is used by existing games and cannot be deleted.');
+        if (err instanceof ApiError && err.status === 409) setDeleteError('This genre is used by existing games and cannot be deleted.');
       },
     });
   };
@@ -247,9 +248,9 @@ function DevelopersTab() {
     if (!pendingDelete) return;
     deleteM.mutate(pendingDelete.id, {
       onSuccess: () => { setPendingDelete(null); setDeleteError(null); },
-      onError: (err: any) => {
+      onError: (err) => {
         setPendingDelete(null);
-        if (err?.status === 409) setDeleteError('This developer is used by existing games and cannot be deleted.');
+        if (err instanceof ApiError && err.status === 409) setDeleteError('This developer is used by existing games and cannot be deleted.');
       },
     });
   };

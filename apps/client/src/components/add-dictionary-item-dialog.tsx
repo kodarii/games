@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ApiError } from '@/lib/api';
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { useEffect, useRef, useState } from 'react';
 
@@ -45,14 +46,17 @@ export function AddDictionaryItemDialog({
   const onSubmit = async () => {
     const trimmed = name.trim();
     const error = validate(trimmed);
-    if (error) { setFieldError(error); return; }
+    if (error) {
+      setFieldError(error);
+      return;
+    }
     setFieldError(null);
     setIsPending(true);
     try {
       await onCreate(trimmed);
       onOpenChange(false);
-    } catch (err: any) {
-      if (err?.status === 409) {
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
         setFieldError(duplicateMessage(trimmed));
       }
     } finally {
@@ -67,7 +71,10 @@ export function AddDictionaryItemDialog({
       <AlertDialog.Portal>
         <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <AlertDialog.Content
-          onOpenAutoFocus={(e) => { e.preventDefault(); inputRef.current?.focus(); }}
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            inputRef.current?.focus();
+          }}
           className="fixed left-1/2 top-1/2 z-50 w-[400px] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 rounded-[16px] bg-white p-7 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.25)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
         >
           <AlertDialog.Title className="text-[19px] font-bold leading-tight text-apex-ink">
@@ -91,16 +98,22 @@ export function AddDictionaryItemDialog({
                 if (fieldError) setFieldError(null);
               }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && canSubmit) { e.preventDefault(); onSubmit(); }
+                if (e.key === 'Enter' && canSubmit) {
+                  e.preventDefault();
+                  onSubmit();
+                }
               }}
             />
-            {fieldError && (
-              <div className="mt-[6px] text-[12px] text-red-600">{fieldError}</div>
-            )}
+            {fieldError && <div className="mt-[6px] text-[12px] text-red-600">{fieldError}</div>}
           </div>
 
           <div className="mt-7 flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              disabled={isPending}
+            >
               Cancel
             </Button>
             <Button variant="primary" size="sm" onClick={onSubmit} disabled={!canSubmit}>

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test';
-import { Game, type GameFormat, type GameKind, type NewGame } from '../../domain/games/game';
+import { Game } from '../../domain/games/game';
 import type { GameRepository, ListGamesQuery } from '../../domain/games/game-repository';
+import type { GameFormat, GameKind } from '../../domain/games/game-value-objects';
+import type { NewGame } from '../../domain/games/new-game';
 import { ListGames } from './list-games';
 
 class FakeGameRepository implements GameRepository {
@@ -8,6 +10,7 @@ class FakeGameRepository implements GameRepository {
 
   constructor(private readonly all: Game[]) {}
 
+  withTx = (_tx: unknown): GameRepository => this;
   list = async (query: ListGamesQuery) => {
     this.lastQuery = query;
     let filtered = this.all.filter((g) => g.userId === query.userId);
@@ -53,6 +56,7 @@ class FakeGameRepository implements GameRepository {
   countByDeveloper = async (): Promise<number> => 0;
   findAllCoverImages = async (): Promise<string[]> => [];
   listAll = async (): Promise<Game[]> => [];
+  saveMetadata = async (): Promise<Game | null> => null;
 }
 
 type GameOverrides = {

@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'bun:test';
-import { ImportData } from '../import-data';
-import type { ImportRepository, ImportPlan } from '../../../domain/import/import-repository';
 import type { ImportMode, ImportReport } from '@apex/shared';
-import type { GameRepository, ListGamesQuery, ListGamesResult } from '../../../domain/games/game-repository';
-import type { PlatformRepository } from '../../../domain/platforms/platform-repository';
-import type { Game, GameUpdate, NewGame } from '../../../domain/games/game';
+import type { Game } from '../../../domain/games/game';
+import type {
+  GameRepository,
+  ListGamesQuery,
+  ListGamesResult,
+} from '../../../domain/games/game-repository';
+import type { GameUpdate } from '../../../domain/games/game-update';
+import type { NewGame } from '../../../domain/games/new-game';
+import type { ImportPlan, ImportRepository } from '../../../domain/import/import-repository';
 import type { NewPlatform, Platform } from '../../../domain/platforms/platform';
+import type { PlatformRepository } from '../../../domain/platforms/platform-repository';
+import { ImportData } from '../import-data';
 
 class FakeImportRepository implements ImportRepository {
   public lastCall: { userId: string; plan: ImportPlan; mode: ImportMode } | null = null;
@@ -21,31 +27,83 @@ class FakeImportRepository implements ImportRepository {
 
 class FakePlatformRepository implements PlatformRepository {
   constructor(private readonly platforms: Platform[] = []) {}
+  withTx(_tx: unknown): PlatformRepository {
+    return this;
+  }
   async list(_userId: string): Promise<Platform[]> {
     return this.platforms;
   }
-  async findById(_id: number): Promise<Platform | null> { return null; }
-  async findByName(_userId: string, _name: string): Promise<Platform | null> { return null; }
-  async findByExternalId(_userId: string, _externalId: string): Promise<Platform | null> { return null; }
-  async create(_platform: NewPlatform): Promise<Platform> { throw new Error('not implemented'); }
-  async delete(_id: number): Promise<Platform | null> { return null; }
+  async findById(_id: number): Promise<Platform | null> {
+    return null;
+  }
+  async findByName(_userId: string, _name: string): Promise<Platform | null> {
+    return null;
+  }
+  async findByExternalId(_userId: string, _externalId: string): Promise<Platform | null> {
+    return null;
+  }
+  async create(_platform: NewPlatform): Promise<Platform> {
+    throw new Error('not implemented');
+  }
+  async delete(_id: number): Promise<Platform | null> {
+    return null;
+  }
 }
 
 class FakeGameRepository implements GameRepository {
-  async list(_query: ListGamesQuery): Promise<ListGamesResult> { return { items: [], total: 0 }; }
-  async listAll(_userId: string): Promise<Game[]> { return []; }
-  async findById(_id: number): Promise<Game | null> { return null; }
-  async findByExternalId(_userId: string, _externalId: string): Promise<Game | null> { return null; }
-  async create(_game: NewGame): Promise<Game> { throw new Error('not implemented'); }
-  async update(_userId: string, _externalId: string, _game: GameUpdate): Promise<Game | null> { return null; }
-  async delete(_userId: string, _externalId: string): Promise<Game | null> { return null; }
-  async countByPlatform(_userId: string, _platformName: string): Promise<number> { return 0; }
-  async countByGenre(): Promise<number> { return 0; }
-  async countByDeveloper(): Promise<number> { return 0; }
-  async findAllCoverImages(): Promise<string[]> { return []; }
+  withTx(_tx: unknown): GameRepository {
+    return this;
+  }
+  async list(_query: ListGamesQuery): Promise<ListGamesResult> {
+    return { items: [], total: 0 };
+  }
+  async listAll(_userId: string): Promise<Game[]> {
+    return [];
+  }
+  async findById(_id: number): Promise<Game | null> {
+    return null;
+  }
+  async findByExternalId(_userId: string, _externalId: string): Promise<Game | null> {
+    return null;
+  }
+  async create(_game: NewGame): Promise<Game> {
+    throw new Error('not implemented');
+  }
+  async update(
+    _userId: string,
+    _externalId: string,
+    _game: GameUpdate,
+    _expectedUpdatedAt: Date,
+  ): Promise<Game | null> {
+    return null;
+  }
+  async delete(
+    _userId: string,
+    _externalId: string,
+    _expectedUpdatedAt: Date,
+  ): Promise<Game | null> {
+    return null;
+  }
+  async countByPlatform(_userId: string, _platformName: string): Promise<number> {
+    return 0;
+  }
+  async countByGenre(): Promise<number> {
+    return 0;
+  }
+  async countByDeveloper(): Promise<number> {
+    return 0;
+  }
+  async findAllCoverImages(): Promise<string[]> {
+    return [];
+  }
+  async saveMetadata(): Promise<Game | null> {
+    return null;
+  }
 }
 
-function makeUseCase(opts: { platforms?: Platform[]; importRepo?: FakeImportRepository; idGen?: () => string } = {}) {
+function makeUseCase(
+  opts: { platforms?: Platform[]; importRepo?: FakeImportRepository; idGen?: () => string } = {},
+) {
   const importRepo = opts.importRepo ?? new FakeImportRepository();
   const uc = new ImportData(
     new FakeGameRepository(),
@@ -65,9 +123,39 @@ const snap2 = (overrides: object = {}) =>
       { externalId: 'p-2', name: 'Switch' },
     ],
     games: [
-      { externalId: 'g-1', title: 'God of War', developer: 'Santa Monica', genre: 'Action', releaseYear: 2018, platform: 'PS5', hoursPlayed: 30, status: 'Completed', format: 'digital' },
-      { externalId: 'g-2', title: 'Zelda', developer: 'Nintendo', genre: 'Adventure', releaseYear: 2017, platform: 'Switch', hoursPlayed: 80, status: 'Playing', format: 'digital' },
-      { externalId: 'g-3', title: 'Mario', developer: 'Nintendo', genre: 'Platformer', releaseYear: 2017, platform: 'Switch', hoursPlayed: 20, status: 'Backlog', format: 'physical' },
+      {
+        externalId: 'g-1',
+        title: 'God of War',
+        developer: 'Santa Monica',
+        genre: 'Action',
+        releaseYear: 2018,
+        platform: 'PS5',
+        hoursPlayed: 30,
+        status: 'Completed',
+        format: 'digital',
+      },
+      {
+        externalId: 'g-2',
+        title: 'Zelda',
+        developer: 'Nintendo',
+        genre: 'Adventure',
+        releaseYear: 2017,
+        platform: 'Switch',
+        hoursPlayed: 80,
+        status: 'Playing',
+        format: 'digital',
+      },
+      {
+        externalId: 'g-3',
+        title: 'Mario',
+        developer: 'Nintendo',
+        genre: 'Platformer',
+        releaseYear: 2017,
+        platform: 'Switch',
+        hoursPlayed: 20,
+        status: 'Backlog',
+        format: 'physical',
+      },
     ],
     ...overrides,
   });
@@ -108,7 +196,11 @@ describe('ImportData.execute', () => {
   });
 
   it('returns unsupported_version for version 5', async () => {
-    const result = await makeUseCase().uc.execute('user-1', JSON.stringify({ version: 5 }), 'merge');
+    const result = await makeUseCase().uc.execute(
+      'user-1',
+      JSON.stringify({ version: 5 }),
+      'merge',
+    );
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.kind).toBe('unsupported_version');
@@ -118,7 +210,18 @@ describe('ImportData.execute', () => {
 
   it('returns invalid_shape for v2 missing title', async () => {
     const bad = snap2({
-      games: [{ externalId: 'g-1', developer: 'X', genre: 'Y', releaseYear: 2020, platform: 'PS5', hoursPlayed: 0, status: 'Backlog', format: 'digital' }],
+      games: [
+        {
+          externalId: 'g-1',
+          developer: 'X',
+          genre: 'Y',
+          releaseYear: 2020,
+          platform: 'PS5',
+          hoursPlayed: 0,
+          status: 'Backlog',
+          format: 'digital',
+        },
+      ],
     });
     const result = await makeUseCase().uc.execute('user-1', bad, 'merge');
     expect(result.ok).toBe(false);
@@ -132,10 +235,26 @@ describe('ImportData.execute', () => {
       version: 1,
       exportedAt: '2024-01-01T00:00:00.000Z',
       platforms: [{ name: 'PS5' }],
-      games: [{ title: 'Bloodborne', developer: 'FromSoftware', genre: 'Action RPG', releaseYear: 2015, platform: 'PS5', hoursPlayed: 50, status: 'Completed', format: 'physical' }],
+      games: [
+        {
+          title: 'Bloodborne',
+          developer: 'FromSoftware',
+          genre: 'Action RPG',
+          releaseYear: 2015,
+          platform: 'PS5',
+          hoursPlayed: 50,
+          status: 'Completed',
+          format: 'physical',
+        },
+      ],
     });
     const importRepo = new FakeImportRepository();
-    const uc = new ImportData(new FakeGameRepository(), new FakePlatformRepository(), importRepo, gen);
+    const uc = new ImportData(
+      new FakeGameRepository(),
+      new FakePlatformRepository(),
+      importRepo,
+      gen,
+    );
     const result = await uc.execute('user-1', v1, 'merge');
     expect(result.ok).toBe(true);
     // platform gets gen-1, game gets gen-2
@@ -165,8 +284,28 @@ describe('ImportData.execute', () => {
   it('returns duplicate_external_id for games', async () => {
     const bad = snap2({
       games: [
-        { externalId: 'dup-g', title: 'A', developer: 'X', genre: 'Y', releaseYear: 2020, platform: 'PS5', hoursPlayed: 0, status: 'Backlog', format: 'digital' },
-        { externalId: 'dup-g', title: 'B', developer: 'X', genre: 'Y', releaseYear: 2020, platform: 'PS5', hoursPlayed: 0, status: 'Backlog', format: 'digital' },
+        {
+          externalId: 'dup-g',
+          title: 'A',
+          developer: 'X',
+          genre: 'Y',
+          releaseYear: 2020,
+          platform: 'PS5',
+          hoursPlayed: 0,
+          status: 'Backlog',
+          format: 'digital',
+        },
+        {
+          externalId: 'dup-g',
+          title: 'B',
+          developer: 'X',
+          genre: 'Y',
+          releaseYear: 2020,
+          platform: 'PS5',
+          hoursPlayed: 0,
+          status: 'Backlog',
+          format: 'digital',
+        },
       ],
     });
     const result = await makeUseCase().uc.execute('user-1', bad, 'merge');
@@ -197,16 +336,45 @@ describe('ImportData.execute', () => {
 
   it('merge: unknown platform in file but exists for user → ok', async () => {
     const { Platform: PlatformClass } = await import('../../../domain/platforms/platform');
-    const existingPlatform = PlatformClass.fromPersistence({ id: 1, externalId: 'ext-switch', userId: 'user-1', name: 'Switch' });
+    const existingPlatform = PlatformClass.fromPersistence({
+      id: 1,
+      externalId: 'ext-switch',
+      userId: 'user-1',
+      name: 'Switch',
+    });
     const payload = snap2({
       platforms: [{ externalId: 'p-1', name: 'PS5' }],
       games: [
-        { externalId: 'g-1', title: 'God of War', developer: 'Santa Monica', genre: 'Action', releaseYear: 2018, platform: 'PS5', hoursPlayed: 30, status: 'Completed', format: 'digital' },
-        { externalId: 'g-2', title: 'Zelda', developer: 'Nintendo', genre: 'Adventure', releaseYear: 2017, platform: 'Switch', hoursPlayed: 80, status: 'Playing', format: 'digital' },
+        {
+          externalId: 'g-1',
+          title: 'God of War',
+          developer: 'Santa Monica',
+          genre: 'Action',
+          releaseYear: 2018,
+          platform: 'PS5',
+          hoursPlayed: 30,
+          status: 'Completed',
+          format: 'digital',
+        },
+        {
+          externalId: 'g-2',
+          title: 'Zelda',
+          developer: 'Nintendo',
+          genre: 'Adventure',
+          releaseYear: 2017,
+          platform: 'Switch',
+          hoursPlayed: 80,
+          status: 'Playing',
+          format: 'digital',
+        },
       ],
     });
     const importRepo = new FakeImportRepository();
-    const uc = new ImportData(new FakeGameRepository(), new FakePlatformRepository([existingPlatform]), importRepo);
+    const uc = new ImportData(
+      new FakeGameRepository(),
+      new FakePlatformRepository([existingPlatform]),
+      importRepo,
+    );
     const result = await uc.execute('user-1', payload, 'merge');
     expect(result.ok).toBe(true);
   });
@@ -215,8 +383,28 @@ describe('ImportData.execute', () => {
     const payload = snap2({
       platforms: [{ externalId: 'p-1', name: 'PS5' }],
       games: [
-        { externalId: 'g-1', title: 'God of War', developer: 'Santa Monica', genre: 'Action', releaseYear: 2018, platform: 'PS5', hoursPlayed: 30, status: 'Completed', format: 'digital' },
-        { externalId: 'g-2', title: 'Some Game', developer: 'Dev', genre: 'X', releaseYear: 2020, platform: 'Atari', hoursPlayed: 0, status: 'Backlog', format: 'digital' },
+        {
+          externalId: 'g-1',
+          title: 'God of War',
+          developer: 'Santa Monica',
+          genre: 'Action',
+          releaseYear: 2018,
+          platform: 'PS5',
+          hoursPlayed: 30,
+          status: 'Completed',
+          format: 'digital',
+        },
+        {
+          externalId: 'g-2',
+          title: 'Some Game',
+          developer: 'Dev',
+          genre: 'X',
+          releaseYear: 2020,
+          platform: 'Atari',
+          hoursPlayed: 0,
+          status: 'Backlog',
+          format: 'digital',
+        },
       ],
     });
     const result = await makeUseCase().uc.execute('user-1', payload, 'merge');
@@ -232,17 +420,46 @@ describe('ImportData.execute', () => {
 
   it('replace: unknown platform not in file even if user has it → error', async () => {
     const { Platform: PlatformClass } = await import('../../../domain/platforms/platform');
-    const existingPlatform = PlatformClass.fromPersistence({ id: 1, externalId: 'ext-switch', userId: 'user-1', name: 'Switch' });
+    const existingPlatform = PlatformClass.fromPersistence({
+      id: 1,
+      externalId: 'ext-switch',
+      userId: 'user-1',
+      name: 'Switch',
+    });
     const payload = snap2({
       platforms: [{ externalId: 'p-1', name: 'PS5' }],
       games: [
-        { externalId: 'g-1', title: 'God of War', developer: 'Santa Monica', genre: 'Action', releaseYear: 2018, platform: 'PS5', hoursPlayed: 30, status: 'Completed', format: 'digital' },
-        { externalId: 'g-2', title: 'Zelda', developer: 'Nintendo', genre: 'Adventure', releaseYear: 2017, platform: 'Switch', hoursPlayed: 80, status: 'Playing', format: 'digital' },
+        {
+          externalId: 'g-1',
+          title: 'God of War',
+          developer: 'Santa Monica',
+          genre: 'Action',
+          releaseYear: 2018,
+          platform: 'PS5',
+          hoursPlayed: 30,
+          status: 'Completed',
+          format: 'digital',
+        },
+        {
+          externalId: 'g-2',
+          title: 'Zelda',
+          developer: 'Nintendo',
+          genre: 'Adventure',
+          releaseYear: 2017,
+          platform: 'Switch',
+          hoursPlayed: 80,
+          status: 'Playing',
+          format: 'digital',
+        },
       ],
     });
     // Pass existing platform but mode=replace → should still fail
     const importRepo = new FakeImportRepository();
-    const uc = new ImportData(new FakeGameRepository(), new FakePlatformRepository([existingPlatform]), importRepo);
+    const uc = new ImportData(
+      new FakeGameRepository(),
+      new FakePlatformRepository([existingPlatform]),
+      importRepo,
+    );
     const result = await uc.execute('user-1', payload, 'replace');
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -256,12 +473,23 @@ describe('ImportData.execute', () => {
     const gen = () => `gen-${++n}`;
     const ext = JSON.stringify({
       games: [
-        { title: 'Bloodborne', releaseYear: 2026, platform: 'PS4', format: 'physical', coverColor: '#f4a261' },
+        {
+          title: 'Bloodborne',
+          releaseYear: 2026,
+          platform: 'PS4',
+          format: 'physical',
+          coverColor: '#f4a261',
+        },
         { title: 'Mario', releaseYear: 2017, platform: 'Switch', format: 'digital' },
       ],
     });
     const importRepo = new FakeImportRepository();
-    const uc = new ImportData(new FakeGameRepository(), new FakePlatformRepository(), importRepo, gen);
+    const uc = new ImportData(
+      new FakeGameRepository(),
+      new FakePlatformRepository(),
+      importRepo,
+      gen,
+    );
     const result = await uc.execute('user-1', ext, 'merge');
     expect(result.ok).toBe(true);
     expect(importRepo.lastCall?.plan.platforms.map((p) => p.name)).toEqual(['PS4', 'Switch']);
@@ -279,14 +507,24 @@ describe('ImportData.execute', () => {
 
   it('external merge: reuses existing user platform externalId when name matches', async () => {
     const { Platform: PlatformClass } = await import('../../../domain/platforms/platform');
-    const existing = PlatformClass.fromPersistence({ id: 1, externalId: 'user-ps4', userId: 'user-1', name: 'PS4' });
+    const existing = PlatformClass.fromPersistence({
+      id: 1,
+      externalId: 'user-ps4',
+      userId: 'user-1',
+      name: 'PS4',
+    });
     let n = 0;
     const gen = () => `gen-${++n}`;
     const ext = JSON.stringify({
       games: [{ title: 'Bloodborne', releaseYear: 2026, platform: 'PS4', format: 'physical' }],
     });
     const importRepo = new FakeImportRepository();
-    const uc = new ImportData(new FakeGameRepository(), new FakePlatformRepository([existing]), importRepo, gen);
+    const uc = new ImportData(
+      new FakeGameRepository(),
+      new FakePlatformRepository([existing]),
+      importRepo,
+      gen,
+    );
     const result = await uc.execute('user-1', ext, 'merge');
     expect(result.ok).toBe(true);
     expect(importRepo.lastCall?.plan.platforms[0]?.externalId).toBe('user-ps4');
@@ -295,7 +533,17 @@ describe('ImportData.execute', () => {
   it('treats whitespace-only developer as null (developer is now nullable)', async () => {
     const snap = snap2({
       games: [
-        { externalId: 'g-1', title: 'God of War', developer: '   ', genre: 'Action', releaseYear: 2018, platform: 'PS5', hoursPlayed: 30, status: 'Completed', format: 'digital' },
+        {
+          externalId: 'g-1',
+          title: 'God of War',
+          developer: '   ',
+          genre: 'Action',
+          releaseYear: 2018,
+          platform: 'PS5',
+          hoursPlayed: 30,
+          status: 'Completed',
+          format: 'digital',
+        },
       ],
     });
     const result = await makeUseCase().uc.execute('user-1', snap, 'merge');

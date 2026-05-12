@@ -1,15 +1,20 @@
 import type { ImportMode, ImportReport } from '@apex/shared';
 import type { GameRepository } from '../../domain/games/game-repository';
-import type { PlatformRepository } from '../../domain/platforms/platform-repository';
-import type { ImportRepository, ImportPlan } from '../../domain/import/import-repository';
-import { NewGame } from '../../domain/games/game';
+import { NewGame } from '../../domain/games/new-game';
+import type { ImportPlan, ImportRepository } from '../../domain/import/import-repository';
 import { NewPlatform } from '../../domain/platforms/platform';
-import { err, ok, type Result } from '../../domain/shared/result';
-import { parseImport, type ImportParseError } from './parse-import';
+import type { PlatformRepository } from '../../domain/platforms/platform-repository';
+import { type Result, err, ok } from '../../domain/shared/result';
+import { type ImportParseError, parseImport } from './parse-import';
 
 export type ImportError =
   | ImportParseError
-  | { kind: 'duplicate_external_id'; scope: 'platforms' | 'games'; externalId: string; indices: number[] }
+  | {
+      kind: 'duplicate_external_id';
+      scope: 'platforms' | 'games';
+      externalId: string;
+      indices: number[];
+    }
   | { kind: 'duplicate_platform_name'; name: string; indices: number[] }
   | { kind: 'unknown_platform'; platform: string; gameIndices: number[] }
   | { kind: 'domain_error'; scope: 'platforms' | 'games'; index: number; error: unknown };
@@ -22,21 +27,40 @@ export class ImportData {
     private readonly idGenerator: () => string = () => crypto.randomUUID(),
   ) {}
 
-  async execute(userId: string, rawJson: string, mode: ImportMode): Promise<Result<ImportReport, ImportError>> {
+  async execute(
+    userId: string,
+    rawJson: string,
+    mode: ImportMode,
+  ): Promise<Result<ImportReport, ImportError>> {
     const parsed = parseImport(rawJson, this.idGenerator);
     if (!parsed.ok) return err(parsed.error);
     const snap = parsed.value;
 
     const dupP = findFirstDuplicate(snap.platforms.map((p) => p.externalId));
     if (dupP)
-      return err({ kind: 'duplicate_external_id', scope: 'platforms', externalId: dupP.value, indices: dupP.indices });
+      return err({
+        kind: 'duplicate_external_id',
+        scope: 'platforms',
+        externalId: dupP.value,
+        indices: dupP.indices,
+      });
 
     const dupG = findFirstDuplicate(snap.games.map((g) => g.externalId));
     if (dupG)
-      return err({ kind: 'duplicate_external_id', scope: 'games', externalId: dupG.value, indices: dupG.indices });
+      return err({
+        kind: 'duplicate_external_id',
+        scope: 'games',
+        externalId: dupG.value,
+        indices: dupG.indices,
+      });
 
     const dupName = findFirstDuplicate(snap.platforms.map((p) => p.name));
-    if (dupName) return err({ kind: 'duplicate_platform_name', name: dupName.value, indices: dupName.indices });
+    if (dupName)
+      return err({
+        kind: 'duplicate_platform_name',
+        name: dupName.value,
+        indices: dupName.indices,
+      });
 
     const platformsInFile = new Set(snap.platforms.map((p) => p.name));
     const userPlatforms = mode === 'merge' ? await this.platformRepo.list(userId) : [];

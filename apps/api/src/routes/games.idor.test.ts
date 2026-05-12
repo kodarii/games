@@ -3,6 +3,7 @@ import { inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { db } from '../infrastructure/db/client';
 import { games as gamesTable } from '../infrastructure/db/schema';
+import { requestContext } from '../infrastructure/logging/request-context-middleware';
 import { games } from './games';
 import type { AuthVariables } from './middleware/require-auth';
 
@@ -32,6 +33,7 @@ const userBExternalIds = SHARED_FIXTURE.map((_, i) => `idor-B-ext-${i}-${crypto.
 
 function makeAppForUser(userId: string) {
   const app = new Hono<{ Variables: AuthVariables }>();
+  app.use('*', requestContext());
   app.use('/api/games/*', async (c, next) => {
     c.set('user', { id: userId } as AuthVariables['user']);
     await next();
@@ -129,5 +131,20 @@ describe('GET /api/games — IDOR resistance', () => {
     for (const item of body.items) {
       expect(userASet.has(item.id)).toBe(false);
     }
+  });
+
+  it("PATCH /:externalId/metadata: user B cannot patch user A's game (returns 404)", async () => {
+    const appForB = makeAppForUser(USER_B);
+    const aExternalId = userAExternalIds[0];
+    const res = await appForB.request(`/api/games/${aExternalId}/metadata`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        providerName: 'igdb',
+        providerId: '12345',
+        snapshot: { coverImageUrl: null, releaseYear: null, developer: null },
+      }),
+    });
+    expect(res.status).toBe(404);
   });
 });

@@ -1,16 +1,8 @@
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { z } from 'zod';
-import { ImportData } from '../application/import/import-data';
-import { DrizzleGameRepository } from '../infrastructure/games/drizzle-game-repository';
-import { DrizzleImportRepository } from '../infrastructure/import/drizzle-import-repository';
-import { DrizzlePlatformRepository } from '../infrastructure/platforms/drizzle-platform-repository';
+import { idempotencyKeyMiddleware, importData } from '../wiring';
 import type { AuthVariables } from './middleware/require-auth';
-
-const gameRepo = new DrizzleGameRepository();
-const platformRepo = new DrizzlePlatformRepository();
-const importRepo = new DrizzleImportRepository();
-const importData = new ImportData(gameRepo, platformRepo, importRepo);
 
 const BodySchema = z.object({
   mode: z.enum(['merge', 'replace']),
@@ -25,6 +17,7 @@ importRoute.post(
     maxSize: 5 * 1024 * 1024,
     onError: (c) => c.json({ error: 'payload_too_large' }, 413),
   }),
+  idempotencyKeyMiddleware,
   async (c) => {
     const userId = c.get('user').id;
     const body = await c.req.json().catch(() => null);

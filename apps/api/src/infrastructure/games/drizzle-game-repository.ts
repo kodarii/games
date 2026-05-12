@@ -1,26 +1,42 @@
 import { and, asc, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { Game } from '../../domain/games/game';
 import {
-  Game,
-  type GameFormat,
-  type GameKind,
-  type GamePlatform,
-  type GameStatus,
-  type GameUpdate,
-  type NewGame,
-} from '../../domain/games/game';
-import type {
-  GameRepository,
-  ListGamesQuery,
-  ListGamesResult,
+  type GameRepository,
+  type ListGamesQuery,
+  type ListGamesResult,
+  OptimisticLockError,
 } from '../../domain/games/game-repository';
+import type { GameUpdate } from '../../domain/games/game-update';
+import type {
+  GameFormat,
+  GameKind,
+  GamePlatform,
+  GameStatus,
+} from '../../domain/games/game-value-objects';
+import type { NewGame } from '../../domain/games/new-game';
 import { db as defaultDb } from '../db/client';
 import type { GameRow } from '../db/schema';
 import { games as gamesTable } from '../db/schema';
 
+/**
+ * Drizzle handle — accepts both the top-level `db` and a `tx` inside a
+ * `db.transaction(...)` callback. They share the same query surface for
+ * select/insert/update/delete, which is what this repo uses.
+ */
 type DB = typeof defaultDb;
+export type DrizzleHandle = DB | Parameters<Parameters<DB['transaction']>[0]>[0];
 
 export class DrizzleGameRepository implements GameRepository {
-  constructor(private readonly db: DB = defaultDb) {}
+  constructor(private readonly db: DrizzleHandle = defaultDb) {}
+
+  /**
+   * Return a repository bound to a transaction handle. Use inside
+   * `db.transaction(async tx => { const repo = baseRepo.withTx(tx); ... })`
+   * so every read/write goes through the same atomic write batch.
+   */
+  withTx(tx: unknown): DrizzleGameRepository {
+    return new DrizzleGameRepository(tx as DrizzleHandle);
+  }
 
   private mapRowToGame(row: GameRow): Game {
     return Game.fromPersistence({
@@ -42,6 +58,10 @@ export class DrizzleGameRepository implements GameRepository {
       price: row.price,
       purchasedAt: row.purchasedAt,
       notes: row.notes,
+      metadataProvider: row.metadataProvider ?? null,
+      metadataProviderId: row.metadataProviderId,
+      metadataMatchedAt: row.metadataMatchedAt,
+      updatedAt: row.updatedAt,
     });
   }
 
@@ -140,6 +160,7 @@ export class DrizzleGameRepository implements GameRepository {
   }
 
   async create(newGame: NewGame): Promise<Game> {
+    const metadataRef = newGame.metadataRef;
     const [inserted] = await this.db
       .insert(gamesTable)
       .values({
@@ -160,13 +181,21 @@ export class DrizzleGameRepository implements GameRepository {
         price: newGame.price?.value ?? null,
         purchasedAt: newGame.purchasedAt?.value ?? null,
         notes: newGame.notes ?? null,
+        metadataProvider: metadataRef?.providerName ?? null,
+        metadataProviderId: metadataRef?.providerId ?? null,
+        metadataMatchedAt: metadataRef?.matchedAt.toISOString() ?? null,
       })
       .returning();
 
     return this.mapRowToGame(inserted);
   }
 
-  async update(userId: string, externalId: string, game: GameUpdate): Promise<Game | null> {
+  async update(
+    userId: string,
+    externalId: string,
+    game: GameUpdate,
+    expectedUpdatedAt: Date,
+  ): Promise<Game | null> {
     const [updated] = await this.db
       .update(gamesTable)
       .set({
@@ -186,21 +215,80 @@ export class DrizzleGameRepository implements GameRepository {
         purchasedAt: game.purchasedAt?.value ?? null,
         notes: game.notes ?? null,
       })
-      .where(and(eq(gamesTable.externalId, externalId), eq(gamesTable.userId, userId)))
+      .where(
+        and(
+          eq(gamesTable.externalId, externalId),
+          eq(gamesTable.userId, userId),
+          eq(gamesTable.updatedAt, expectedUpdatedAt),
+        ),
+      )
       .returning();
 
-    if (!updated) return null;
-    return this.mapRowToGame(updated);
+    if (updated) return this.mapRowToGame(updated);
+    return this.handleWriteMiss(userId, externalId);
   }
 
-  async delete(userId: string, externalId: string): Promise<Game | null> {
-    const [deleted] = await this.db
-      .delete(gamesTable)
-      .where(and(eq(gamesTable.externalId, externalId), eq(gamesTable.userId, userId)))
+  async saveMetadata(
+    userId: string,
+    externalId: string,
+    game: Game,
+    expectedUpdatedAt: Date,
+  ): Promise<Game | null> {
+    const ref = game.metadataRef;
+    const [updated] = await this.db
+      .update(gamesTable)
+      .set({
+        developer: game.developer ?? null,
+        releaseYear: game.releaseYear?.value ?? null,
+        coverImage: game.coverImage ?? null,
+        metadataProvider: ref?.providerName ?? null,
+        metadataProviderId: ref?.providerId ?? null,
+        metadataMatchedAt: ref?.matchedAt.toISOString() ?? null,
+      })
+      .where(
+        and(
+          eq(gamesTable.externalId, externalId),
+          eq(gamesTable.userId, userId),
+          eq(gamesTable.updatedAt, expectedUpdatedAt),
+        ),
+      )
       .returning();
 
-    if (!deleted) return null;
-    return this.mapRowToGame(deleted);
+    if (updated) return this.mapRowToGame(updated);
+    return this.handleWriteMiss(userId, externalId);
+  }
+
+  async delete(userId: string, externalId: string, expectedUpdatedAt: Date): Promise<Game | null> {
+    const [deleted] = await this.db
+      .delete(gamesTable)
+      .where(
+        and(
+          eq(gamesTable.externalId, externalId),
+          eq(gamesTable.userId, userId),
+          eq(gamesTable.updatedAt, expectedUpdatedAt),
+        ),
+      )
+      .returning();
+
+    if (deleted) return this.mapRowToGame(deleted);
+    return this.handleWriteMiss(userId, externalId);
+  }
+
+  /**
+   * Disambiguate a zero-affected-row write. Caller already saw the row a
+   * moment earlier — if it's still here, the lock is stale; otherwise the
+   * row is genuinely gone (deleted concurrently → `null` is the truth).
+   */
+  private async handleWriteMiss(userId: string, externalId: string): Promise<null> {
+    const [stillThere] = await this.db
+      .select({ id: gamesTable.id })
+      .from(gamesTable)
+      .where(and(eq(gamesTable.externalId, externalId), eq(gamesTable.userId, userId)))
+      .limit(1);
+    if (stillThere) {
+      throw new OptimisticLockError(externalId);
+    }
+    return null;
   }
 
   async listAll(userId: string): Promise<Game[]> {

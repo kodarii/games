@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { GAME_FORMATS } from '../../domain/games/game';
 import type { GameRepository, ListGamesQuery } from '../../domain/games/game-repository';
+import { GAME_FORMATS } from '../../domain/games/game-value-objects';
 import { ReleaseYearRange } from '../../domain/games/release-year-range';
 
 const ListGamesQuerySchema = z

@@ -1,14 +1,10 @@
 import { describe, expect, it } from 'bun:test';
-import {
-  Game,
-  GameUpdate,
-  type GameProps,
-  HoursPlayed,
-  NewGame,
-  Price,
-  PurchasedAt,
-  ReleaseYear,
-} from '../game';
+import { Game } from '../game';
+import { GameUpdate } from '../game-update';
+import { HoursPlayed, Price, PurchasedAt, ReleaseYear } from '../game-value-objects';
+import { NewGame, type NewGameProps } from '../new-game';
+
+type GameProps = NewGameProps;
 
 const validRow = {
   id: 1,
@@ -112,7 +108,7 @@ describe('HoursPlayed', () => {
   });
 });
 
-import type { GameFormat, GameKind, GamePlatform, GameStatus } from '../game';
+import type { GameFormat, GameKind, GamePlatform, GameStatus } from '../game-value-objects';
 
 describe('NewGame.create', () => {
   it('happy path', () => {
@@ -339,27 +335,25 @@ describe('Game.fromPersistence', () => {
   it('restores from valid row', () => {
     const game = Game.fromPersistence(validRow);
     expect(game.id).toBe(1);
-    const json = game.toJSON();
-    expect(json).toEqual({
-      id: 1,
-      externalId: 'test-uuid-1',
-      kind: 'owned',
-      userId: 'user-123',
-      title: 'Elden Ring',
-      developer: 'FromSoftware',
-      genre: 'ARPG',
-      releaseYear: 2022,
-      platform: 'PS5',
-      edition: 'Standard',
-      hoursPlayed: 120,
-      status: 'Completed',
-      format: 'digital',
-      coverColor: undefined,
-      coverImage: null,
-      price: null,
-      purchasedAt: null,
-      notes: null,
-    });
+    expect(game.externalId).toBe('test-uuid-1');
+    expect(game.kind).toBe('owned');
+    expect(game.userId).toBe('user-123');
+    expect(game.title).toBe('Elden Ring');
+    expect(game.developer).toBe('FromSoftware');
+    expect(game.genre).toBe('ARPG');
+    expect(game.releaseYear?.value).toBe(2022);
+    expect(game.platform).toBe('PS5');
+    expect(game.edition).toBe('Standard');
+    expect(game.hoursPlayed?.value).toBe(120);
+    expect(game.status).toBe('Completed');
+    expect(game.format).toBe('digital');
+    expect(game.coverColor).toBeUndefined();
+    expect(game.coverImage).toBeUndefined();
+    expect(game.price).toBeNull();
+    expect(game.purchasedAt).toBeNull();
+    expect(game.notes).toBeNull();
+    expect(game.metadataRef).toBeNull();
+    expect(game.updatedAt).toBeInstanceOf(Date);
   });
 
   it('maps null edition to undefined', () => {
@@ -372,7 +366,6 @@ describe('Game.fromPersistence', () => {
     const row = { ...validRow, releaseYear: null };
     const game = Game.fromPersistence(row);
     expect(game.releaseYear).toBeNull();
-    expect(game.toJSON().releaseYear).toBeNull();
   });
 
   it('exposes userId from persistence row', () => {
@@ -389,21 +382,10 @@ describe('Game.fromPersistence', () => {
       developer: null,
     };
     const game = Game.fromPersistence(row);
-    const json = game.toJSON();
-    expect(json.kind).toBe('wishlist');
-    expect(json.status).toBeNull();
-    expect(json.hoursPlayed).toBeNull();
-    expect(json.developer).toBeNull();
-  });
-});
-
-describe('Game.toJSON serialization', () => {
-  it('serializes releaseYear and hoursPlayed as numbers', () => {
-    const game = Game.fromPersistence(validRow);
-    const json = game.toJSON();
-    expect(typeof json.releaseYear).toBe('number');
-    expect(typeof json.hoursPlayed).toBe('number');
-    expect(JSON.parse(JSON.stringify(game))).toEqual(json);
+    expect(game.kind).toBe('wishlist');
+    expect(game.status).toBeNull();
+    expect(game.hoursPlayed).toBeNull();
+    expect(game.developer).toBeNull();
   });
 });
 
@@ -550,17 +532,15 @@ describe('Game.fromPersistence with price and purchasedAt', () => {
   it('maps null price and purchasedAt', () => {
     const row = { ...validRow, price: null, purchasedAt: null };
     const game = Game.fromPersistence(row);
-    const json = game.toJSON();
-    expect(json.price).toBeNull();
-    expect(json.purchasedAt).toBeNull();
+    expect(game.price).toBeNull();
+    expect(game.purchasedAt).toBeNull();
   });
 
   it('maps non-null price and purchasedAt', () => {
     const row = { ...validRow, price: 12999, purchasedAt: '2024-06-15' };
     const game = Game.fromPersistence(row);
-    const json = game.toJSON();
-    expect(json.price).toBe(12999);
-    expect(json.purchasedAt).toBe('2024-06-15');
+    expect(game.price?.value).toBe(12999);
+    expect(game.purchasedAt?.value).toBe('2024-06-15');
   });
 });
 
@@ -609,49 +589,52 @@ describe('GameUpdate.create', () => {
   });
 });
 
-describe('GameUpdate.fromGame', () => {
-  it('creates GameUpdate from Game with matching fields', () => {
-    const game = Game.fromPersistence(validRow);
-    const update = GameUpdate.fromGame(game);
-    expect(update.kind).toBe(game.kind);
-    expect(update.title).toBe(game.title);
-    expect(update.developer).toBe(game.developer);
-    expect(update.genre).toBe(game.genre);
-    expect(update.platform).toBe(game.platform);
-    expect(update.status).toBe(game.status);
-    expect(update.format).toBe(game.format);
-    expect(update.hoursPlayed?.value).toBe(game.hoursPlayed?.value);
-    expect(update.releaseYear?.value).toBe(game.releaseYear?.value);
-    // @ts-expect-error externalId must not exist on GameUpdate
-    expect(update.externalId).toBeUndefined();
-  });
-});
-
-describe('Game.toOwned', () => {
-  it('converts wishlist to owned with Backlog status and 0 hoursPlayed', () => {
-    const wishlistRow = { ...validRow, kind: 'wishlist' as const, status: null, hoursPlayed: null };
+describe('Game.moveToCollection', () => {
+  it('returns a GameUpdate with kind=owned, status=Backlog, hoursPlayed=0', () => {
+    const wishlistRow = {
+      ...validRow,
+      kind: 'wishlist' as const,
+      status: null,
+      hoursPlayed: null,
+    };
     const wishlistGame = Game.fromPersistence(wishlistRow);
-    const owned = wishlistGame.toOwned();
-    expect(owned.kind).toBe('owned');
-    expect(owned.status).toBe('Backlog');
-    expect(owned.hoursPlayed?.value).toBe(0);
+    const update = wishlistGame.moveToCollection();
+    expect(update.kind).toBe('owned');
+    expect(update.status).toBe('Backlog');
+    expect(update.hoursPlayed?.value).toBe(0);
   });
 
-  it('preserves id, externalId, userId, title, platform', () => {
-    const wishlistRow = { ...validRow, kind: 'wishlist' as const, status: null, hoursPlayed: null };
+  it('preserves userId, title, developer, genre, platform, format from the source game', () => {
+    const wishlistRow = {
+      ...validRow,
+      kind: 'wishlist' as const,
+      status: null,
+      hoursPlayed: null,
+    };
     const wishlistGame = Game.fromPersistence(wishlistRow);
-    const owned = wishlistGame.toOwned();
-    expect(owned.id).toBe(wishlistGame.id);
-    expect(owned.externalId).toBe(wishlistGame.externalId);
-    expect(owned.userId).toBe(wishlistGame.userId);
-    expect(owned.title).toBe(wishlistGame.title);
-    expect(owned.platform).toBe(wishlistGame.platform);
+    const update = wishlistGame.moveToCollection();
+    expect(update.userId).toBe(wishlistGame.userId);
+    expect(update.title).toBe(wishlistGame.title);
+    expect(update.developer).toBe(wishlistGame.developer);
+    expect(update.genre).toBe(wishlistGame.genre);
+    expect(update.platform).toBe(wishlistGame.platform);
+    expect(update.format).toBe(wishlistGame.format);
   });
 
   it('sets purchasedAt to null', () => {
-    const wishlistRow = { ...validRow, kind: 'wishlist' as const, status: null, hoursPlayed: null };
+    const wishlistRow = {
+      ...validRow,
+      kind: 'wishlist' as const,
+      status: null,
+      hoursPlayed: null,
+    };
     const wishlistGame = Game.fromPersistence(wishlistRow);
-    const owned = wishlistGame.toOwned();
-    expect(owned.purchasedAt).toBeNull();
+    const update = wishlistGame.moveToCollection();
+    expect(update.purchasedAt).toBeNull();
+  });
+
+  it('throws when called on an already-owned game (programmer error)', () => {
+    const ownedGame = Game.fromPersistence(validRow);
+    expect(() => ownedGame.moveToCollection()).toThrow(/already owned/);
   });
 });
