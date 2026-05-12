@@ -5,7 +5,7 @@ status: draft
 shadcn_initialized: true
 preset: new-york + neutral (project-native, from apps/client/components.json)
 created: 2026-05-12
-revised: 2026-05-12 (revision 1 — checker fixes)
+revised: 2026-05-12 (revision 2 — consolidate nav-link font size to satisfy 4-size typography cap)
 ---
 
 # Phase 1 — UI Design Contract
@@ -79,10 +79,12 @@ Inter family throughout. Four declared sizes, **two weights (regular 400 + semib
 
 **Two-weight contract:** regular (400) for body + labels; semibold (600) for headings + card titles + active nav state. No medium (500), no bold (700).
 
-**Auxiliary (already-established, reused — not counted toward new declarations; inherited from `sidebar.tsx` for FE-07 parity):**
+**Auxiliary (already-established, reused — inherited from `sidebar.tsx` for FE-07 parity):**
 - Section labels in side-nav (`KONTO`, `POZOSTAŁE`): `text-[10px] font-semibold uppercase tracking-[0.08em] text-apex-hint` — inherited verbatim from `sidebar.tsx:95`.
-- Nav-link label: `text-[13.5px]` — inherited from existing `NavRow` for FE-07 visual parity.
+- Nav-link label: `text-[13px]` — **consolidated from sidebar's `text-[13.5px]` (sub-pixel rounding artifact in the legacy `NavRow` source, imperceptible at screen DPI). Phase 1 uses the rounded 13px value to keep the global typography contract at exactly 4 declared sizes.**
 - Card subtitle / muted helper: `text-[13px] text-apex-muted` (Specifics).
+
+**Total declared sizes across the contract:** 10px, 13px, 14px, 24px = **4 sizes** (within the 4-size cap).
 
 **iOS Safari quirk:** Inputs auto-clamp to 16px via `@supports` rule in `index.css:76-79` — preserved, do not override.
 
@@ -257,6 +259,7 @@ Unchanged (referenced only):
 - Inactive link: `text-apex-ink-3 hover:bg-apex-surface-hover hover:text-apex-ink` + icon at `opacity-55`.
 - Disabled item: `<span aria-disabled="true">` with `text-apex-disabled cursor-not-allowed`, wrapped in shadcn `Tooltip` showing `Wkrótce`. **Not** an anchor/NavLink — non-interactive.
 - Match detection: `pathname.startsWith('/settings/account')` (loose match, mirrors `sidebar.tsx:39`).
+- Nav-link label uses `text-[13px]` (consolidated from sidebar's `text-[13.5px]` to keep the contract at 4 declared font sizes — see Typography section).
 
 ### Password form contract
 - Pattern: uncontrolled inputs + `FormData` (MEMORY: `feedback_react_autofill_uncontrolled`); see `login.tsx:14-36` as canonical.
