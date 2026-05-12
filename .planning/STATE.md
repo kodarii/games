@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 01 UI-SPEC approved
-last_updated: "2026-05-12T19:52:28.350Z"
-last_activity: 2026-05-12 -- Phase 01 planning complete
+stopped_at: Plan 01-01 complete — proceeding to Plan 02 (Konto page content)
+last_updated: "2026-05-12T20:02:25.775Z"
+last_activity: 2026-05-12
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 3
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 33
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Właściciel zawsze wie co ma i co chce kupić, i może to sprawdzić w kilka sekund — precyzja, szybkość, fokus.
-**Current focus:** Phase 1 — Settings Shell + Konto
+**Current focus:** Phase 01 — settings-shell-konto
 
 ## Current Position
 
-Phase: 1 of 5 (Settings Shell + Konto)
-Plan: 0 of TBD in current phase
+Phase: 01 (settings-shell-konto) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-05-12 -- Phase 01 planning complete
+Last activity: 2026-05-12
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: —
 
 *Updated after each plan completion*
+| Phase 01-settings-shell-konto P01 | 4 | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,7 @@ Recent decisions affecting current work:
 - One-time seed env→DB for IGDB credentials — zero-downtime deploy
 - Migrations out-of-boot (separate `bun run db:migrate`) — eliminates boot-time race, enables read-only forensic boot
 - Full hardening (security + frontend + backend) in one milestone — stabilization before next feature milestone
+- [Phase ?]: Plan 01-01 shadcn CLI workspace quirk: files land at apps/client/@/components/ui/, manual mv required to canonical apps/client/src/components/ui/
 
 ### Pending Todos
 
@@ -95,6 +97,7 @@ Items acknowledged and carried forward as v2 / out-of-scope:
 
 ## Session Continuity
 
-Last session: 2026-05-12T14:31:00.215Z
-Stopped at: Phase 01 UI-SPEC approved
-Resume file: .planning/phases/01-settings-shell-konto/01-UI-SPEC.md
+Last session: 2026-05-12T20:02:25.771Z
+Stopped at: Plan 01-01 complete — proceeding to Plan 02 (Konto page content)
+Resume file: 
+None

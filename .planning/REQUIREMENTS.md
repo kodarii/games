@@ -9,7 +9,7 @@
 
 ### Settings
 
-- [ ] **SET-01**: User może otworzyć stronę `/settings` z bocznym menu (side-nav) i prawym panelem zawartości; struktura przygotowana na dodawanie kolejnych sekcji
+- [x] **SET-01**: User może otworzyć stronę `/settings` z bocznym menu (side-nav) i prawym panelem zawartości; struktura przygotowana na dodawanie kolejnych sekcji
 - [ ] **SET-02**: Sekcja "Konto" pokazuje aktualny email zalogowanego użytkownika
 - [ ] **SET-03**: User może zmienić hasło z poziomu sekcji "Konto" (formularz: stare hasło, nowe hasło, potwierdzenie; walidacja przez better-auth)
 - [ ] **SET-04**: User może wylogować wszystkie aktywne sesje (revoke all sessions) jednym kliknięciem
@@ -44,7 +44,7 @@
 - [ ] **FE-04**: `game-view.tsx` (669 linii) podzielony na komponenty: `game-view-header`, `game-view-actions`, `game-view-fields` (każdy <250 linii); zachowane existing API i URL state
 - [ ] **FE-05**: Inline SVG-i w `game-view.tsx` przeniesione do `@/components/icons.tsx` jako `<Icon.name />`
 - [ ] **FE-06**: Regression testy dla login/register zapinające oba niedawne bugi: (a) refetchSession przed navigate, (b) uncontrolled+FormData zamiast controlled useState
-- [ ] **FE-07**: Strona ustawień używa istniejących wzorców (`AppLayout`, shadcn komponenty, neutralna paleta Linear-style) — wizualnie spójna z resztą aplikacji
+- [x] **FE-07**: Strona ustawień używa istniejących wzorców (`AppLayout`, shadcn komponenty, neutralna paleta Linear-style) — wizualnie spójna z resztą aplikacji
 
 ### Backend correctness
 
@@ -94,12 +94,12 @@ Wypełnione przez `gsd-roadmapper` 2026-05-12. Każdy v1 requirement mapowany do
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SET-01 | Phase 1 — Settings Shell + Konto | Pending |
+| SET-01 | Phase 1 — Settings Shell + Konto | Complete |
 | SET-02 | Phase 1 — Settings Shell + Konto | Pending |
 | SET-03 | Phase 1 — Settings Shell + Konto | Pending |
 | SET-04 | Phase 1 — Settings Shell + Konto | Pending |
 | SET-05 | Phase 1 — Settings Shell + Konto | Pending |
-| FE-07  | Phase 1 — Settings Shell + Konto | Pending |
+| FE-07  | Phase 1 — Settings Shell + Konto | Complete |
 | INT-01 | Phase 2 — Integrations Panel (IGDB) | Pending |
 | INT-02 | Phase 2 — Integrations Panel (IGDB) | Pending |
 | INT-03 | Phase 2 — Integrations Panel (IGDB) | Pending |
