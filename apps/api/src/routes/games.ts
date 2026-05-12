@@ -162,6 +162,17 @@ games.route('/metadata', createGamesMetadataRouter({ searchGameMetadata, igdbCon
 // here logically with its sibling `:externalId` routes.
 const PATCH_METADATA_ROUTE = 'PATCH /games/:externalId/metadata';
 games.patch('/:externalId/metadata', async (c) => {
+  if (enrichGameMetadata === null) {
+    return c.json(
+      {
+        type: '/errors/feature-disabled',
+        title: 'IGDB metadata feature disabled',
+        status: 503,
+        detail: 'IGDB credentials are not configured on this server.',
+      },
+      503,
+    );
+  }
   const externalId = c.req.param('externalId');
   const userId = c.get('user').id;
   const t0 = Date.now();

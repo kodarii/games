@@ -146,60 +146,76 @@ export const importData = new ImportData(gameRepository, platformRepository, imp
 // tokenStore → http client → adapter → caching decorator → use cases.
 // Each layer is process-singleton — circuit breaker / rate-limiter / token
 // store hold state that must be shared across all requests in this process.
+//
+// The entire chain is built only when both IGDB credentials are present.
+// When disabled, `searchGameMetadata` / `enrichGameMetadata` are `null` and
+// routes return 503; the rest of the API boots normally.
 
-const igdbBreaker = new CircuitBreaker({
-  failureThreshold: 5,
-  windowMs: 60_000,
-  halfOpenAfterMs: 30_000,
-  onStateChange: (next, prev) =>
-    baseLogger.event(next === 'open' ? 'igdb.breaker.open' : 'igdb.breaker.close', {
-      host: 'api.igdb.com',
-      from: prev,
-      to: next,
-    }),
-});
-
-const igdbTokenStorage = new DrizzleIgdbTokenStorage();
-const igdbTokenStore = new IgdbTokenStore({
-  storage: igdbTokenStorage,
-  clientId: env.IGDB_CLIENT_ID,
-  clientSecret: env.IGDB_CLIENT_SECRET,
-});
-
-const igdbRateLimiter = new TokenBucketRateLimiter({
-  capacity: 4,
-  refillIntervalMs: 250,
-});
-
-const igdbHttpClient = new IgdbHttpClient({
-  baseUrl: 'https://api.igdb.com/v4',
-  clientId: env.IGDB_CLIENT_ID,
-  tokenStore: igdbTokenStore,
-  rateLimiter: igdbRateLimiter,
-  breaker: igdbBreaker,
-  timeoutMs: env.IGDB_TIMEOUT_MS,
-});
+const igdbClientId = env.IGDB_CLIENT_ID;
+const igdbClientSecret = env.IGDB_CLIENT_SECRET;
 
 export const igdbConfigured: boolean =
-  env.IGDB_CLIENT_ID.length > 0 && env.IGDB_CLIENT_SECRET.length > 0;
+  igdbClientId !== undefined && igdbClientSecret !== undefined;
 
-const igdbRawProvider = new IgdbGameMetadataProvider({ httpClient: igdbHttpClient });
 const metadataCacheRepository = new MetadataCacheRepository();
-const cachingProvider = new CachingGameMetadataProvider({
-  inner: igdbRawProvider,
-  cacheRepo: metadataCacheRepository,
-  providerName: 'igdb',
-  positiveTtlDays: env.IGDB_CACHE_TTL_DAYS,
-  negativeTtlDays: 1,
-});
 
-export const searchGameMetadata = new SearchGameMetadata(cachingProvider, metadataCacheRepository);
-export const enrichGameMetadata = new EnrichGameMetadata(
-  gameRepository,
-  transactionRunner,
-  metadataCacheRepository,
-  isCoverHostAllowed,
-);
+export const searchGameMetadata: SearchGameMetadata | null = igdbConfigured
+  ? buildSearchGameMetadata(igdbClientId!, igdbClientSecret!)
+  : null;
+
+export const enrichGameMetadata: EnrichGameMetadata | null = igdbConfigured
+  ? new EnrichGameMetadata(
+      gameRepository,
+      transactionRunner,
+      metadataCacheRepository,
+      isCoverHostAllowed,
+    )
+  : null;
+
+if (!igdbConfigured) {
+  baseLogger.event('igdb.disabled', {
+    reason: 'IGDB_CLIENT_ID or IGDB_CLIENT_SECRET not set; metadata feature disabled',
+  });
+}
+
+function buildSearchGameMetadata(clientId: string, clientSecret: string): SearchGameMetadata {
+  const breaker = new CircuitBreaker({
+    failureThreshold: 5,
+    windowMs: 60_000,
+    halfOpenAfterMs: 30_000,
+    onStateChange: (next, prev) =>
+      baseLogger.event(next === 'open' ? 'igdb.breaker.open' : 'igdb.breaker.close', {
+        host: 'api.igdb.com',
+        from: prev,
+        to: next,
+      }),
+  });
+  const tokenStore = new IgdbTokenStore({
+    storage: new DrizzleIgdbTokenStorage(),
+    clientId,
+    clientSecret,
+  });
+  const rateLimiter = new TokenBucketRateLimiter({
+    capacity: 4,
+    refillIntervalMs: 250,
+  });
+  const httpClient = new IgdbHttpClient({
+    baseUrl: 'https://api.igdb.com/v4',
+    clientId,
+    tokenStore,
+    rateLimiter,
+    breaker,
+    timeoutMs: env.IGDB_TIMEOUT_MS,
+  });
+  const cachingProvider = new CachingGameMetadataProvider({
+    inner: new IgdbGameMetadataProvider({ httpClient }),
+    cacheRepo: metadataCacheRepository,
+    providerName: 'igdb',
+    positiveTtlDays: env.IGDB_CACHE_TTL_DAYS,
+    negativeTtlDays: 1,
+  });
+  return new SearchGameMetadata(cachingProvider, metadataCacheRepository);
+}
 
 // --- Cron + lifecycle -----------------------------------------------------
 // Owner identifies this process in cron_locks rows. We salt with hostname,

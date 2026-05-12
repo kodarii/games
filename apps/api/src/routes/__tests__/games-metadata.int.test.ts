@@ -119,7 +119,7 @@ function buildApp(state: FakeIgdbState): BuiltApp {
   // production instance here rather than reaching into infrastructure
   // directly. The metadata-router tests only exercise the search side, so
   // `wiredEnrichGameMetadata` is referenced below to keep its import live.
-  const enrichGameMetadata: EnrichGameMetadata = wiredEnrichGameMetadata;
+  const enrichGameMetadata: EnrichGameMetadata | null = wiredEnrichGameMetadata;
 
   const app = new Hono<{ Variables: AuthVariables }>();
   // Install the same request-context middleware production wires in
