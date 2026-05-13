@@ -242,16 +242,18 @@ function PasswordRow() {
             Aktualizuj swoje hasło logowania.
           </div>
         </div>
-        <Button
-          ref={triggerRef}
-          variant="ghost"
-          size="sm"
-          aria-expanded={open}
-          aria-controls={bodyId}
-          onClick={() => (open ? close() : setOpen(true))}
-        >
-          {open ? 'Anuluj' : 'Zmień hasło'}
-        </Button>
+        {!open && (
+          <Button
+            ref={triggerRef}
+            variant="ghost"
+            size="sm"
+            aria-expanded={open}
+            aria-controls={bodyId}
+            onClick={() => setOpen(true)}
+          >
+            Zmień hasło
+          </Button>
+        )}
       </div>
       <SettingsInlineToggle open={open} id={bodyId}>
         <AccountPasswordForm open={open} onCancel={close} onSuccess={close} />

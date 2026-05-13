@@ -84,7 +84,7 @@ export function AccountPasswordForm({ open, onCancel, onSuccess }: AccountPasswo
       onSubmit={onSubmit}
       onKeyDown={onKeyDown}
       noValidate
-      className="space-y-4 px-4 pb-4 pt-1"
+      className="space-y-4 border-t border-apex-line-4 bg-apex-surface-head px-4 pb-4 pt-4"
     >
       {error && (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12.5px] text-red-800">
@@ -138,10 +138,23 @@ export function AccountPasswordForm({ open, onCancel, onSuccess }: AccountPasswo
         <span>Wyloguj wszystkie inne sesje</span>
       </label>
       <div className="flex justify-end gap-2 pt-1">
-        <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={isPending}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onCancel}
+          disabled={isPending}
+          className="h-8 border-apex-line-1 bg-white px-4 text-[12.5px] text-apex-ink hover:bg-apex-line-4 hover:text-apex-ink"
+        >
           Anuluj
         </Button>
-        <Button type="submit" variant="primary" size="sm" disabled={isPending}>
+        <Button
+          type="submit"
+          variant="primary"
+          size="sm"
+          disabled={isPending}
+          className="h-8 px-4 text-[12.5px]"
+        >
           {isPending ? 'Zapisywanie…' : 'Zapisz hasło'}
         </Button>
       </div>
