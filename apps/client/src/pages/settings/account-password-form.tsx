@@ -1,10 +1,15 @@
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { changePassword } from '@/lib/auth-client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+
+type AccountPasswordFormProps = {
+  open: boolean;
+  onCancel: () => void;
+  onSuccess: () => void;
+};
 
 function mapChangePasswordError(code: string | undefined, status: number | undefined): string {
   if (code === 'INVALID_PASSWORD') {
@@ -19,9 +24,15 @@ function mapChangePasswordError(code: string | undefined, status: number | undef
   return 'Coś poszło nie tak. Spróbuj ponownie.';
 }
 
-export function AccountPasswordForm() {
+export function AccountPasswordForm({ open, onCancel, onSuccess }: AccountPasswordFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const firstInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) firstInputRef.current?.focus();
+  }, [open]);
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -30,7 +41,7 @@ export function AccountPasswordForm() {
     const currentPassword = String(data.get('currentPassword') ?? '');
     const newPassword = String(data.get('newPassword') ?? '');
     const confirmPassword = String(data.get('confirmPassword') ?? '');
-    const revokeOtherSessions = data.get('revokeOtherSessions') === 'on';
+    const revokeOther = data.get('revokeOtherSessions') === 'on';
 
     setError(null);
 
@@ -43,91 +54,97 @@ export function AccountPasswordForm() {
     const { error: changeError } = await changePassword({
       currentPassword,
       newPassword,
-      revokeOtherSessions,
+      revokeOtherSessions: revokeOther,
     });
+    setIsPending(false);
     if (changeError) {
-      setIsPending(false);
       setError(mapChangePasswordError(changeError.code, changeError.status));
+      if (changeError.code === 'INVALID_PASSWORD') {
+        firstInputRef.current?.focus();
+      }
       return;
     }
-    setIsPending(false);
     toast.success('Hasło zmienione');
     form.reset();
+    onSuccess();
+  };
+
+  const onKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      formRef.current?.reset();
+      setError(null);
+      onCancel();
+    }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm font-semibold text-apex-ink">Zmień hasło</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {error && (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-            {error}
-          </div>
-        )}
-        <form id="account-password-form" onSubmit={onSubmit} className="space-y-4" noValidate>
-          <div>
-            <Label htmlFor="currentPassword" className="text-sm text-apex-ink">
-              Aktualne hasło
-            </Label>
-            <Input
-              id="currentPassword"
-              name="currentPassword"
-              type="password"
-              required
-              autoComplete="current-password"
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label htmlFor="newPassword" className="text-sm text-apex-ink">
-              Nowe hasło
-            </Label>
-            <Input
-              id="newPassword"
-              name="newPassword"
-              type="password"
-              required
-              autoComplete="new-password"
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label htmlFor="confirmPassword" className="text-sm text-apex-ink">
-              Potwierdź nowe hasło
-            </Label>
-            <Input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              required
-              autoComplete="new-password"
-              className="mt-1"
-            />
-          </div>
-          <label className="flex items-center gap-2 text-sm text-apex-ink">
-            <input
-              type="checkbox"
-              name="revokeOtherSessions"
-              defaultChecked
-              className="h-4 w-4 rounded border-apex-line-4 text-apex-accent focus:ring-apex-accent"
-            />
-            <span>Wyloguj wszystkie inne sesje</span>
-          </label>
-        </form>
-      </CardContent>
-      <CardFooter>
-        <Button
-          type="submit"
-          form="account-password-form"
-          variant="primary"
-          className="w-full"
-          disabled={isPending}
-        >
+    <form
+      ref={formRef}
+      onSubmit={onSubmit}
+      onKeyDown={onKeyDown}
+      noValidate
+      className="space-y-4 px-4 pb-4 pt-1"
+    >
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12.5px] text-red-800">
+          {error}
+        </div>
+      )}
+      <div className="space-y-1.5">
+        <Label htmlFor="currentPassword" className="text-[12.5px] text-apex-ink">
+          Aktualne hasło
+        </Label>
+        <Input
+          ref={firstInputRef}
+          id="currentPassword"
+          name="currentPassword"
+          type="password"
+          required
+          autoComplete="current-password"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="newPassword" className="text-[12.5px] text-apex-ink">
+          Nowe hasło
+        </Label>
+        <Input
+          id="newPassword"
+          name="newPassword"
+          type="password"
+          required
+          autoComplete="new-password"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="confirmPassword" className="text-[12.5px] text-apex-ink">
+          Potwierdź nowe hasło
+        </Label>
+        <Input
+          id="confirmPassword"
+          name="confirmPassword"
+          type="password"
+          required
+          autoComplete="new-password"
+        />
+      </div>
+      <label className="flex items-center gap-2 text-[12.5px] text-apex-ink">
+        <input
+          type="checkbox"
+          name="revokeOtherSessions"
+          defaultChecked
+          className="h-4 w-4 rounded border-apex-line-4 text-apex-accent focus:ring-apex-accent"
+        />
+        <span>Wyloguj wszystkie inne sesje</span>
+      </label>
+      <div className="flex justify-end gap-2 pt-1">
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={isPending}>
+          Anuluj
+        </Button>
+        <Button type="submit" variant="primary" size="sm" disabled={isPending}>
           {isPending ? 'Zapisywanie…' : 'Zapisz hasło'}
         </Button>
-      </CardFooter>
-    </Card>
+      </div>
+    </form>
   );
 }
