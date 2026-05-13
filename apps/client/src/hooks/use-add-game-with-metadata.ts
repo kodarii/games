@@ -23,6 +23,7 @@ export interface UseAddGameWithMetadataResult {
   setColor: (v: string) => void;
   selectedProviderId: string | null;
   setSelectedProviderId: (v: string | null) => void;
+  selectCandidate: (c: MetadataCandidate) => void;
   selectedCandidate: MetadataCandidate | null;
   candidatesQuery: ReturnType<typeof useMetadataCandidatesQuery>;
   createMutation: ReturnType<typeof useCreateGameMutation>;
@@ -35,9 +36,15 @@ export interface UseAddGameWithMetadataResult {
  *
  * Drops the previous two-step Find-match flow; the autocomplete dropdown is now
  * inline under the title input. Debounces `title` by 250 ms before it drives
- * the IGDB candidates query, so users typing fast don't fire one request per
- * keystroke. The MATCHED pill is cleared automatically whenever the user edits
- * the title further.
+ * the IGDB candidates query so users typing fast don't fire one request per
+ * keystroke.
+ *
+ * MATCHED pill is "sticky" only while the typed title matches the picked
+ * candidate's title — the moment the user edits the input the derived
+ * `selectedCandidate` returns null and the pill disappears. We do this via a
+ * derived check (`c.title.trim() === title.trim()`) rather than an effect so
+ * we don't have to race state updates when the parent calls
+ * `selectCandidate(c)` (which sets title + providerId atomically).
  *
  * For both `'collection'` and `'wishlist'` mode the underlying mutation is the
  * SAME (`useCreateGameMutation`) — the backend `CreateGame` use case accepts
@@ -61,21 +68,23 @@ export function useAddGameWithMetadata(
     return () => clearTimeout(handle);
   }, [title]);
 
-  // Editing the title clears any prior MATCHED selection so the pill disappears
-  // as soon as the user diverges from the picked candidate. The dep array
-  // intentionally tracks `title` only — `setSelectedProviderId` is stable.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: setSelectedProviderId is a setter from useState and is stable across renders.
-  useEffect(() => {
-    setSelectedProviderId(null);
-  }, [title]);
-
   const enableCandidates = debouncedTitle.trim().length >= 2 && platform.length > 0;
   const candidatesQuery = useMetadataCandidatesQuery(debouncedTitle, platform, enableCandidates);
   const createMutation = useCreateGameMutation();
   const queryClient = useQueryClient();
 
-  const selectedCandidate: MetadataCandidate | null =
+  // Derived: returns the picked candidate ONLY if the typed title still matches
+  // it. Editing the input further re-derives to null automatically — no effect
+  // needed.
+  const pickedCandidate =
     candidatesQuery.data?.candidates.find((c) => c.providerId === selectedProviderId) ?? null;
+  const selectedCandidate: MetadataCandidate | null =
+    pickedCandidate && pickedCandidate.title.trim() === title.trim() ? pickedCandidate : null;
+
+  const selectCandidate = useCallback((c: MetadataCandidate) => {
+    setTitle(c.title);
+    setSelectedProviderId(c.providerId);
+  }, []);
 
   const submit = (subOpts: { onSuccess: (game: { id: string }) => void }) => {
     const base: CreateMutationVars = {
@@ -125,6 +134,7 @@ export function useAddGameWithMetadata(
     setColor,
     selectedProviderId,
     setSelectedProviderId,
+    selectCandidate,
     selectedCandidate,
     candidatesQuery,
     createMutation,
