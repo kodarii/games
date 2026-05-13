@@ -43,8 +43,10 @@ export function SettingsLayout() {
         <aside className="hidden w-[220px] shrink-0 border-r border-apex-line-4 py-4 md:block">
           <SettingsNav />
         </aside>
-        <div className="min-w-0 flex-1 overflow-y-auto">
-          <Outlet />
+        <div className="min-w-0 flex-1 overflow-y-auto bg-[#fafafa]">
+          <div className="mx-auto w-full max-w-[680px] px-6 pb-20 pt-8">
+            <Outlet />
+          </div>
         </div>
       </div>
     </div>
