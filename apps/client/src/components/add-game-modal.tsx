@@ -121,7 +121,7 @@ export function AddGameModal() {
             }}
             onPointerDownOutside={(e) => e.preventDefault()}
             onInteractOutside={(e) => e.preventDefault()}
-            className="fixed inset-x-0 bottom-0 z-50 max-h-[90vh] overflow-y-auto rounded-t-2xl bg-white shadow-[0_24px_60px_rgba(0,0,0,0.22)] data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-[460px] sm:max-w-[calc(100vw-32px)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[14px] sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95"
+            className="fixed inset-x-3 top-3 z-50 max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-[0_24px_60px_rgba(0,0,0,0.22)] data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top sm:inset-x-auto sm:top-1/2 sm:left-1/2 sm:w-[460px] sm:max-w-[calc(100vw-32px)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[14px] sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95"
           >
             <AlertDialog.Description className="sr-only">{t.sub}</AlertDialog.Description>
 
@@ -209,12 +209,12 @@ export function AddGameModal() {
               )}
             </div>
 
-            <div className="flex items-center justify-between gap-2 border-t border-apex-line-1 bg-[#fafafa] px-[22px] py-[14px]">
+            <div className="flex flex-col gap-3 border-t border-apex-line-1 bg-[#fafafa] px-[22px] py-[14px] sm:flex-row sm:items-center sm:justify-between sm:gap-2">
               <span className="flex items-center gap-1.5 text-[11px] text-apex-hint">
                 <InfoCircleIcon />
                 More details can be edited after adding.
               </span>
-              <div className="flex gap-2">
+              <div className="flex justify-end gap-2">
                 <Button
                   variant="outline"
                   size="sm"
