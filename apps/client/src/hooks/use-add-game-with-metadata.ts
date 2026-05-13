@@ -20,7 +20,6 @@ export interface UseAddGameWithMetadataResult {
   platform: string;
   setPlatform: (v: string) => void;
   color: string;
-  setColor: (v: string) => void;
   selectedProviderId: string | null;
   setSelectedProviderId: (v: string | null) => void;
   selectCandidate: (c: MetadataCandidate) => void;
@@ -59,7 +58,10 @@ export function useAddGameWithMetadata(
   const [title, setTitle] = useState('');
   const [debouncedTitle, setDebouncedTitle] = useState('');
   const [platform, setPlatform] = useState(initialPlatform);
-  const [color, setColor] = useState<string>(COVER_COLORS[0]);
+  // Cover color is assigned randomly — there is no picker in the modal. The
+  // header badge still shows it so the user gets a small visual cue of what
+  // the auto-generated cover will look like; `reset()` re-rolls it.
+  const [color, setColor] = useState<string>(() => randomCoverColor());
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
 
   // Debounce: candidates query is driven by `debouncedTitle`, lagging `title` by 250ms.
@@ -118,7 +120,7 @@ export function useAddGameWithMetadata(
     setTitle('');
     setDebouncedTitle('');
     setPlatform(initialPlatform);
-    setColor(COVER_COLORS[0]);
+    setColor(randomCoverColor());
     setSelectedProviderId(null);
     createMutationReset();
     queryClient.invalidateQueries({ queryKey: ['metadata-candidates'] });
@@ -131,7 +133,6 @@ export function useAddGameWithMetadata(
     platform,
     setPlatform,
     color,
-    setColor,
     selectedProviderId,
     setSelectedProviderId,
     selectCandidate,
@@ -141,4 +142,8 @@ export function useAddGameWithMetadata(
     submit,
     reset,
   };
+}
+
+function randomCoverColor(): string {
+  return COVER_COLORS[Math.floor(Math.random() * COVER_COLORS.length)];
 }

@@ -1,5 +1,4 @@
 import { AddPlatformDialog } from '@/components/add-platform-dialog';
-import { CoverColorPicker } from '@/components/cover-color-picker';
 import { Icon } from '@/components/icons';
 import { TitleAutocomplete } from '@/components/title-autocomplete';
 import { Button } from '@/components/ui/button';
@@ -22,9 +21,11 @@ type Mode = 'collection' | 'wishlist';
  * so wishlist gains cover color + IGDB metadata without backend changes.
  *
  * Locked behaviour (per `260513-ds2-PLAN.md`):
- *  - Field order: Platform -> Title -> Cover color.
- *  - Header is a 34x34 rounded-8 icon-badge filled with the current cover
- *    color, white gamepad icon centered.
+ *  - Field order: Platform -> Title. Cover color is auto-assigned (random
+ *    pick from `COVER_COLORS`) — no picker in the UI; the header badge still
+ *    previews the chosen color so the user has a visual cue.
+ *  - Header is a 34x34 rounded-8 icon-badge filled with the auto-assigned
+ *    cover color, white gamepad icon centered.
  *  - Footer has a light-grey background with an info-circle hint and the
  *    primary CTA on the right.
  *  - Overlay click does NOT close the modal; Esc, X, and Cancel do.
@@ -54,7 +55,6 @@ export function AddGameModal() {
     platform,
     setPlatform,
     color,
-    setColor,
     selectedCandidate,
     selectCandidate,
     candidatesQuery,
@@ -202,11 +202,6 @@ export function AddGameModal() {
                   onSubmitEnter={onSubmit}
                   inputRef={inputRef}
                 />
-              </div>
-
-              <div>
-                <FieldLabel>Cover color</FieldLabel>
-                <CoverColorPicker value={color} onChange={setColor} />
               </div>
 
               {createMutation.error && (

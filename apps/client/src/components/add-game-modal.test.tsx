@@ -21,15 +21,15 @@ describe('AddGameModal regression — 260513-ds2', () => {
   const autocompleteSrc = readFileSync(resolve(__dirname, 'title-autocomplete.tsx'), 'utf-8');
   const layoutSrc = readFileSync(resolve(__dirname, 'layout/app-layout.tsx'), 'utf-8');
 
-  test('1. field order: Platform -> Title -> Cover color', () => {
+  test('1. field order: Platform -> Title; no cover-color picker in modal', () => {
     const platformIdx = modalSrc.indexOf('>Platform<');
     const titleIdx = modalSrc.indexOf('>Title<');
-    const colorIdx = modalSrc.indexOf('>Cover color<');
     expect(platformIdx).toBeGreaterThan(-1);
     expect(titleIdx).toBeGreaterThan(-1);
-    expect(colorIdx).toBeGreaterThan(-1);
     expect(platformIdx).toBeLessThan(titleIdx);
-    expect(titleIdx).toBeLessThan(colorIdx);
+    // Cover color is auto-assigned (random) — picker UI must not render.
+    expect(modalSrc).not.toMatch(/>Cover color</);
+    expect(modalSrc).not.toMatch(/CoverColorPicker/);
   });
 
   test('2. autocomplete picks suggestion: TitleAutocomplete wired, picks set title+providerId atomically', () => {
@@ -138,5 +138,14 @@ describe('AddGameModal regression — 260513-ds2', () => {
     expect(hookSrc).toMatch(
       /useMetadataCandidatesQuery\(debouncedTitle, platform, enableCandidates\)/,
     );
+  });
+
+  test('13. cover color is auto-assigned (random pick) — no setter exposed', () => {
+    expect(hookSrc).toMatch(/randomCoverColor/);
+    expect(hookSrc).toMatch(/Math\.floor\(Math\.random\(\) \* COVER_COLORS\.length\)/);
+    // reset() must re-roll the color so reopening the modal shows a new badge.
+    expect(hookSrc).toMatch(/setColor\(randomCoverColor\(\)\)/);
+    // Public API no longer exposes setColor (modal can't change it).
+    expect(hookSrc).not.toMatch(/^\s*setColor:\s*\(/m);
   });
 });
