@@ -4,14 +4,14 @@ import { makeDictionaryUseCases } from './application/dictionary/make-dictionary
 import { ExportData } from './application/export/export-data';
 import { CreateGame } from './application/games/create-game';
 import { DeleteGame } from './application/games/delete-game';
-import { EnrichGameMetadata } from './application/games/enrich-game-metadata';
 import { GetGame } from './application/games/get-game';
 import { ListGames } from './application/games/list-games';
 import { MoveToCollection } from './application/games/move-to-collection';
-import { SearchGameMetadata } from './application/games/search-game-metadata';
 import { UpdateGame } from './application/games/update-game';
 import type { IdempotencyKeyRepository } from './application/idempotency/idempotency-key-repository';
 import { ImportData } from './application/import/import-data';
+import { ClearIgdbIntegration } from './application/integrations/clear-igdb-integration';
+import { SaveIgdbIntegration } from './application/integrations/save-igdb-integration';
 import {
   DEVELOPER_DICTIONARY_KIND,
   DEVELOPER_NAME_MAX_LENGTH,
@@ -31,6 +31,7 @@ import { isCoverHostAllowed } from './infrastructure/config/cover-hosts';
 import { env } from './infrastructure/config/env';
 import { UploadThingCoverStorage } from './infrastructure/cover-storage/uploadthing-cover-storage';
 import { CronLock } from './infrastructure/cron/cron-lock';
+import { user as authUser } from './infrastructure/db/auth-schema';
 import { db } from './infrastructure/db/client';
 import { DrizzleTransactionRunner } from './infrastructure/db/drizzle-transaction-runner';
 import {
@@ -41,16 +42,14 @@ import {
 import { makeDrizzleDictionaryRepository } from './infrastructure/dictionary/make-drizzle-dictionary-repository';
 import { DrizzleGameRepository } from './infrastructure/games/drizzle-game-repository';
 import { DrizzleIdempotencyKeyRepository } from './infrastructure/idempotency/drizzle-idempotency-key-repository';
-import { CircuitBreaker } from './infrastructure/igdb/circuit-breaker';
 import { DrizzleIgdbTokenStorage } from './infrastructure/igdb/drizzle-igdb-token-storage';
-import { IgdbGameMetadataProvider } from './infrastructure/igdb/igdb-game-metadata-provider';
-import { IgdbHttpClient } from './infrastructure/igdb/igdb-http-client';
-import { IgdbTokenStore } from './infrastructure/igdb/igdb-token-store';
+import { IgdbChainHolder } from './infrastructure/igdb/igdb-chain-holder';
 import { DrizzleImportRepository } from './infrastructure/import/drizzle-import-repository';
+import { Aes256GcmCipher } from './infrastructure/integrations/aes-256-gcm-cipher';
+import { DrizzleIntegrationCredentialsRepository } from './infrastructure/integrations/drizzle-integration-credentials-repository';
+import { TwitchIgdbCredentialsVerifier } from './infrastructure/integrations/twitch-igdb-credentials-verifier';
 import { baseLogger } from './infrastructure/logging/logger';
-import { CachingGameMetadataProvider } from './infrastructure/metadata/caching-game-metadata-provider';
 import { MetadataCacheRepository } from './infrastructure/metadata/metadata-cache-repository';
-import { TokenBucketRateLimiter } from './infrastructure/metadata/rate-limiter';
 import { makeDictionaryRouter } from './routes/_make-dictionary-router';
 import { idempotencyKey as idempotencyKeyMiddlewareFactory } from './routes/middleware/idempotency-key';
 
@@ -143,78 +142,103 @@ export const exportData = new ExportData(gameRepository, platformRepository);
 export const importData = new ImportData(gameRepository, platformRepository, importRepository);
 
 // --- IGDB metadata chain --------------------------------------------------
-// tokenStore → http client → adapter → caching decorator → use cases.
-// Each layer is process-singleton — circuit breaker / rate-limiter / token
-// store hold state that must be shared across all requests in this process.
+// Chain construction is delegated to `IgdbChainHolder`. The holder owns the
+// circuit breaker, rate limiter, token store and use-cases; the runtime
+// `SaveIgdbIntegration` / `ClearIgdbIntegration` use-cases call
+// `igdbChainHolder.swap(...)` to reconfigure it without a restart.
 //
-// The entire chain is built only when both IGDB credentials are present.
-// When disabled, `searchGameMetadata` / `enrichGameMetadata` are `null` and
-// routes return 503; the rest of the API boots normally.
-
-const igdbClientId = env.IGDB_CLIENT_ID;
-const igdbClientSecret = env.IGDB_CLIENT_SECRET;
-
-export const igdbConfigured: boolean =
-  igdbClientId !== undefined && igdbClientSecret !== undefined;
+// On boot we read the (per-user) credentials row from the DB and, if a row
+// exists for the deploy's single user, decrypt the secret and prime the
+// holder. When no row exists the holder stays empty and routes return 503.
+// `IGDB_CLIENT_ID` / `IGDB_CLIENT_SECRET` env vars have been removed from
+// the env schema — credentials live exclusively in the DB now.
 
 const metadataCacheRepository = new MetadataCacheRepository();
+const igdbTokenStorage = new DrizzleIgdbTokenStorage();
+export const integrationCipher = new Aes256GcmCipher();
+export const integrationCredentialsRepository = new DrizzleIntegrationCredentialsRepository();
 
-export const searchGameMetadata: SearchGameMetadata | null = igdbConfigured
-  ? buildSearchGameMetadata(igdbClientId!, igdbClientSecret!)
-  : null;
+export const igdbChainHolder = new IgdbChainHolder({
+  logger: baseLogger,
+  tokenStorage: igdbTokenStorage,
+  metadataCacheRepository,
+  gameRepository,
+  transactionRunner,
+  isCoverHostAllowed,
+  timeoutMs: env.IGDB_TIMEOUT_MS,
+  cacheTtlDays: env.IGDB_CACHE_TTL_DAYS,
+});
 
-export const enrichGameMetadata: EnrichGameMetadata | null = igdbConfigured
-  ? new EnrichGameMetadata(
-      gameRepository,
-      transactionRunner,
-      metadataCacheRepository,
-      isCoverHostAllowed,
-    )
-  : null;
+const igdbCredentialsVerifier = new TwitchIgdbCredentialsVerifier({
+  fetch,
+  timeoutMs: env.IGDB_TIMEOUT_MS,
+  logger: baseLogger,
+});
 
-if (!igdbConfigured) {
-  baseLogger.event('igdb.disabled', {
-    reason: 'IGDB_CLIENT_ID or IGDB_CLIENT_SECRET not set; metadata feature disabled',
+export const saveIgdbIntegration = new SaveIgdbIntegration({
+  repo: integrationCredentialsRepository,
+  cipher: integrationCipher,
+  verifier: igdbCredentialsVerifier,
+  chainHolder: igdbChainHolder,
+  now: () => new Date(),
+  uuid: () => crypto.randomUUID(),
+});
+
+export const clearIgdbIntegration = new ClearIgdbIntegration({
+  repo: integrationCredentialsRepository,
+  tokenStorage: igdbTokenStorage,
+  chainHolder: igdbChainHolder,
+  transactionRunner,
+});
+
+await primeIgdbChainFromDb();
+
+async function primeIgdbChainFromDb(): Promise<void> {
+  const stored = await integrationCredentialsRepository.findByUserAndKind(
+    // Single-user deploy: any saved row for the IGDB integration applies. We
+    // still keep the per-user scoping in storage to leave room for future
+    // multi-user mode; here we look up under the first / only user.
+    await firstUserIdOrNull(),
+    'igdb',
+  );
+  if (stored === null) {
+    baseLogger.event('igdb.disabled', {
+      reason: 'no integration_credentials row for IGDB; metadata feature disabled',
+    });
+    return;
+  }
+  if (!stored.enabled) {
+    baseLogger.event('igdb.disabled', {
+      reason: 'integration_credentials row exists but is disabled',
+    });
+    return;
+  }
+  const decryptResult = integrationCipher.decrypt(stored.clientSecretCiphertext);
+  if (!decryptResult.ok) {
+    baseLogger.event('igdb.disabled', {
+      reason: `failed to decrypt stored IGDB client secret: ${decryptResult.error.kind}`,
+    });
+    return;
+  }
+  igdbChainHolder.swap({
+    clientId: stored.clientId.value,
+    clientSecret: decryptResult.value,
   });
 }
 
-function buildSearchGameMetadata(clientId: string, clientSecret: string): SearchGameMetadata {
-  const breaker = new CircuitBreaker({
-    failureThreshold: 5,
-    windowMs: 60_000,
-    halfOpenAfterMs: 30_000,
-    onStateChange: (next, prev) =>
-      baseLogger.event(next === 'open' ? 'igdb.breaker.open' : 'igdb.breaker.close', {
-        host: 'api.igdb.com',
-        from: prev,
-        to: next,
-      }),
-  });
-  const tokenStore = new IgdbTokenStore({
-    storage: new DrizzleIgdbTokenStorage(),
-    clientId,
-    clientSecret,
-  });
-  const rateLimiter = new TokenBucketRateLimiter({
-    capacity: 4,
-    refillIntervalMs: 250,
-  });
-  const httpClient = new IgdbHttpClient({
-    baseUrl: 'https://api.igdb.com/v4',
-    clientId,
-    tokenStore,
-    rateLimiter,
-    breaker,
-    timeoutMs: env.IGDB_TIMEOUT_MS,
-  });
-  const cachingProvider = new CachingGameMetadataProvider({
-    inner: new IgdbGameMetadataProvider({ httpClient }),
-    cacheRepo: metadataCacheRepository,
-    providerName: 'igdb',
-    positiveTtlDays: env.IGDB_CACHE_TTL_DAYS,
-    negativeTtlDays: 1,
-  });
-  return new SearchGameMetadata(cachingProvider, metadataCacheRepository);
+/**
+ * Returns the user id we should consult for the IGDB integration row, or an
+ * empty string when there are no users yet (boot before the owner registers).
+ * In that case the lookup yields `null` and the holder stays unconfigured.
+ *
+ * Single-user model: we treat the first registered user as the owner; multi-
+ * user expansion is explicitly out of scope (see PROJECT constraints).
+ */
+async function firstUserIdOrNull(): Promise<string> {
+  // The auth table is owned by Better-Auth; pull the first row directly via
+  // Drizzle to keep this boot path framework-light.
+  const [row] = await db.select({ id: authUser.id }).from(authUser).limit(1);
+  return row?.id ?? '';
 }
 
 // --- Cron + lifecycle -----------------------------------------------------

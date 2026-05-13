@@ -4,6 +4,7 @@ import { Hono } from 'hono';
 import { db } from '../infrastructure/db/client';
 import { games as gamesTable } from '../infrastructure/db/schema';
 import { requestContext } from '../infrastructure/logging/request-context-middleware';
+import { igdbChainHolder } from '../wiring';
 import { games } from './games';
 import type { AuthVariables } from './middleware/require-auth';
 
@@ -76,10 +77,19 @@ async function seedFixture() {
 
 describe('GET /api/games — IDOR resistance', () => {
   beforeAll(async () => {
+    // The PATCH /:externalId/metadata IDOR case exercises the live route,
+    // which now reads its chain from `igdbChainHolder` instead of a static
+    // env-driven export. Prime the holder with placeholder credentials so the
+    // route reaches its 404 path (rather than 503 "feature disabled").
+    igdbChainHolder.swap({
+      clientId: 'idor-test-client-id',
+      clientSecret: 'idor-test-client-secret',
+    });
     await seedFixture();
   });
 
   afterAll(async () => {
+    igdbChainHolder.swap(null);
     const all = [...userAExternalIds, ...userBExternalIds];
     await db.delete(gamesTable).where(inArray(gamesTable.externalId, all));
   });

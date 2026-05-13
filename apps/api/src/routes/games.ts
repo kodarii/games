@@ -3,13 +3,11 @@ import type { Game } from '../domain/games/game';
 import {
   createGame,
   deleteGame,
-  enrichGameMetadata,
   getGame,
   idempotencyKeyMiddleware,
-  igdbConfigured,
+  igdbChainHolder,
   listGames,
   moveToCollection,
-  searchGameMetadata,
   updateGame,
 } from '../wiring';
 import {
@@ -155,14 +153,15 @@ games.post('/:externalId/move-to-collection', idempotencyKeyMiddleware, async (c
 // Metadata sub-router MUST be registered before `/:externalId` — Hono uses
 // registration order and `/metadata/candidates` would otherwise be swallowed
 // by the `:externalId` route as `externalId === 'metadata'`.
-games.route('/metadata', createGamesMetadataRouter({ searchGameMetadata, igdbConfigured }));
+games.route('/metadata', createGamesMetadataRouter({ chainHolder: igdbChainHolder }));
 
 // PATCH `/:externalId/metadata` — different verb + extra segment, so no
 // collision with the GET/PUT/DELETE `/:externalId` routes below. Belongs
 // here logically with its sibling `:externalId` routes.
 const PATCH_METADATA_ROUTE = 'PATCH /games/:externalId/metadata';
 games.patch('/:externalId/metadata', async (c) => {
-  if (enrichGameMetadata === null) {
+  const chain = igdbChainHolder.get();
+  if (chain === null) {
     return c.json(
       {
         type: '/errors/feature-disabled',
@@ -177,7 +176,7 @@ games.patch('/:externalId/metadata', async (c) => {
   const userId = c.get('user').id;
   const t0 = Date.now();
   const body = await c.req.json();
-  const result = await enrichGameMetadata.execute(externalId, body, userId);
+  const result = await chain.enrichGameMetadata.execute(externalId, body, userId);
   if (!result.ok) {
     const e = result.error;
     if (e.kind === 'not_found') {

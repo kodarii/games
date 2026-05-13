@@ -1,6 +1,7 @@
 import { Icon } from '@/components/icons';
 import { AppHeader } from '@/components/layout/app-header';
 import { DisabledWithTooltip } from '@/components/settings/disabled-with-tooltip';
+import { IgdbIntegrationCard } from '@/components/settings/igdb-integration-card';
 import { SettingsAvatar } from '@/components/settings/settings-avatar';
 import { SettingsCard } from '@/components/settings/settings-card';
 import { SettingsInlineToggle } from '@/components/settings/settings-inline-toggle';
@@ -8,7 +9,6 @@ import { SettingsRow } from '@/components/settings/settings-row';
 import { SettingsSectionLabel } from '@/components/settings/settings-section-label';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useIgdbStatusQuery } from '@/hooks/use-igdb-status';
 import { useSession } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
 import { useId, useRef, useState } from 'react';
@@ -73,9 +73,6 @@ function SecuritySection() {
 }
 
 function IntegrationsSection() {
-  const igdbStatus = useIgdbStatusQuery();
-  const igdbConfigured = igdbStatus.data?.igdbConfigured === true;
-
   return (
     <section>
       <div className="mb-2 flex items-end justify-between gap-3 px-1">
@@ -85,27 +82,7 @@ function IntegrationsSection() {
         </span>
       </div>
       <div className="space-y-2.5">
-        <IntegrationCard
-          mark={<IntegrationMark label="IG" gradient="linear-gradient(135deg, #6f3ff5, #a87bff)" />}
-          name="IGDB"
-          tagline="Internet Game Database"
-          description="Auto-uzupełnianie metadanych, okładek i dat premier z największej otwartej bazy gier."
-          connected={igdbConfigured}
-          rightSlot={
-            igdbConfigured ? (
-              <div className="flex items-center gap-2">
-                <DisabledWithTooltip variant="outline">Konfiguruj</DisabledWithTooltip>
-                <DisabledWithTooltip>
-                  <span className="text-red-600">Rozłącz</span>
-                </DisabledWithTooltip>
-              </div>
-            ) : (
-              <DisabledWithTooltip tooltip="Skonfiguruj IGDB_CLIENT_ID / IGDB_CLIENT_SECRET w env">
-                Połącz
-              </DisabledWithTooltip>
-            )
-          }
-        />
+        <IgdbIntegrationCard />
         <IntegrationCard
           mark={<IntegrationMark label="RA" gradient="linear-gradient(135deg, #1f2937, #374151)" />}
           name="RAWG"

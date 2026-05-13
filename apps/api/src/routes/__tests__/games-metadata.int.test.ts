@@ -1,12 +1,16 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
 import { eq, inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
-import type { EnrichGameMetadata } from '../../application/games/enrich-game-metadata';
+import { EnrichGameMetadata } from '../../application/games/enrich-game-metadata';
 import { SearchGameMetadata } from '../../application/games/search-game-metadata';
+import { isCoverHostAllowed } from '../../infrastructure/config/cover-hosts';
 import { db } from '../../infrastructure/db/client';
+import { DrizzleTransactionRunner } from '../../infrastructure/db/drizzle-transaction-runner';
 import { games as gamesTable, igdbOauthToken, metadataCache } from '../../infrastructure/db/schema';
+import { DrizzleGameRepository } from '../../infrastructure/games/drizzle-game-repository';
 import { CircuitBreaker } from '../../infrastructure/igdb/circuit-breaker';
 import { DrizzleIgdbTokenStorage } from '../../infrastructure/igdb/drizzle-igdb-token-storage';
+import type { IgdbChain, IgdbChainHolder } from '../../infrastructure/igdb/igdb-chain-holder';
 import { IgdbGameMetadataProvider } from '../../infrastructure/igdb/igdb-game-metadata-provider';
 import { IgdbHttpClient } from '../../infrastructure/igdb/igdb-http-client';
 import { IgdbTokenStore } from '../../infrastructure/igdb/igdb-token-store';
@@ -14,9 +18,15 @@ import { requestContext } from '../../infrastructure/logging/request-context-mid
 import { CachingGameMetadataProvider } from '../../infrastructure/metadata/caching-game-metadata-provider';
 import { MetadataCacheRepository } from '../../infrastructure/metadata/metadata-cache-repository';
 import { TokenBucketRateLimiter } from '../../infrastructure/metadata/rate-limiter';
-import { enrichGameMetadata as wiredEnrichGameMetadata } from '../../wiring';
 import { createGamesMetadataRouter } from '../games-metadata';
 import type { AuthVariables } from '../middleware/require-auth';
+
+function fixedChainHolder(chain: IgdbChain | null): Pick<IgdbChainHolder, 'get' | 'isConfigured'> {
+  return {
+    get: () => chain,
+    isConfigured: () => chain !== null,
+  };
+}
 
 const TEST_USER_ID = `test-igdb-int-${crypto.randomUUID()}`;
 
@@ -115,11 +125,16 @@ function buildApp(state: FakeIgdbState): BuiltApp {
     negativeTtlDays: 1,
   });
   const searchGameMetadata = new SearchGameMetadata(cachingProvider, cacheRepo);
-  // EnrichGameMetadata is wired in the composition root; we import the
-  // production instance here rather than reaching into infrastructure
-  // directly. The metadata-router tests only exercise the search side, so
-  // `wiredEnrichGameMetadata` is referenced below to keep its import live.
-  const enrichGameMetadata: EnrichGameMetadata | null = wiredEnrichGameMetadata;
+  // EnrichGameMetadata is local to this test app to keep it independent of
+  // the runtime composition root. The metadata-router tests only exercise
+  // the search side, so `enrichGameMetadata` is referenced below to keep
+  // its import live.
+  const enrichGameMetadata = new EnrichGameMetadata(
+    new DrizzleGameRepository(),
+    new DrizzleTransactionRunner(db),
+    cacheRepo,
+    isCoverHostAllowed,
+  );
 
   const app = new Hono<{ Variables: AuthVariables }>();
   // Install the same request-context middleware production wires in
@@ -135,7 +150,9 @@ function buildApp(state: FakeIgdbState): BuiltApp {
   const gamesRouter = new Hono<{ Variables: AuthVariables }>();
   gamesRouter.route(
     '/metadata',
-    createGamesMetadataRouter({ searchGameMetadata, igdbConfigured: true }),
+    createGamesMetadataRouter({
+      chainHolder: fixedChainHolder({ searchGameMetadata, enrichGameMetadata }),
+    }),
   );
   app.route('/api/games', gamesRouter);
 
@@ -268,6 +285,7 @@ describe('GET /api/games/metadata/status', () => {
         value: { candidates: [], degraded: false },
       }),
     } as unknown as SearchGameMetadata;
+    const fakeEnrichGameMetadata = {} as unknown as EnrichGameMetadata;
 
     const app = new Hono<{ Variables: AuthVariables }>();
     app.use('*', requestContext());
@@ -279,8 +297,14 @@ describe('GET /api/games/metadata/status', () => {
     gamesRouter.route(
       '/metadata',
       createGamesMetadataRouter({
-        searchGameMetadata: fakeSearchGameMetadata,
-        igdbConfigured,
+        chainHolder: fixedChainHolder(
+          igdbConfigured
+            ? {
+                searchGameMetadata: fakeSearchGameMetadata,
+                enrichGameMetadata: fakeEnrichGameMetadata,
+              }
+            : null,
+        ),
       }),
     );
     app.route('/api/games', gamesRouter);

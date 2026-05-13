@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { IgdbTokenStore, type IgdbTokenStorage, type StoredIgdbToken } from '../igdb-token-store';
+import { type IgdbTokenStorage, IgdbTokenStore, type StoredIgdbToken } from '../igdb-token-store';
 
 function createDeferred<T>(): {
   promise: Promise<T>;
@@ -31,6 +31,12 @@ function makeFakeStorage(opts: FakeStorageOptions = {}) {
     async write(record) {
       writes += 1;
       current = record;
+    },
+    async clear() {
+      current = null;
+    },
+    withTx() {
+      return storage;
     },
   };
   return {
@@ -206,6 +212,12 @@ describe('IgdbTokenStore', () => {
           throw new Error('transient');
         }
         current = record;
+      },
+      async clear() {
+        current = null;
+      },
+      withTx() {
+        return recoverable;
       },
     };
     const fetcher = makeFetchOk('eventual', 5_000_000);

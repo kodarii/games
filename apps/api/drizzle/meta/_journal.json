@@ -120,6 +120,13 @@
       "when": 1778752428430,
       "tag": "0017_add_idempotency_keys",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1778838828430,
+      "tag": "0018_add_integration_credentials",
+      "breakpoints": true
     }
   ]
 }

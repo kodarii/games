@@ -167,6 +167,51 @@ describe('CircuitBreaker', () => {
     ]);
   });
 
+  it('reset() returns breaker to closed and clears failure counters', () => {
+    const clock = makeClock();
+    const transitions: Array<[CircuitState, CircuitState]> = [];
+    const breaker = new CircuitBreaker({
+      failureThreshold: 5,
+      windowMs: 60_000,
+      halfOpenAfterMs: 30_000,
+      now: clock.now,
+      onStateChange: (next, prev) => transitions.push([next, prev]),
+    });
+
+    for (let i = 0; i < 5; i++) breaker.recordFailure();
+    expect(breaker.state).toBe('open');
+
+    breaker.reset();
+    expect(breaker.state).toBe('closed');
+    expect(breaker.canRequest()).toBe(true);
+
+    // Counters cleared: need 5 fresh failures to reopen.
+    for (let i = 0; i < 4; i++) breaker.recordFailure();
+    expect(breaker.state).toBe('closed');
+    breaker.recordFailure();
+    expect(breaker.state).toBe('open');
+
+    expect(transitions).toEqual([
+      ['open', 'closed'],
+      ['closed', 'open'],
+      ['open', 'closed'],
+    ]);
+  });
+
+  it('reset() from closed state is a no-op for state transitions', () => {
+    const transitions: Array<[CircuitState, CircuitState]> = [];
+    const breaker = new CircuitBreaker({
+      failureThreshold: 5,
+      windowMs: 60_000,
+      halfOpenAfterMs: 30_000,
+      onStateChange: (next, prev) => transitions.push([next, prev]),
+    });
+
+    breaker.reset();
+    expect(breaker.state).toBe('closed');
+    expect(transitions).toEqual([]);
+  });
+
   it('canRequest in stable state does not fire onStateChange', () => {
     const clock = makeClock();
     let calls = 0;

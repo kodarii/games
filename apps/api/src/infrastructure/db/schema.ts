@@ -186,3 +186,36 @@ export const idempotencyKeys = sqliteTable(
 
 export type IdempotencyKeyRow = typeof idempotencyKeys.$inferSelect;
 export type NewIdempotencyKeyRow = typeof idempotencyKeys.$inferInsert;
+
+/**
+ * Per-user credentials for third-party integrations (IGDB and future
+ * providers). `client_id` is plaintext (it is not a secret in the IGDB OAuth2
+ * client-credentials flow); `client_secret_ciphertext` is base64 of
+ * `iv ‖ ciphertext ‖ authTag` produced by Aes256GcmCipher. The unique index
+ * enforces one row per user per integration kind.
+ */
+export const integrationCredentials = sqliteTable(
+  'integration_credentials',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    integration: text('integration').notNull(),
+    enabled: integer('enabled', { mode: 'boolean' }).notNull().default(false),
+    clientId: text('client_id').notNull(),
+    clientSecretCiphertext: text('client_secret_ciphertext').notNull(),
+    lastVerifiedAt: integer('last_verified_at', { mode: 'timestamp_ms' }),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (table) => [
+    uniqueIndex('integration_credentials_user_integration_unique').on(
+      table.userId,
+      table.integration,
+    ),
+  ],
+);
+
+export type IntegrationCredentialRow = typeof integrationCredentials.$inferSelect;
+export type NewIntegrationCredentialRow = typeof integrationCredentials.$inferInsert;
