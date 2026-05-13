@@ -209,24 +209,18 @@ export function AddGameModal() {
               )}
             </div>
 
-            <div className="flex flex-col gap-3 border-t border-apex-line-1 bg-[#fafafa] px-[22px] py-[14px] sm:flex-row sm:items-center sm:justify-between sm:gap-2">
-              <span className="flex items-center gap-1.5 text-[11px] text-apex-hint">
-                <InfoCircleIcon />
-                More details can be edited after adding.
-              </span>
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={close}
-                  disabled={createMutation.isPending}
-                >
-                  Cancel
-                </Button>
-                <Button variant="primary" size="sm" onClick={onSubmit} disabled={!canSubmit}>
-                  {t.cta}
-                </Button>
-              </div>
+            <div className="flex justify-end gap-2 border-t border-apex-line-1 bg-[#fafafa] px-[22px] py-[14px]">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={close}
+                disabled={createMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button variant="primary" size="sm" onClick={onSubmit} disabled={!canSubmit}>
+                {t.cta}
+              </Button>
             </div>
           </AlertDialog.Content>
         </AlertDialog.Portal>
@@ -263,18 +257,3 @@ function CloseIcon() {
   );
 }
 
-function InfoCircleIcon() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 12 12"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M6 5.5v2.5M6 4.2v.1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-    </svg>
-  );
-}
