@@ -92,6 +92,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260513-ds2 | Przebuduj modal dodawania gier zgodnie z designem v6.html (unified AddGameModal, inline IGDB autocomplete, wishlist parity) | 2026-05-13 | e30457f | [260513-ds2-przebuduj-modal-dodawania-gier-zgodnie-z](./quick/260513-ds2-przebuduj-modal-dodawania-gier-zgodnie-z/) |
+| 260513-hqu | Redesign settings page: remove sub-navigation, consolidate into single page with placeholder Integrations / Preferences / Danger Zone sections | 2026-05-13 | (pending) | [260513-hqu-redesign-settings-page-remove-sub-nav-ad](./quick/260513-hqu-redesign-settings-page-remove-sub-nav-ad/) |
 
 ## Deferred Items
 

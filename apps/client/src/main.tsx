@@ -9,8 +9,7 @@ import { GameViewPage } from '@/pages/game-view';
 import { GamesPage } from '@/pages/games';
 import { LoginPage } from '@/pages/login';
 import { RegisterPage } from '@/pages/register';
-import { AccountPage } from '@/pages/settings/account';
-import { SettingsLayout } from '@/pages/settings/settings-layout';
+import { SettingsPage } from '@/pages/settings/settings-page';
 import { WishlistPage } from '@/pages/wishlist';
 import { QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
@@ -42,14 +41,8 @@ const router = createBrowserRouter(
             { path: 'wishlist', element: <WishlistPage /> },
             { path: 'wishlist/:id', element: <GameViewPage /> },
             { path: 'wishlist/:id/edit', element: <GameEditPage /> },
-            {
-              path: 'settings',
-              element: <SettingsLayout />,
-              children: [
-                { index: true, element: <Navigate to="account" replace /> },
-                { path: 'account', element: <AccountPage /> },
-              ],
-            },
+            { path: 'settings', element: <SettingsPage /> },
+            { path: 'settings/account', element: <Navigate to="/settings" replace /> },
             { path: 'support', element: <Placeholder title="Support" /> },
             { path: 'data', element: <DataPage /> },
             { path: 'dictionaries', element: <DictionariesPage /> },
