@@ -13,7 +13,6 @@ import { useSession } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
 import { useId, useRef, useState } from 'react';
 import { AccountPasswordForm } from './account-password-form';
-import { SignOutOtherDevicesRow } from './account-sessions-card';
 
 export function SettingsPage() {
   const { data: session } = useSession();
@@ -68,16 +67,6 @@ function SecuritySection() {
       <SettingsSectionLabel>BEZPIECZEŃSTWO</SettingsSectionLabel>
       <SettingsCard>
         <PasswordRow />
-        <SettingsRow
-          label="Uwierzytelnianie dwuskładnikowe"
-          desc="Dodatkowa warstwa zabezpieczeń przy logowaniu."
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-[12.5px] text-apex-muted">Niedostępne</span>
-            <DisabledWithTooltip>Włącz</DisabledWithTooltip>
-          </div>
-        </SettingsRow>
-        <SignOutOtherDevicesRow />
       </SettingsCard>
     </section>
   );
