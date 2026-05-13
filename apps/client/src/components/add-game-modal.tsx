@@ -148,7 +148,7 @@ export function AddGameModal() {
               </button>
             </div>
 
-            <div className="flex flex-col gap-4 px-[22px] pb-1 pt-[20px]">
+            <div className="flex flex-col gap-4 px-[22px] pb-[22px] pt-[20px]">
               <div>
                 <FieldLabel>Platform</FieldLabel>
                 {platformsLoading ? (
