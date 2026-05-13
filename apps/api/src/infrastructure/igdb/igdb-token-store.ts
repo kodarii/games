@@ -24,10 +24,20 @@ export interface StoredIgdbToken {
  * Persistence port. Production wires this to a Drizzle-backed implementation
  * that targets the `igdb_oauth_token` table (id = 1). Tests inject an
  * in-memory fake.
+ *
+ * `withTx(tx)` returns a copy of the storage bound to the given transaction
+ * handle, letting use-cases that delete the token in the same atomic write
+ * block as the credentials row participate in a single SQLite transaction.
+ *
+ * `clear()` deletes the singleton row. Used when the user disconnects the
+ * IGDB integration so the cached OAuth token is not reused against fresh
+ * credentials.
  */
 export interface IgdbTokenStorage {
   read(): Promise<StoredIgdbToken | null>;
   write(record: StoredIgdbToken): Promise<void>;
+  clear(): Promise<void>;
+  withTx(tx: unknown): IgdbTokenStorage;
 }
 
 export interface IgdbTokenStoreOptions {

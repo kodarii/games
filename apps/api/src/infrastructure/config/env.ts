@@ -10,18 +10,11 @@ const csvList = z
       .filter((origin) => origin.length > 0),
   );
 
-const optionalNonEmpty = z
-  .string()
-  .optional()
-  .transform((s) => (s !== undefined && s.length > 0 ? s : undefined));
-
 const envSchema = z.object({
-  // IGDB credentials are optional. When either is missing, the IGDB metadata
-  // feature is disabled at wiring time (see wiring.ts → `igdbConfigured`) and
-  // search/enrich endpoints return 503. Required for the feature to work; not
-  // required for the API to boot.
-  IGDB_CLIENT_ID: optionalNonEmpty,
-  IGDB_CLIENT_SECRET: optionalNonEmpty,
+  // IGDB credentials no longer come from env. They live in the
+  // `integration_credentials` table and are managed through the Settings UI
+  // (PUT /api/integrations/igdb). Only the IGDB knobs that affect the runtime
+  // chain — timeout and cache TTL — remain in env.
   IGDB_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
   IGDB_CACHE_TTL_DAYS: z.coerce.number().int().positive().default(30),
   UPLOADTHING_TOKEN: z.string().min(1),

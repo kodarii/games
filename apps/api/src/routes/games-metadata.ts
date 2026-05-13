@@ -1,21 +1,20 @@
 import { Hono } from 'hono';
-import type { SearchGameMetadata } from '../application/games/search-game-metadata';
+import type { IgdbChainHolder } from '../infrastructure/igdb/igdb-chain-holder';
 import { internalProblem, zodIssuesToProblemJson } from './_problem-json';
 import type { AuthVariables } from './middleware/require-auth';
 
 export interface GamesMetadataRouterDeps {
-  readonly searchGameMetadata: SearchGameMetadata | null;
-  readonly igdbConfigured: boolean;
+  readonly chainHolder: Pick<IgdbChainHolder, 'get' | 'isConfigured'>;
 }
 
 export function createGamesMetadataRouter(deps: GamesMetadataRouterDeps) {
   const r = new Hono<{ Variables: AuthVariables }>();
 
-  r.get('/status', (c) => c.json({ igdbConfigured: deps.igdbConfigured }, 200));
+  r.get('/status', (c) => c.json({ igdbConfigured: deps.chainHolder.isConfigured() }, 200));
 
   r.get('/candidates', async (c) => {
-    const { searchGameMetadata } = deps;
-    if (searchGameMetadata === null) {
+    const chain = deps.chainHolder.get();
+    if (chain === null) {
       return c.json(
         {
           type: '/errors/feature-disabled',
@@ -35,7 +34,7 @@ export function createGamesMetadataRouter(deps: GamesMetadataRouterDeps) {
       title: title.slice(0, 100),
       platform,
     });
-    const result = await searchGameMetadata.execute({ title, platform }, c.get('logger'));
+    const result = await chain.searchGameMetadata.execute({ title, platform }, c.get('logger'));
     if (!result.ok) {
       if (result.error.kind === 'invalid_input') {
         return c.json(zodIssuesToProblemJson(result.error.issues), 400);

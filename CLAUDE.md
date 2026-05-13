@@ -15,7 +15,7 @@ Prywatny tracker kolekcji gier wideo dla jednego użytkownika. Pozwala zarządza
 - **Persistence**: SQLite single-file (`apps/api/data/apex.db`, WAL); migracje w `apps/api/drizzle/`
 - **Język UI**: polski (PRODUCT.md, copy w UI). Kod, komentarze, commit-messages — angielski (zgodnie z istniejącą konwencją)
 - **Brand**: Linear/Raycast — precyzja, gęstość z oddechem, dane mówią same za siebie. Zero dark-gamer estetyki, zero gamifikacji
-- **Backwards compat**: istniejąca kolekcja musi działać po deployu (one-time seed dla IGDB env-varów, migracje wsteczne kompatybilne)
+- **Backwards compat**: istniejąca kolekcja musi działać po deployu (migracje wsteczne kompatybilne). Existing deploys lose IGDB integration on deploy; user must reconfigure in Settings.
 - **Security baseline**: nie obniżamy istniejących zabezpieczeń (per-user scoping, optimistic locking, idempotency); dodajemy CSRF + rate-limit jako warstwy ponad
 <!-- GSD:project-end -->
 
@@ -70,10 +70,9 @@ Prywatny tracker kolekcji gier wideo dla jednego użytkownika. Pozwala zarządza
 - `BETTER_AUTH_URL` (required, must be URL)
 - `CORS_ORIGIN` (required, CSV list of allowed origins)
 - `UPLOADTHING_TOKEN` (required, min 1)
-- `IGDB_CLIENT_ID` (optional - feature disabled when missing)
-- `IGDB_CLIENT_SECRET` (optional - feature disabled when missing)
 - `IGDB_TIMEOUT_MS` (default 5000)
 - `IGDB_CACHE_TTL_DAYS` (default 30)
+- IGDB credentials are stored in the database (configured via Settings UI), not env.
 - `LOG_LEVEL` (`debug`|`info`|`warn`|`error`, default `info`)
 - `SHUTDOWN_DRAIN_MS` (default 25_000)
 - `IDEMPOTENCY_TTL_HOURS` (default 24)

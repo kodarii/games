@@ -189,6 +189,49 @@ export function moveToCollection(externalId: string): Promise<{ game: Game }> {
   });
 }
 
+export type IgdbIntegrationStatusResponse = {
+  status: 'not-configured' | 'configured';
+  enabled: boolean;
+  clientId: string | null;
+  clientIdMasked: string | null;
+  hasSecret: boolean;
+  lastVerifiedAt: string | null;
+  updatedAt: string | null;
+};
+
+export function fetchIgdbIntegration(signal?: AbortSignal): Promise<IgdbIntegrationStatusResponse> {
+  return apiFetch<IgdbIntegrationStatusResponse>('/api/integrations/igdb', { signal });
+}
+
+export interface SaveIgdbIntegrationInput {
+  clientId: string;
+  clientSecret: string | null;
+  enabled: boolean;
+  idempotencyKey: string;
+}
+
+export function saveIgdbIntegration(
+  input: SaveIgdbIntegrationInput,
+): Promise<IgdbIntegrationStatusResponse> {
+  return apiFetch<IgdbIntegrationStatusResponse>('/api/integrations/igdb', {
+    method: 'PUT',
+    body: {
+      clientId: input.clientId,
+      clientSecret: input.clientSecret,
+      enabled: input.enabled,
+    },
+    idempotencyKey: input.idempotencyKey,
+  });
+}
+
+export async function deleteIgdbIntegration(idempotencyKey: string): Promise<void> {
+  await apiFetch<void>('/api/integrations/igdb', {
+    method: 'DELETE',
+    idempotencyKey,
+    responseType: 'text',
+  });
+}
+
 export async function exportData(): Promise<{ blob: Blob; filename: string }> {
   const response = await apiFetch<Response>('/api/export', { responseType: 'response' });
   const blob = await response.blob();

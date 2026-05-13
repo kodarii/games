@@ -72,6 +72,18 @@ export class CircuitBreaker {
     this.failureTimestamps = [];
   }
 
+  /**
+   * Forces the breaker back to `closed` and zeroes its failure window.
+   * Used when the system reconfigures the upstream credentials at runtime —
+   * any in-window failures attributed to old credentials would otherwise keep
+   * the breaker open against the freshly-supplied ones.
+   */
+  reset(): void {
+    this.failureTimestamps = [];
+    this.openedAt = null;
+    this.transitionTo('closed');
+  }
+
   recordFailure(): void {
     if (this.currentState === 'half-open') {
       this.transitionTo('open');

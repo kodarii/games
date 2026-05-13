@@ -13,12 +13,20 @@ import { games } from './routes/games';
 import { genres } from './routes/genres';
 import { createHealthRouter } from './routes/health';
 import { importRoute } from './routes/import';
+import { createIntegrationsRouter } from './routes/integrations';
 import { me } from './routes/me';
 import { type AuthVariables, requireAuth } from './routes/middleware/require-auth';
 import { requireUploadPermission } from './routes/middleware/require-upload-permission';
 import { platforms } from './routes/platforms';
 import { createUploadRoute } from './routes/upload';
-import { cleanupOrphans, coverStorage, idempotencyKeyMiddleware } from './wiring';
+import {
+  cleanupOrphans,
+  clearIgdbIntegration,
+  coverStorage,
+  idempotencyKeyMiddleware,
+  integrationCredentialsRepository,
+  saveIgdbIntegration,
+} from './wiring';
 
 const app = new Hono<{ Variables: AuthVariables }>();
 
@@ -74,6 +82,17 @@ app.route('/api/import', importRoute);
 
 app.use('/api/me/*', requireAuth);
 app.route('/api/me', me);
+
+app.use('/api/integrations/*', requireAuth);
+app.route(
+  '/api/integrations',
+  createIntegrationsRouter({
+    saveIgdbIntegration,
+    clearIgdbIntegration,
+    integrationCredentialsRepository,
+    idempotencyKeyMiddleware,
+  }),
+);
 
 app.use('/api/upload/*', requireAuth);
 app.use('/api/upload/*', requireUploadPermission);
