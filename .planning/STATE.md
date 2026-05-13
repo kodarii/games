@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 Phase: 01 (settings-shell-konto) — EXECUTING
 Plan: 3 of 3
 Status: Phase complete — ready for verification
-Last activity: 2026-05-12
+Last activity: 2026-05-13 - Completed quick task 260513-ds2: Przebuduj modal dodawania gier (v6.html design)
 
 Progress: [██████████] 100%
 
@@ -86,6 +86,12 @@ None yet.
 ### Blockers/Concerns
 
 None yet.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260513-ds2 | Przebuduj modal dodawania gier zgodnie z designem v6.html (unified AddGameModal, inline IGDB autocomplete, wishlist parity) | 2026-05-13 | e30457f | [260513-ds2-przebuduj-modal-dodawania-gier-zgodnie-z](./quick/260513-ds2-przebuduj-modal-dodawania-gier-zgodnie-z/) |
 
 ## Deferred Items
 
