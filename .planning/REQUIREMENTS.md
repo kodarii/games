@@ -81,6 +81,14 @@ Deferred do następnych milestone'ów (świadomie poza zakresem).
 - **FE-V2-02**: Polonizacja copy login/register (`apps/client/src/pages/login.tsx`, `register.tsx` — current "Welcome back" / "Sign in" / "Create account"). UI lang policy CLAUDE.md mówi polski, ale Phase 4 explicit zachowuje current copy (FE-06 dotyczy zachowań, nie copy). Decyzja: kiedy ujednolicić UI lang.
 - **FE-V2-03**: Sign-out flow w `apps/client/src/components/layout/sidebar.tsx:114-118` — dodać `await refetchSession()` przed `navigate('/login')`. Działa dziś tylko bo `/login` jest public route; jeśli kiedyś sign-out będzie przekierowywał na ProtectedRoute, ten gap się ujawni. Tracked from Phase 4 enterprise C.
 
+- **FE-V2-04**: Deterministic `externalId` for manual-create games — generate via `hash(userId, idempotencyKey, kind)` in `create-game.ts` use-case zamiast random ID. Existing UNIQUE constraint `games_user_id_external_id_unq` then eliminates T-04-28 + T-04-25 silent duplicate-create scenarios for manual-create flow (currently only IGDB-matched games are protected because IGDB `externalId` is deterministic). Cost: small server-side change; uses idempotency-key from request body as deterministic seed. No schema changes. Tracked from Phase 4 (Plan 04-04) re-grill #4 enterprise ISSUE-5.
+
+- **FE-V2-05**: enrichGameMetadata friendly 409 UX — current PATCH 409 (retry-after-success) shows generic error toast. Map to specific message ("Metadane już zaktualizowane — odśwież stronę żeby zobaczyć aktualną wersję") in error handler of `useEnrichGameMetadataMutation`. Alt path: add idempotency-key to PATCH endpoint (server-side handler change). Tracked from Phase 4 (Plan 04-04) re-grill #4 enterprise ISSUE-4.
+
+### Frontend convention (V3)
+
+- **FE-V3-01**: Audit + enforce `disabled={mutation.isPending}` convention na ALL Save buttons in app using mutation hooks (add-game-modal, edit-game-form, dictionary forms platform/genre/developer, import submit). Currently only `igdb-integration-card.tsx` ma tę konwencję. Bez tego T-04-29 concurrent-mutate race (server-side onConflictDoNothing chroni cache row, ale nie side-effect duplication) pozostaje otwarty dla wszystkich pozostałych mutation call-sites. Możliwe rozwiązania: (a) PR-checklist convention; (b) custom lint rule; (c) audit + manual fix. Tracked from Phase 4 (Plan 04-04) re-grill #4 enterprise M1.
+
 ## Out of Scope
 
 | Feature | Reason |
