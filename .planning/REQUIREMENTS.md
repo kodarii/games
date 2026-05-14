@@ -75,6 +75,12 @@ Deferred do następnych milestone'ów (świadomie poza zakresem).
 - **SEC-V2-02**: Skrypt `rotate-secret` (re-encrypt-all dla rotacji `BETTER_AUTH_SECRET`)
 - **SEC-V2-03**: CI lint/format gate na PR
 
+### Frontend polish
+
+- **FE-V2-01**: Zamień `alert('Failed to delete: ...')` w `apps/client/src/pages/game-view.tsx:285` na sonner toast (richColors, top-center). Pre-existing pre-Phase 4; świadomie out-of-scope dla Phase 4 (pure refactor invariant). Tracked from Phase 4 grill M2 / enterprise H.1.
+- **FE-V2-02**: Polonizacja copy login/register (`apps/client/src/pages/login.tsx`, `register.tsx` — current "Welcome back" / "Sign in" / "Create account"). UI lang policy CLAUDE.md mówi polski, ale Phase 4 explicit zachowuje current copy (FE-06 dotyczy zachowań, nie copy). Decyzja: kiedy ujednolicić UI lang.
+- **FE-V2-03**: Sign-out flow w `apps/client/src/components/layout/sidebar.tsx:114-118` — dodać `await refetchSession()` przed `navigate('/login')`. Działa dziś tylko bo `/login` jest public route; jeśli kiedyś sign-out będzie przekierowywał na ProtectedRoute, ten gap się ujawni. Tracked from Phase 4 enterprise C.
+
 ## Out of Scope
 
 | Feature | Reason |
