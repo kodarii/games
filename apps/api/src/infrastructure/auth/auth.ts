@@ -20,6 +20,11 @@ export const auth = betterAuth({
     autoSignIn: true,
   },
   trustedOrigins: [...config.trustedOrigins],
+  advanced: {
+    defaultCookieAttributes: {
+      sameSite: 'strict',
+    },
+  },
   rateLimit: {
     enabled: true,
     // Defaults apply to all auth endpoints; tighter rule for credential login below.

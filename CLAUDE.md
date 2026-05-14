@@ -66,7 +66,7 @@ Prywatny tracker kolekcji gier wideo dla jednego użytkownika. Pozwala zarządza
 - `vaul` ^1.1 - Drawer primitive
 - `@apex/shared` - Internal workspace package (zod schemas shared between api+client)
 ## Configuration
-- `BETTER_AUTH_SECRET` (required, min 32 chars)
+- `BETTER_AUTH_SECRET` (required, min 32 chars) — Also used as the root key for integration-secret encryption (via HKDF-SHA256). Rotating it invalidates all encrypted integration credentials — re-enter them via Settings UI.
 - `BETTER_AUTH_URL` (required, must be URL)
 - `CORS_ORIGIN` (required, CSV list of allowed origins)
 - `UPLOADTHING_TOKEN` (required, min 1)

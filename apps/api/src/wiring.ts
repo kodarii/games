@@ -12,6 +12,7 @@ import type { IdempotencyKeyRepository } from './application/idempotency/idempot
 import { ImportData } from './application/import/import-data';
 import { ClearIgdbIntegration } from './application/integrations/clear-igdb-integration';
 import { SaveIgdbIntegration } from './application/integrations/save-igdb-integration';
+import { SweepRateLimitBuckets } from './application/rate-limit/sweep-rate-limit-buckets';
 import {
   DEVELOPER_DICTIONARY_KIND,
   DEVELOPER_NAME_MAX_LENGTH,
@@ -52,6 +53,7 @@ import { baseLogger } from './infrastructure/logging/logger';
 import { MetadataCacheRepository } from './infrastructure/metadata/metadata-cache-repository';
 import { makeDictionaryRouter } from './routes/_make-dictionary-router';
 import { idempotencyKey as idempotencyKeyMiddlewareFactory } from './routes/middleware/idempotency-key';
+import { mutationRateLimit } from './routes/middleware/mutation-rate-limit';
 
 const uploadThingToken = env.UPLOADTHING_TOKEN;
 export const coverStorageAvailable = uploadThingToken.length > 0;
@@ -262,3 +264,11 @@ export const cleanupOrphans = new CleanupOrphans(
   cronLock,
   { idempotencyTtlMs: env.IDEMPOTENCY_TTL_HOURS * 60 * 60 * 1000 },
 );
+
+export const sweepRateLimitBuckets = new SweepRateLimitBuckets({
+  db,
+  lock: cronLock,
+  now: () => Date.now(),
+});
+
+export const rateLimitMutations = mutationRateLimit({ db, now: () => Date.now() });

@@ -69,7 +69,7 @@ Recent decisions affecting current work:
 
 - Settings page as side-nav + content (Linear-style) — extensible for future sections
 - IGDB only as integration prototype in this milestone — UploadThing migration deferred to v2
-- Integration secrets encrypted at-rest (AES-GCM) — separate `SETTINGS_ENC_KEY` env-var (not derived from `BETTER_AUTH_SECRET`)
+- Integration secrets encrypted at-rest (AES-GCM); AES key derived via HKDF-SHA256 from `BETTER_AUTH_SECRET` (single root secret)
 - One-time seed env→DB for IGDB credentials — zero-downtime deploy
 - Migrations out-of-boot (separate `bun run db:migrate`) — eliminates boot-time race, enables read-only forensic boot
 - Full hardening (security + frontend + backend) in one milestone — stabilization before next feature milestone

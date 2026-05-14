@@ -219,3 +219,31 @@ export const integrationCredentials = sqliteTable(
 
 export type IntegrationCredentialRow = typeof integrationCredentials.$inferSelect;
 export type NewIntegrationCredentialRow = typeof integrationCredentials.$inferInsert;
+
+/**
+ * Per-user fixed-window mutation rate-limit buckets.
+ *
+ * Composite PRIMARY KEY `(user_id, window_start)` enables atomic
+ * `INSERT … ON CONFLICT DO UPDATE SET count = count + 1` to increment
+ * the per-window counter without a read-modify-write race.
+ *
+ * `window_start` is a unix epoch in **milliseconds**, aligned to the
+ * window size (currently 60_000ms — see `mutation-rate-limit.ts`).
+ * The secondary index supports the cron sweep that prunes expired
+ * buckets via `DELETE WHERE window_start < cutoff`.
+ */
+export const rateLimitBuckets = sqliteTable(
+  'rate_limit_buckets',
+  {
+    userId: text('user_id').notNull(),
+    windowStart: integer('window_start').notNull(),
+    count: integer('count').notNull().default(0),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.windowStart] }),
+    index('rate_limit_buckets_window_start_idx').on(table.windowStart),
+  ],
+);
+
+export type RateLimitBucketRow = typeof rateLimitBuckets.$inferSelect;
+export type NewRateLimitBucketRow = typeof rateLimitBuckets.$inferInsert;

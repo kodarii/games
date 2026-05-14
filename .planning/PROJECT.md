@@ -40,7 +40,7 @@ Właściciel zawsze wie co ma i co chce kupić, i może to sprawdzić w kilka se
 
 - [ ] Tabela integracji ze stanem on/off, statusem (connected/disconnected/error), przyciskami konfiguruj/odłącz
 - [ ] Konfiguracja IGDB: client_id + client_secret w UI, test-connection (fetch token z Twitch OAuth)
-- [ ] Sekrety integracji szyfrowane at-rest w SQLite (AES-GCM, klucz z `SETTINGS_ENC_KEY` env-var)
+- [ ] Sekrety integracji szyfrowane at-rest w SQLite (AES-GCM, klucz derived przez HKDF-SHA256 z `BETTER_AUTH_SECRET`)
 - [ ] One-time seed: przy starcie po wdrożeniu, jeśli baza pusta a env-vary IGDB ustawione — zaimportuj raz, zaloguj, potem env może zniknąć
 - [ ] Wyłączenie integracji w UI = endpointy IGDB zwracają 503 (jak dziś gdy env-vary puste), bez restartu procesu
 
@@ -81,7 +81,7 @@ Właściciel zawsze wie co ma i co chce kupić, i może to sprawdzić w kilka se
 - **Mobile / PWA** — anti-cel; aplikacja jest desktop-first ("biurko, monitor, pełen skupienia")
 - **Wielouser, gamifikacja, ratingsy społecznościowe** — explicit anti-references w PRODUCT.md
 - **CI gated na lint/format** — odłożone (osobna decyzja DevOps poza tym milestonem)
-- **Rotacja klucza szyfrującego** — skrypt `rotate-enc-key` zaplanowany jako follow-up, nie blokuje shipu
+- **Rotacja klucza szyfrującego** — skrypt `rotate-secret` (re-encrypt-all dla rotacji `BETTER_AUTH_SECRET`) zaplanowany jako follow-up, nie blokuje shipu
 
 ## Context
 
@@ -117,8 +117,7 @@ Właściciel zawsze wie co ma i co chce kupić, i może to sprawdzić w kilka se
 |----------|-----------|---------|
 | Settings page jako side-nav + content (Linear-style) | Rozszerzalne, naturalne dla wielu sekcji w przyszłości | — Pending |
 | Tylko IGDB w panelu integracji w tym milestonie | Prototyp panelu; UploadThing dostanie ten sam mechanizm w następnym cyklu | — Pending |
-| Sekrety integracji szyfrowane at-rest (AES-GCM) | Defense in depth dla pliku bazy; `SETTINGS_ENC_KEY` jako osobny env-var | — Pending |
-| Klucz szyfrujący jako osobny `SETTINGS_ENC_KEY` (nie derived z BETTER_AUTH_SECRET) | Czysta separacja odpowiedzialności; rotacja jednego nie psuje drugiego | — Pending |
+| Sekrety integracji szyfrowane at-rest (AES-GCM); klucz szyfrujący derived z `BETTER_AUTH_SECRET` przez HKDF-SHA256 (single root secret, brak osobnego env-vara) | Defense in depth dla pliku bazy; jeden root secret upraszcza rotację i konfigurację | Validated (Phase 2) |
 | One-time seed env→DB dla IGDB credentials | Zero downtime przy wdrożeniu; po seedzie env-vary mogą zniknąć | — Pending |
 | Migracje out-of-boot (osobny `bun run db:migrate`) | Pozwala read-only forensic boot; eliminuje race przy ewentualnym scale-out | — Pending |
 | Pełen hardening (security + frontend + backend) w jednym milestonie | Stabilizacja przed kolejnym milestonem ficzerowym; commitów stabilizacyjnych już sporo | — Pending |

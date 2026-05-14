@@ -40,17 +40,17 @@ Plans:
 - [x] 01-03-PLAN.md — Revoke-all-sessions + ProtectedRoute pin: add revokeSessions to auth-client, create AccountSessionsCard with AlertDialog + strict 4-step flow, regression test for /settings/* unauth redirect (SET-04, SET-05)
 
 ### Phase 2: Integrations Panel (IGDB)
-**Goal:** User configures IGDB credentials in UI without touching `.env` or restarting the process; secrets are encrypted at-rest with `SETTINGS_ENC_KEY` and the existing IGDB chain (token store, breaker, rate-limiter) honors the new toggle/credential source
+**Goal:** User configures IGDB credentials in UI without touching `.env` or restarting the process; secrets are encrypted at-rest with an AES-GCM key derived from `BETTER_AUTH_SECRET` via HKDF-SHA256, and the existing IGDB chain (token store, breaker, rate-limiter) honors the new toggle/credential source
 **Mode:** mvp
 **Depends on:** Phase 1 (uses Settings shell + side-nav slot)
 **Requirements:** INT-01, INT-02, INT-03, INT-04, INT-05, INT-06, INT-07, INT-08, SEC-07
 **Success Criteria** (what must be TRUE):
   1. User na `/settings/integrations` widzi tabelę z wierszem "IGDB" pokazującą status (`connected`/`disconnected`/`error`), `last-tested-at`, `last-error` i akcje (Konfiguruj, Test, Toggle, Usuń)
-  2. User wpisuje `client_id`/`client_secret` w modalu konfiguracji, zapisuje — sekrety lądują w SQLite zaszyfrowane AES-GCM (`SETTINGS_ENC_KEY`) i `last-tested-at` aktualizuje się po sukcesie testu (fetch token z Twitch OAuth)
+  2. User wpisuje `client_id`/`client_secret` w modalu konfiguracji, zapisuje — sekrety lądują w SQLite zaszyfrowane AES-GCM (klucz derived z `BETTER_AUTH_SECRET` przez HKDF-SHA256) i `last-tested-at` aktualizuje się po sukcesie testu (fetch token z Twitch OAuth)
   3. User klika "Test connection" — UI pokazuje sukces (token otrzymany, status `connected`) albo błąd (401/network) z czytelnym komunikatem; bez restartu procesu
   4. User toggle'uje wyłączenie integracji — endpointy `/api/games/:id/metadata` i `/api/games/metadata/candidates` zwracają 503 (jak dziś przy pustych env-varach), bez restartu procesu; ponowne włączenie przywraca działanie
   5. Świeży deploy z pustą bazą + ustawionymi env-varami `IGDB_CLIENT_ID`/`IGDB_CLIENT_SECRET` skutkuje one-time seedem: row w DB zaszyfrowany, status `connected`; usunięcie env-varów po seedzie nie wpływa na działanie
-  6. Process boot fail-fast z czytelnym komunikatem, jeśli `SETTINGS_ENC_KEY` brakuje lub nie spełnia min-length (Zod walidacja w `env.ts`)
+  6. Process boot fail-fast z czytelnym komunikatem, jeśli `BETTER_AUTH_SECRET` brakuje, jest krótszy niż 32 znaki lub równa się jednemu z sentinel-secretów z deny-listy (Zod refine w `env.ts`); ten sam sekret jest rootem dla HKDF szyfrowania integracji
   7. User klika "Usuń integrację" — credentials wyzerowane, status wraca do `disconnected`, endpointy IGDB znów zwracają 503
 **Plans:** TBD
 **UI hint:** yes

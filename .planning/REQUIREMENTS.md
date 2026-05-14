@@ -19,7 +19,7 @@
 
 - [ ] **INT-01**: User widzi listę dostępnych integracji w sekcji `/settings` > Integracje (tabela: nazwa, status, akcje)
 - [ ] **INT-02**: User może skonfigurować IGDB przez formularz w UI (client_id, client_secret) — bez restartu procesu i bez edycji `.env`
-- [ ] **INT-03**: Sekrety integracji są zaszyfrowane at-rest w SQLite (AES-GCM, klucz z `SETTINGS_ENC_KEY` env-var)
+- [x] **INT-03**: Sekrety integracji są zaszyfrowane at-rest w SQLite (AES-GCM, klucz derived przez HKDF-SHA256 z `BETTER_AUTH_SECRET`)
 - [ ] **INT-04**: User może wyzwolić "Test connection" dla IGDB — UI pokazuje sukces (token otrzymany) albo błąd (401/network/etc.)
 - [ ] **INT-05**: User może włączyć/wyłączyć integrację toggle'em; wyłączona integracja powoduje 503 z endpointów IGDB (jak dzisiejsze zachowanie gdy env-vary puste) bez restartu procesu
 - [ ] **INT-06**: One-time seed przy starcie: jeśli baza nie ma rekordu IGDB a env-vary `IGDB_CLIENT_ID`/`IGDB_CLIENT_SECRET` są ustawione — zaimportuj raz, zaszyfruj, zapisz; potem env-vary mogą zniknąć bez utraty konfiguracji
@@ -34,7 +34,7 @@
 - [ ] **SEC-04**: Walidacja env odrzuca domyślne sentinel-secrets (`replace-with-32-byte-random-...`) — boot fail z czytelnym komunikatem
 - [ ] **SEC-05**: Test E2E lub integracyjny weryfikuje że rate-limit zwraca 429 po przekroczeniu progu
 - [ ] **SEC-06**: Test integracyjny weryfikuje że request z obcym Originem lub bez Sec-Fetch-Site jest odrzucany 403 (CSRF)
-- [ ] **SEC-07**: `SETTINGS_ENC_KEY` walidowany przez Zod w env-config (wymagany, min długość; brak = boot fail)
+- [x] ~~SEC-07~~ — Resolved by HKDF-from-`BETTER_AUTH_SECRET` (Phase 2) + sentinel deny-list (SEC-04)
 
 ### Frontend stability
 
@@ -72,7 +72,7 @@ Deferred do następnych milestone'ów (świadomie poza zakresem).
 ### Security expansion
 
 - **SEC-V2-01**: External error sink (Sentry / Axiom) dla 5xx w produkcji
-- **SEC-V2-02**: Skrypt `rotate-enc-key` (re-encrypt-all dla rotacji `SETTINGS_ENC_KEY`)
+- **SEC-V2-02**: Skrypt `rotate-secret` (re-encrypt-all dla rotacji `BETTER_AUTH_SECRET`)
 - **SEC-V2-03**: CI lint/format gate na PR
 
 ## Out of Scope
@@ -85,7 +85,7 @@ Deferred do następnych milestone'ów (świadomie poza zakresem).
 | Migracja do Postgres | SQLite WAL wystarcza dla single-user na VPS; scale-out nie jest celem |
 | Mobile / PWA | Anti-cel — aplikacja desktop-first per PRODUCT.md ("biurko, monitor, pełen skupienia") |
 | Wielouser, ratingsy społecznościowe, gamifikacja | Explicit anti-references w PRODUCT.md |
-| Rotacja `SETTINGS_ENC_KEY` w tym milestone | Skrypt re-encrypt — follow-up, nie blokuje shipu integracji |
+| Rotacja `BETTER_AUTH_SECRET` (re-encrypt-all) w tym milestone | Skrypt `rotate-secret` — follow-up, nie blokuje shipu integracji |
 | Sentry / Datadog integracja | Structured stdout logger wystarcza dla single-user; defer do v2 |
 
 ## Traceability

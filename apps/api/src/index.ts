@@ -15,6 +15,7 @@ import { createHealthRouter } from './routes/health';
 import { importRoute } from './routes/import';
 import { createIntegrationsRouter } from './routes/integrations';
 import { me } from './routes/me';
+import { originGuard } from './routes/middleware/origin-guard';
 import { type AuthVariables, requireAuth } from './routes/middleware/require-auth';
 import { requireUploadPermission } from './routes/middleware/require-upload-permission';
 import { platforms } from './routes/platforms';
@@ -25,7 +26,9 @@ import {
   coverStorage,
   idempotencyKeyMiddleware,
   integrationCredentialsRepository,
+  rateLimitMutations,
   saveIgdbIntegration,
+  sweepRateLimitBuckets,
 } from './wiring';
 
 const app = new Hono<{ Variables: AuthVariables }>();
@@ -58,32 +61,42 @@ app.use(
   }),
 );
 
+app.use('/api/*', originGuard(corsAllowlist));
+
 app.get('/', (c) => c.json({ name: 'apex-api', status: 'ok' }));
 
 app.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw));
 
 app.use('/api/games/*', requireAuth);
+app.use('/api/games/*', rateLimitMutations);
 app.route('/api/games', games);
 
 app.use('/api/platforms/*', requireAuth);
+app.use('/api/platforms/*', rateLimitMutations);
 app.route('/api/platforms', platforms);
 
 app.use('/api/genres/*', requireAuth);
+app.use('/api/genres/*', rateLimitMutations);
 app.route('/api/genres', genres);
 
 app.use('/api/developers/*', requireAuth);
+app.use('/api/developers/*', rateLimitMutations);
 app.route('/api/developers', developers);
 
 app.use('/api/export/*', requireAuth);
+app.use('/api/export/*', rateLimitMutations);
 app.route('/api/export', exportRoute);
 
 app.use('/api/import/*', requireAuth);
+app.use('/api/import/*', rateLimitMutations);
 app.route('/api/import', importRoute);
 
 app.use('/api/me/*', requireAuth);
+app.use('/api/me/*', rateLimitMutations);
 app.route('/api/me', me);
 
 app.use('/api/integrations/*', requireAuth);
+app.use('/api/integrations/*', rateLimitMutations);
 app.route(
   '/api/integrations',
   createIntegrationsRouter({
@@ -96,6 +109,7 @@ app.route(
 
 app.use('/api/upload/*', requireAuth);
 app.use('/api/upload/*', requireUploadPermission);
+app.use('/api/upload/*', rateLimitMutations);
 app.route('/api/upload', createUploadRoute(coverStorage, idempotencyKeyMiddleware));
 
 const port = Number(process.env.PORT ?? 3001);
@@ -140,6 +154,26 @@ const cleanupTimer = setInterval(async () => {
   }
 }, ONE_HOUR_MS);
 
+// --- Cron: rate-limit bucket sweep ---------------------------------------
+// Prunes expired `rate_limit_buckets` rows so the table stays bounded. The
+// sweep keeps the current and previous window and deletes everything older.
+const FIVE_MINUTES_MS = 5 * 60 * 1000;
+const rateLimitSweepTimer = setInterval(async () => {
+  try {
+    const result = await sweepRateLimitBuckets.run();
+    if (result.status === 'skipped') {
+      baseLogger.event('rate_limit.sweep.skipped', { reason: result.reason });
+    } else {
+      baseLogger.event('rate_limit.sweep.completed', { deleted: result.deleted });
+    }
+  } catch (err) {
+    baseLogger.error({
+      event: 'rate_limit.sweep.failed',
+      err: err instanceof Error ? err : new Error(String(err)),
+    });
+  }
+}, FIVE_MINUTES_MS);
+
 // --- Graceful shutdown ----------------------------------------------------
 let shuttingDown = false;
 
@@ -149,6 +183,7 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
 
   baseLogger.event('shutdown.start', { signal });
   clearInterval(cleanupTimer);
+  clearInterval(rateLimitSweepTimer);
 
   // Stop accepting new connections; existing in-flight requests finish.
   // We bound the wait at SHUTDOWN_DRAIN_MS so k8s SIGKILL (default 30s after

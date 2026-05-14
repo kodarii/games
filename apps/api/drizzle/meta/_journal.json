@@ -127,6 +127,13 @@
       "when": 1778838828430,
       "tag": "0018_add_integration_credentials",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1778925228430,
+      "tag": "0019_add_rate_limit_buckets",
+      "breakpoints": true
     }
   ]
 }

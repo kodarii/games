@@ -1,4 +1,4 @@
-import type { Hono } from 'hono';
+import type { Context, Hono } from 'hono';
 import { ZodError, type ZodIssue } from 'zod';
 import { type Logger, baseLogger } from '../infrastructure/logging/logger';
 
@@ -8,6 +8,7 @@ export type ProblemJson = {
   status: number;
   detail: string;
   issues?: ZodIssue[];
+  retryAfterSeconds?: number;
 };
 
 export function zodIssuesToProblemJson(issues: ZodIssue[]): ProblemJson {
@@ -57,6 +58,15 @@ export function internalProblem(detail = 'Unexpected error'): ProblemJson {
     status: 500,
     detail,
   };
+}
+
+/**
+ * Generic helper to return a `application/problem+json` response from any route or middleware.
+ * Centralises the status-code narrowing required by Hono's `c.json` overload set.
+ */
+// biome-ignore lint/suspicious/noExplicitAny: Hono Context generics vary per route.
+export function problemResponse(c: Context<any, any, any>, problem: ProblemJson): Response {
+  return c.json(problem, problem.status as 400 | 401 | 403 | 404 | 409 | 413 | 429 | 500);
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: Hono generic shape varies per app instance.
