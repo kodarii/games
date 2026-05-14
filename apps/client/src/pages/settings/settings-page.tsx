@@ -83,7 +83,7 @@ function IntegrationsSection() {
       </div>
       <div className="space-y-2.5">
         <IgdbIntegrationCard />
-        <IntegrationCard
+        {/* <IntegrationCard
           mark={<IntegrationMark label="RA" gradient="linear-gradient(135deg, #1f2937, #374151)" />}
           name="RAWG"
           tagline="Video games database & discovery"
@@ -96,7 +96,7 @@ function IntegrationsSection() {
           tagline="Historical game archive"
           description="Najbogatsza historyczna baza dla starszych platform i klasyków."
           rightSlot={<ConnectButton />}
-        />
+        /> */}
         <div className="flex items-center gap-4 rounded-[10px] border border-dashed border-apex-line-4 bg-white px-4 py-3.5">
           <div className="flex items-center -space-x-1">
             <MiniBadge label="HL" gradient="linear-gradient(135deg, #f59e0b, #d97706)" />
@@ -109,7 +109,7 @@ function IntegrationsSection() {
               HowLongToBeat · Steam · GOG i inne.
             </div>
           </div>
-          <DisabledWithTooltip variant="outline">Poproś</DisabledWithTooltip>
+          {/* <DisabledWithTooltip variant="outline">Poproś</DisabledWithTooltip> */}
         </div>
       </div>
     </section>

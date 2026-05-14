@@ -272,7 +272,7 @@ const IgdbIntegrationForm = forwardRef<IgdbIntegrationFormHandle, IgdbIntegratio
       }
     }, [clientIdEditing]);
 
-    const toggleDisabled = !hasStoredSecret && !secretHasValue;
+    const toggleDisabled = !hasStoredSecret;
 
     const saveDisabled =
       !formDirty ||
@@ -425,7 +425,7 @@ const IgdbIntegrationForm = forwardRef<IgdbIntegrationFormHandle, IgdbIntegratio
         <div className="flex items-start justify-between gap-4 rounded-[8px] border border-apex-line-4 bg-white px-4 py-3">
           <div className="min-w-0 flex-1">
             <div id={toggleLabelId} className="text-[13px] font-semibold text-apex-ink">
-              Integracja włączona
+              {pendingEnabled ? 'Integracja włączona' : 'Integracja wyłączona'}
             </div>
             <div id={toggleDescId} className="mt-0.5 text-[12px] text-apex-muted">
               Apex zapyta IGDB przy dodawaniu lub synchronizacji gier.
