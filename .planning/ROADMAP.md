@@ -80,7 +80,7 @@ Plans:
   4. `game-view.tsx` rozdzielony na `game-view-header.tsx`, `game-view-actions.tsx`, `game-view-fields.tsx` (każdy <250 linii); existing URL state i mutation behavior zachowany — happy-path manualny test view+edit przechodzi
   5. Inline SVG w `game-view.tsx` przeniesione do `@/components/icons.tsx` jako `<Icon.x />`; brak inline `<svg>` w `game-view.tsx`
   6. Test (`login.test.tsx`/`register.test.tsx`) wymusza obecność `await refetchSession()` przed `navigate` i że formularz operuje na uncontrolled inputs (FormData driver) — failuje, jeśli ktoś cofnie którykolwiek z dwóch fixów z MEMORY
-**Plans:** TBD
+**Plans:** 4 plans planned (04-01 ErrorBoundary, 04-02 useCredentialsForm+tests, 04-03 dropdown+game-view split, 04-04 idempotency-key per-mutation cache — supplementary fix for T-04-21 from grill+enterprise-web review)
 **UI hint:** yes
 
 ### Phase 5: Backend Correctness
