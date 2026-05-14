@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Plan 01-01 complete — proceeding to Plan 02 (Konto page content)
-last_updated: "2026-05-12T20:13:43.037Z"
-last_activity: 2026-05-12
+status: planning
+stopped_at: Phase 3 (Security Hardening) shipped — Phase 4 (Frontend Stability) and Phase 5 (Backend Correctness) remain; can run in parallel
+last_updated: "2026-05-14T00:00:00.000Z"
+last_activity: 2026-05-14
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 3
   total_plans: 3
   completed_plans: 3
-  percent: 100
+  percent: 60
 ---
 
 # Project State
@@ -21,16 +21,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Właściciel zawsze wie co ma i co chce kupić, i może to sprawdzić w kilka sekund — precyzja, szybkość, fokus.
-**Current focus:** Phase 01 — settings-shell-konto
+**Current focus:** Phase 04 (Frontend Stability) lub Phase 05 (Backend Correctness) — niezależne, można uruchomić równolegle
 
 ## Current Position
 
-Phase: 01 (settings-shell-konto) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
-Last activity: 2026-05-13 - Completed quick task 260513-ds2: Przebuduj modal dodawania gier (v6.html design)
+Phase: 04 / 05 — NOT STARTED (next up)
+Plan: —
+Status: Phases 1–3 complete; awaiting plan-phase for 04 or 05
+Last activity: 2026-05-14 — Phase 3 hardening merged (3cd709c): CSRF origin guard, per-user mutation rate limit, sentinel secret denylist, SameSite=Strict
 
-Progress: [██████████] 100%
+Progress: [██████░░░░] 60% (3 of 5 phases)
+
+**Phase 2 + Phase 3 note:** shipped out-of-flow (without `.planning/phases/02-*` or `03-*` directories). Implementation evidence in commits:
+- Phase 2 (IGDB integration): `65fb9b9` (2026-05-13) + cleanup `8518f6b`, `9addaef`, `6444a82`
+- Phase 3 (Security): `3cd709c` (2026-05-14) + spec `9214bb6`
 
 ## Performance Metrics
 
@@ -44,9 +48,9 @@ Progress: [██████████] 100%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1. Settings Shell + Konto | 0/TBD | — | — |
-| 2. Integrations Panel (IGDB) | 0/TBD | — | — |
-| 3. Security Hardening | 0/TBD | — | — |
+| 1. Settings Shell + Konto | 3/3 | — | — |
+| 2. Integrations Panel (IGDB) | shipped out-of-flow | — | — |
+| 3. Security Hardening | shipped out-of-flow | — | — |
 | 4. Frontend Stability | 0/TBD | — | — |
 | 5. Backend Correctness | 0/TBD | — | — |
 
@@ -110,7 +114,7 @@ Items acknowledged and carried forward as v2 / out-of-scope:
 
 ## Session Continuity
 
-Last session: 2026-05-12T20:13:38.591Z
-Stopped at: Plan 01-01 complete — proceeding to Plan 02 (Konto page content)
-Resume file: 
+Last session: 2026-05-14
+Stopped at: Phase 3 (Security Hardening) shipped — Phase 4 (Frontend Stability) and Phase 5 (Backend Correctness) remain; can run in parallel
+Resume file:
 None

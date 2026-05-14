@@ -12,9 +12,9 @@ Brownfield milestone delivering Settings page + Integrations panel + Hardening o
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Settings Shell + Konto** — Strona `/settings` z side-navem działa end-to-end z sekcją "Konto" (email, zmiana hasła, revoke-all-sessions)
-- [ ] **Phase 2: Integrations Panel (IGDB)** — Panel `/settings/integrations` z encrypted-at-rest credential store; IGDB konfigurowalne z UI bez restartu
-- [ ] **Phase 3: Security Hardening** — CSRF defense, per-user rate-limit na mutacjach, SameSite=Strict, deny-list dla sentinel-secrets
+- [x] **Phase 1: Settings Shell + Konto** — Strona `/settings` z side-navem działa end-to-end z sekcją "Konto" (email, zmiana hasła, revoke-all-sessions)
+- [x] **Phase 2: Integrations Panel (IGDB)** — Panel `/settings/integrations` z encrypted-at-rest credential store; IGDB konfigurowalne z UI bez restartu
+- [x] **Phase 3: Security Hardening** — CSRF defense, per-user rate-limit na mutacjach, SameSite=Strict, deny-list dla sentinel-secrets
 - [ ] **Phase 4: Frontend Stability** — Global ErrorBoundary, `useCredentialsForm` helper, dekompozycja `game-view.tsx`, regression tests dla login/register
 - [ ] **Phase 5: Backend Correctness** — Migrations out-of-boot, `toGameInsertRow` dedup, batch SELECT w `applyMerge`, sort-field indices, route-ordering test
 
@@ -104,8 +104,8 @@ Phases execute in numeric order: 1 → 2 → (3, 4, 5 can run in parallel)
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Settings Shell + Konto | 2/3 | In Progress|  |
-| 2. Integrations Panel (IGDB) | 0/TBD | Not started | - |
-| 3. Security Hardening | 0/TBD | Not started | - |
+| 1. Settings Shell + Konto | 3/3 | Complete | 2026-05-12 |
+| 2. Integrations Panel (IGDB) | shipped (out-of-flow) | Complete | 2026-05-13 |
+| 3. Security Hardening | shipped (out-of-flow) | Complete | 2026-05-14 |
 | 4. Frontend Stability | 0/TBD | Not started | - |
 | 5. Backend Correctness | 0/TBD | Not started | - |
