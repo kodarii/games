@@ -1,6 +1,6 @@
 # Codebase Concerns
 
-*Last updated: 2026-05-12*
+*Last updated: 2026-05-16*
 
 ## Tech Debt
 
@@ -12,12 +12,15 @@
 **Migrations run unconditionally on every process boot**
 - File: `apps/api/src/infrastructure/db/client.ts:25-29`
 - `migrate(db, ...)` is invoked synchronously at import time, guarded only by `globalThis.__apexDbMigrated` (re-entry within the same process). On horizontal scale-out each replica races to migrate; SQLite serializes them but ordering relative to first traffic is implicit. Also makes a read-only forensic boot impossible.
-- Fix: extract migration into the existing `bun run db:migrate` deploy step; have `client.ts` only open the DB.
+- **Resolved in Phase 5 (BE-01):** auto-migrate gated by `process.env.NODE_ENV !== 'production'` in `apps/api/src/infrastructure/db/client.ts`. Production migrations run via versioned `scripts/deploy.sh` ahead of `sudo systemctl restart apex-api`. Deploy script takes a `VACUUM INTO` snapshot (`apps/api/scripts/backup.ts`) before each migration and uses `trap restore_and_exit ERR` to roll the DB back to the snapshot on failure — so a half-migrated state cannot persist. Retention: last 10 snapshots in `apps/api/data/backups/`.
 
 **Row-builder for games/platforms duplicated 3×**
 - Files: `apps/api/src/infrastructure/import/drizzle-import-repository.ts:39-50` (`applyMerge`), `:85-99` (`applyReplace`), and `apps/api/src/infrastructure/games/drizzle-game-repository.ts:165-187` (`create`).
 - A future column gets silently dropped if only one site is updated.
-- Fix: extract `toGameInsertRow(userId, game)` next to `GameRow` in the schema module.
+- **Partially resolved in Phase 5 (BE-02):** INSERT row-builder zdedplikowany do `toGameInsertRow(userId, input)` w `apps/api/src/infrastructure/db/schema.ts`; trzy INSERT call-sites (`DrizzleGameRepository.create`, `applyMerge` INSERT branch, `applyReplace` INSERT loop) używają helpera. **Świadomie pozostawione jako duplikat (D-10):** `DrizzleGameRepository.update()` i `saveMetadata()` — to dwa różne use-case'y (user PATCH vs system enrichment z IGDB) niewspółmierne z INSERT shape. Pin: `apps/api/src/infrastructure/db/__tests__/to-game-insert-row.test.ts` (6 it blocks: 4 functional + dedup grep gate + VO-unwrap snapshot counter).
+- **Re-open trigger:** gdy dodajemy nową kolumnę do `games` table — zweryfikuj wszystkie trzy miejsca z VO-unwrap (helper INSERT + update() set + saveMetadata() set). Snapshot counter test wybuchnie jeśli przegapisz.
+- **Promotion trigger:** jeśli zostanie dodany 3. UPDATE call-site z VO-unwrap pattern, wprowadzić `toGameUpdateRow` / `toGameMetadataRow` jako **osobne** helpery (NIE jeden wspólny — `update` to user PATCH, `saveMetadata` to system event, premature unification = pierwsza zmiana scope'u rozwala wspólny helper).
+- **Future work (v2 aggregate redesign):** `saveMetadata` to mały DDD smell — powinno być osobną metodą aggregate'a emitującą `GameMetadataEnriched` event, repo eksponuje pojedyncze `save(game)` z diffem. Out of scope dla Phase 5; zostawione na radarze.
 
 **Hand-rolled action dropdown duplicates Radix capability**
 - File: `apps/client/src/pages/game-view.tsx:88-170`
@@ -77,12 +80,12 @@ No production bugs observed in source. Recent fix commits (`fix login and regist
 **Import-merge is N+1 reads inside a transaction**
 - File: `apps/api/src/infrastructure/import/drizzle-import-repository.ts:14-67`
 - One SELECT per platform and per game inside `applyMerge`.
-- Fix: batch-fetch existing rows with `IN (...)`, build a `Map<externalId, row>`, loop in memory.
+- **Resolved in Phase 5 (BE-03):** `applyMerge` reads all matching rows via `inArray(externalId, [...])` — 2 SELECTs total (jeden dla `platforms`, jeden dla `games`) + in-memory `Map<externalId, row>` lookup. Per-row UPDATEs retained intentionally (D-13). Per-user scoping preserved via `and(eq(table.userId, userId), inArray(...))`. Empty-array guard sidesteps SQLite `IN ()` syntax error. Semantic regression pin: `apps/api/src/infrastructure/import/__tests__/apply-merge.test.ts` (100 games + 5 platforms + per-user isolation + empty plan edge case). **Q4 architectural guard:** `grep -E '\.where\(eq\(.*externalId.*\)\)' apps/api/src/infrastructure/import/drizzle-import-repository.ts` returns 0 — pinuje że per-row `externalId` lookup pattern nie wraca do tego pliku.
 
 **Missing indices for some sort fields**
 - File: `apps/api/src/infrastructure/db/schema.ts:46-52`
 - `(user_id, kind, title)` is indexed, but sorting by `hoursPlayed`, `genre`, `format`, `status` (`apps/api/src/infrastructure/games/drizzle-game-repository.ts:113-122`) is not.
-- Fix: add narrow per-sort indices or document the cost.
+- **Resolved in Phase 5 (BE-04, accepted cost):** block comment over `games` table in `apps/api/src/infrastructure/db/schema.ts` documents ~10ms full-scan sort cost on `hoursPlayed`/`genre`/`status` for single-user ≤5k rows. Already-indexed sort fields: `title`, `platform`, `format`, `releaseYear` (each scoped by `(user_id, kind, ...)`). Revisit when schema stabilises. See `feedback_no_premature_indices`.
 
 **Orphan-cover cleanup lists full UploadThing bucket every hour**
 - File: `apps/api/src/infrastructure/cover-storage/uploadthing-cover-storage.ts:43-60`
@@ -100,12 +103,19 @@ No production bugs observed in source. Recent fix commits (`fix login and regist
 - File: `apps/api/src/wiring.ts`
 - Every service constructed at module top level. Circuit breakers, rate limiters, cron lock, token stores share state across requests. Tests importing wiring inherit production singletons.
 - Safe modification: append-only; never reorder.
-- Test gap: no test for composition.
+- **Test gap closed in Phase 5 (BE-06):** `apps/api/src/__tests__/wiring.test.ts` pins (a) `igdbConfigured === false` → 503 z `body.type='/errors/feature-disabled'` na `GET /api/games/metadata/candidates`, (b) 503 na `PATCH /api/games/:externalId/metadata`, (c) **architectural singleton pin** via `Bun.spawnSync(rg)` — 0 trafień dla `new (DrizzleGameRepository|DrizzleTransactionRunner|IgdbChainHolder)\(` poza `wiring.ts`. To pinuje anti-pattern z CLAUDE.md ("Skipping wiring.ts and new-ing dependencies in routes") wykonywalnym testem, NIE tautologicznym `await import().toBe()` (które przeszłoby przez ESM module cache niezależnie od singleton intent). Clean swap fixture (`beforeEach: swap(null)` + `afterEach: swap(snapshot)` bez throw) działa na dev maszynie z IGDB creds seeded.
+
+### Production import path silently drops `coverImage` + `metadataRef` — BE-02c
+- **File:** `apps/api/src/application/import/import-data.ts:101` (NewGame.create call) + `apps/api/src/application/export/export-snapshot.ts` (ExportedGame shape)
+- **Description:** `ImportData.execute` builds `NewGame.create(...)` from a v4 snapshot that does NOT carry `coverImage` or `metadataRef` (verified — `packages/shared/src/import-schema-v4.ts` does not declare them; `export-snapshot.ts` does not emit them). `DrizzleImportRepository.applyMerge` / `applyReplace` were extended in Phase 5 (BE-02b, plan 05-08) to persist these fields when supplied — but `g.coverImage` and `g.metadataRef` arrive as `undefined` at the call site. The repo-layer fix is dead code on this production path.
+- **Documented in Phase 5 (BE-02c, OPEN — blocked on ExportSnapshotV5):** plan 05-08 Task 4 plants three signposts so the gap survives discovery: (a) TSDoc block above the `for` loop in `import-data.ts` listing the v5 unblocking work step-by-step; (b) inline `FIXME(BE-02c, F-08-1)` markers at both the `import-data.ts` call site AND the `export-snapshot.ts` ExportedGame shape; (c) round-trip test `apps/api/src/infrastructure/import/__tests__/round-trip.test.ts` Test 1 asserts `not.toHaveProperty('coverImage')` etc. — which will fail when v5 adds them, forcing a conscious decision to flip those to positive preservation assertions and update this entry to "Resolved".
+- **Unblocking work (out of Phase 5):** (1) bump snapshot schema to `ExportSnapshotV5` with `coverImage`, `metadataProvider`, `metadataProviderId`, `metadataMatchedAt` (additive — keep v4 readable); (2) extend `exportSnapshot` to emit them; (3) add `coverImage: g.coverImage ?? null` + `metadataRef: g.metadataRef ?? null` to `NewGame.create` call; (4) flip `not.toHaveProperty` → positive preservation in `round-trip.test.ts` Test 1; (5) update 05-CONTEXT.md D-33 to mark BE-02c resolved.
+- **Discovery search:** `rg 'FIXME\(BE-02c' apps/api/src` returns ≥3 hits across `application/import/import-data.ts` (TSDoc block + inline `// FIXME` at the `NewGame.create` call site), `application/export/export-snapshot.ts` (TSDoc block above ExportedGame shape), and `infrastructure/import/__tests__/round-trip.test.ts` (test-level marker on the `not.toHaveProperty` assertions).
 
 **Hono route ordering is registration-sensitive**
 - File: `apps/api/src/routes/games.ts:142-145`
 - Comment warns `/metadata/*` MUST register before `/:externalId`. No test enforces it.
-- Fix: add assertion test that hits `/api/games/metadata/candidates` and asserts a non-404.
+- **Resolved in Phase 5 (BE-05):** `describe('route ordering pin')` w `apps/api/src/routes/games.test.ts` zawiera 2 it bloki: (1) **body-shape pin** — `GET /api/games/metadata/candidates` zwraca status ≠ 404, a gdy 503 to `body.type === '/errors/feature-disabled'` (stabilny discriminator generowany WYŁĄCZNIE przez `games-metadata` sub-router, nie przez `:externalId` handler); (2) **counter-weight** — `GET /api/games/:externalId` dla non-reserved slug nadal trafia w single-game handler. RED jest dowiedziony konstrukcyjnie przez kształt asercji (body.type), nie przez manual swap routes — test failuje w momencie regresji bez ingerencji w `apps/api/src/routes/games.ts`.
 
 **Optimistic-locking discipline scattered across use cases**
 - Files: `apps/api/src/application/games/update-game.ts`, `enrich-game-metadata.ts`, `delete-game.ts`, `move-to-collection.ts`; `apps/api/src/infrastructure/games/drizzle-game-repository.ts:97-100, 138-141`
