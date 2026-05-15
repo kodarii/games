@@ -85,13 +85,21 @@ export function useCredentialsForm<T extends Record<string, string>>(
 
       resetErrors();
       setIsPending(true);
-      const result = await args.onSubmit(values as T);
-      setIsPending(false);
-
-      // Always overwrite both — using nullish coalescing so a missing field
-      // explicitly clears stale state instead of merging into prior errors.
-      setError(result?.error ?? null);
-      setFieldErrors(result?.fieldErrors ?? {});
+      try {
+        const result = await args.onSubmit(values as T);
+        // Always overwrite both — using nullish coalescing so a missing field
+        // explicitly clears stale state instead of merging into prior errors.
+        setError(result?.error ?? null);
+        setFieldErrors(result?.fieldErrors ?? {});
+      } catch {
+        // Defensive: if args.onSubmit throws (e.g. network failure surfaced as
+        // an unhandled rejection), surface a generic banner instead of leaving
+        // the button stuck in 'isPending'. The ErrorBoundary cannot catch
+        // promise rejections inside event handlers, so we must handle it here.
+        setError('Something went wrong. Try again.');
+      } finally {
+        setIsPending(false);
+      }
     },
     [args, resetErrors],
   );
