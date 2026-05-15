@@ -1,60 +1,46 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useCredentialsForm } from '@/hooks/use-credentials-form';
 import { signUp, useSession } from '@/lib/auth-client';
-import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-
-interface FieldErrors {
-  name?: string;
-  email?: string;
-  password?: string;
-  confirmPassword?: string;
-}
 
 export function RegisterPage() {
   const navigate = useNavigate();
   const { refetch: refetchSession } = useSession();
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [isPending, setIsPending] = useState(false);
 
-  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const data = new FormData(form);
-    const name = String(data.get('name') ?? '').trim();
-    const email = String(data.get('email') ?? '').trim();
-    const password = String(data.get('password') ?? '');
-    const confirmPassword = String(data.get('confirmPassword') ?? '');
-    setError(null);
-
-    const errs: FieldErrors = {};
-    if (!name) errs.name = 'Name is required.';
-    if (password.length < 8) errs.password = 'Password must be at least 8 characters.';
-    if (password !== confirmPassword) errs.confirmPassword = 'Passwords do not match.';
-
-    if (Object.keys(errs).length > 0) {
-      setFieldErrors(errs);
-      return;
-    }
-    setFieldErrors({});
-    setIsPending(true);
-    const { error: signUpError } = await signUp.email({ email, password, name });
-
-    if (signUpError) {
-      setIsPending(false);
-      if (signUpError.code === 'USER_ALREADY_EXISTS') {
-        setFieldErrors({ email: 'This email is already registered.' });
-      } else {
-        setError('Something went wrong. Try again.');
+  const { handleSubmit, isPending, error, fieldErrors } = useCredentialsForm<{
+    name: string;
+    email: string;
+    password: string;
+    confirmPassword: string;
+  }>({
+    fields: [
+      {
+        name: 'name',
+        validate: (v) => (v.length === 0 ? 'Name is required.' : null),
+      },
+      { name: 'email' },
+      {
+        name: 'password',
+        validate: (v) => (v.length < 8 ? 'Password must be at least 8 characters.' : null),
+      },
+      {
+        name: 'confirmPassword',
+        validate: (v, all) => (v !== all.password ? 'Passwords do not match.' : null),
+      },
+    ],
+    onSubmit: async ({ name, email, password }) => {
+      const { error: signUpError } = await signUp.email({ name, email, password });
+      if (signUpError) {
+        if (signUpError.code === 'USER_ALREADY_EXISTS') {
+          return { fieldErrors: { email: 'This email is already registered.' } };
+        }
+        return { error: 'Something went wrong. Try again.' };
       }
-      return;
-    }
-
-    await refetchSession();
-    setIsPending(false);
-    navigate('/games', { replace: true });
-  };
+      await refetchSession();
+      navigate('/games', { replace: true });
+    },
+  });
 
   return (
     <div>
@@ -67,7 +53,7 @@ export function RegisterPage() {
         </div>
       )}
 
-      <form onSubmit={onSubmit} className="mt-8 space-y-4">
+      <form onSubmit={handleSubmit} className="mt-8 space-y-4">
         <div>
           <label htmlFor="name" className="text-sm font-medium text-apex-ink">
             Name
