@@ -246,6 +246,11 @@ export function useUploadCoverMutation() {
   });
 }
 
+// Page shape for paged ['games', ...] queries — kept narrow on purpose so a
+// page-shape change is caught by the type checker instead of being silently
+// spread through `(old: unknown)`.
+type PagedGames = { pages: Array<{ items: Game[] }> };
+
 export function useMoveToCollectionMutation() {
   const qc = useQueryClient();
   const idempotencyKeyRef = useRef(newIdempotencyKey());
@@ -253,20 +258,27 @@ export function useMoveToCollectionMutation() {
     mutationFn: (externalId: string) => moveToCollection(externalId, idempotencyKeyRef.current),
     onMutate: async (externalId) => {
       await qc.cancelQueries({ queryKey: ['games', 'wishlist'] });
-      const snapshot = qc.getQueriesData<{ pages: Array<{ items: Game[] }> }>({
-        queryKey: ['games', 'wishlist'],
-      });
-      qc.setQueriesData({ queryKey: ['games', 'wishlist'] }, (old: unknown) => {
-        const data = old as { pages?: Array<{ items: Game[] }> } | undefined;
-        if (!data?.pages) return old;
-        return {
-          ...data,
-          pages: data.pages.map((p) => ({
-            ...p,
-            items: p.items.filter((g) => g.id !== externalId),
-          })),
-        };
-      });
+      const snapshot = qc.getQueriesData<PagedGames>({ queryKey: ['games', 'wishlist'] });
+      // NOTE (WR-05): we deliberately only optimistically REMOVE from wishlist;
+      // the corresponding insert into ['games', 'owned'] is intentionally NOT
+      // performed here (the Game.kind transition + per-page sort/filter is
+      // non-trivial to mirror client-side). The owned list refetches lazily
+      // via `onSettled` below. The race is benign because game-view.tsx
+      // navigates to /games/:id immediately on success, which renders from
+      // the per-game query, not the paged owned list.
+      qc.setQueriesData<PagedGames | undefined>(
+        { queryKey: ['games', 'wishlist'] },
+        (old) => {
+          if (!old?.pages) return old;
+          return {
+            ...old,
+            pages: old.pages.map((p) => ({
+              ...p,
+              items: p.items.filter((g) => g.id !== externalId),
+            })),
+          };
+        },
+      );
       return { snapshot };
     },
     onError: (_err, _externalId, ctx) => {
