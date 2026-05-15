@@ -101,7 +101,15 @@ Plans:
   4. Sortowanie po `hoursPlayed`/`genre`/`format`/`status` ma odpowiednie indeksy (nowa migracja) lub świadomie udokumentowany koszt w `schema.ts` / `CONCERNS.md` z uzasadnieniem
   5. Test `apps/api/src/routes/games.test.ts` weryfikuje że `GET /api/games/metadata/candidates` zwraca status ≠ 404 (regression-pin na Hono route ordering — `/metadata/*` przed `/:externalId`)
   6. Smoke test dla `wiring.ts` weryfikuje że `igdbConfigured === false` skutkuje 503 na `/api/games/:id/metadata` oraz że singleton identity zachowana między requestami (`tokenStore`, `circuitBreaker`, `rateLimiter` to ta sama instancja)
-**Plans:** TBD
+**Plans:** 6 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — BE-01 deploy script + NODE_ENV gate (Wave 4): versioned scripts/deploy.sh runs db:migrate before sudo systemctl restart apex-api; client.ts auto-migrate gated by NODE_ENV !== 'production'
+- [ ] 05-02-PLAN.md — BE-02 row-builder dedup (Wave 1): toGameInsertRow(userId, input) in infrastructure/db/schema.ts; wired into DrizzleGameRepository.create + applyMerge + applyReplace; rg "kind: \\w+\\.kind" returns 1
+- [ ] 05-03-PLAN.md — BE-03 batch SELECT in applyMerge (Wave 2): two inArray(externalId, [...]) reads + in-memory Map lookup replaces N+1; per-user scoping preserved; semantic regression test (100 games + per-user isolation + empty-plan)
+- [ ] 05-04-PLAN.md — BE-04 sort-cost note (Wave 3): TSDoc block comment over games table documenting accepted full-scan cost on hoursPlayed/genre/status; NO migration added (D-16)
+- [ ] 05-05-PLAN.md — BE-05 route ordering regression pin (Wave 5, TDD): describe('route ordering pin') in routes/games.test.ts asserts GET /api/games/metadata/candidates != 404
+- [ ] 05-06-PLAN.md — BE-06 wiring smoke test (Wave 6, TDD): apps/api/src/__tests__/wiring.test.ts pins igdbChainHolder.swap(null) -> 503 on metadata endpoints + singleton identity across re-imports
 
 ## Progress
 
