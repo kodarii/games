@@ -1,39 +1,34 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useCredentialsForm } from '@/hooks/use-credentials-form';
 import { signIn, useSession } from '@/lib/auth-client';
-import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { refetch: refetchSession } = useSession();
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, setIsPending] = useState(false);
 
-  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const data = new FormData(form);
-    const email = String(data.get('email') ?? '').trim();
-    const password = String(data.get('password') ?? '');
-    setError(null);
-    setIsPending(true);
-    const { error: signInError } = await signIn.email({ email, password });
-    if (signInError) {
-      setIsPending(false);
-      setError(
-        signInError.code === 'INVALID_EMAIL_OR_PASSWORD'
-          ? 'Invalid email or password.'
-          : 'Something went wrong. Try again.',
-      );
-      return;
-    }
-    await refetchSession();
-    setIsPending(false);
-    const from = (location.state as { from?: string } | null)?.from ?? '/games';
-    navigate(from, { replace: true });
-  };
+  const { handleSubmit, isPending, error, fieldErrors } = useCredentialsForm<{
+    email: string;
+    password: string;
+  }>({
+    fields: [{ name: 'email' }, { name: 'password' }],
+    onSubmit: async ({ email, password }) => {
+      const { error: signInError } = await signIn.email({ email, password });
+      if (signInError) {
+        return {
+          error:
+            signInError.code === 'INVALID_EMAIL_OR_PASSWORD'
+              ? 'Invalid email or password.'
+              : 'Something went wrong. Try again.',
+        };
+      }
+      await refetchSession();
+      const from = (location.state as { from?: string } | null)?.from ?? '/games';
+      navigate(from, { replace: true });
+    },
+  });
 
   return (
     <div>
@@ -46,7 +41,7 @@ export function LoginPage() {
         </div>
       )}
 
-      <form onSubmit={onSubmit} className="mt-8 space-y-4">
+      <form onSubmit={handleSubmit} className="mt-8 space-y-4">
         <div>
           <label htmlFor="email" className="text-sm font-medium text-apex-ink">
             Email
@@ -59,6 +54,7 @@ export function LoginPage() {
             autoComplete="email"
             className="mt-1"
           />
+          {fieldErrors.email && <p className="mt-1 text-xs text-red-600">{fieldErrors.email}</p>}
         </div>
         <div>
           <label htmlFor="password" className="text-sm font-medium text-apex-ink">
@@ -72,6 +68,9 @@ export function LoginPage() {
             autoComplete="current-password"
             className="mt-1"
           />
+          {fieldErrors.password && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.password}</p>
+          )}
         </div>
         <Button type="submit" className="mt-6 w-full" disabled={isPending}>
           {isPending ? 'Signing in…' : 'Sign in'}
