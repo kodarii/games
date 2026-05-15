@@ -319,7 +319,8 @@ const IgdbIntegrationForm = forwardRef<IgdbIntegrationFormHandle, IgdbIntegratio
 
     const onConfirmDisconnect = () => {
       if (clearMutation.isPending) return;
-      clearMutation.mutate(crypto.randomUUID(), {
+      // Idempotency-Key is supplied by the hook via useRef (Plan 04-04).
+      clearMutation.mutate(undefined, {
         onSuccess: () => {
           toast.success('Rozłączono.');
           setDisconnectOpen(false);
@@ -355,7 +356,7 @@ const IgdbIntegrationForm = forwardRef<IgdbIntegrationFormHandle, IgdbIntegratio
         return;
       }
 
-      const idempotencyKey = crypto.randomUUID();
+      // Idempotency-Key is supplied by the hook via useRef (Plan 04-04).
       setSubmitError(null);
 
       try {
@@ -363,7 +364,6 @@ const IgdbIntegrationForm = forwardRef<IgdbIntegrationFormHandle, IgdbIntegratio
           clientId,
           clientSecret,
           enabled: pendingEnabled,
-          idempotencyKey,
         });
         toast.success('Zapisano. IGDB połączone.');
         // Parent remounts the form on `data.updatedAt` change → fresh state.
