@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
+status: executing
 stopped_at: Phase 3 (Security Hardening) shipped — Phase 4 (Frontend Stability) and Phase 5 (Backend Correctness) remain; can run in parallel
-last_updated: "2026-05-14T00:00:00.000Z"
-last_activity: 2026-05-14
+last_updated: "2026-05-15T07:02:44.815Z"
+last_activity: 2026-05-15 -- Phase 04 execution started
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 3
+  completed_phases: 1
+  total_plans: 7
   completed_plans: 3
-  percent: 60
+  percent: 43
 ---
 
 # Project State
@@ -21,18 +21,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Właściciel zawsze wie co ma i co chce kupić, i może to sprawdzić w kilka sekund — precyzja, szybkość, fokus.
-**Current focus:** Phase 04 (Frontend Stability) lub Phase 05 (Backend Correctness) — niezależne, można uruchomić równolegle
+**Current focus:** Phase 04 — frontend-stability
 
 ## Current Position
 
-Phase: 04 / 05 — NOT STARTED (next up)
-Plan: —
-Status: Phases 1–3 complete; awaiting plan-phase for 04 or 05
-Last activity: 2026-05-14 — Phase 3 hardening merged (3cd709c): CSRF origin guard, per-user mutation rate limit, sentinel secret denylist, SameSite=Strict
+Phase: 04 (frontend-stability) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 04
+Last activity: 2026-05-15 -- Phase 04 execution started
 
 Progress: [██████░░░░] 60% (3 of 5 phases)
 
 **Phase 2 + Phase 3 note:** shipped out-of-flow (without `.planning/phases/02-*` or `03-*` directories). Implementation evidence in commits:
+
 - Phase 2 (IGDB integration): `65fb9b9` (2026-05-13) + cleanup `8518f6b`, `9addaef`, `6444a82`
 - Phase 3 (Security): `3cd709c` (2026-05-14) + spec `9214bb6`
 
