@@ -56,7 +56,7 @@ export function GameViewFields({
       notesRef.current.style.height = 'auto';
       notesRef.current.style.height = `${notesRef.current.scrollHeight}px`;
     }
-  }, [editMode]);
+  }, [editMode, draft.notes]);
 
   return (
     <div className="flex flex-1 overflow-hidden">
