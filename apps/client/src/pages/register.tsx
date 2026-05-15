@@ -58,14 +58,7 @@ export function RegisterPage() {
           <label htmlFor="name" className="text-sm font-medium text-apex-ink">
             Name
           </label>
-          <Input
-            id="name"
-            name="name"
-            type="text"
-            required
-            autoComplete="name"
-            className="mt-1"
-          />
+          <Input id="name" name="name" type="text" required autoComplete="name" className="mt-1" />
           {fieldErrors.name && <p className="mt-1 text-xs text-red-600">{fieldErrors.name}</p>}
         </div>
         <div>
