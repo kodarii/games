@@ -118,6 +118,52 @@ export const Icon = {
       />
     </>,
   ),
+  disc: svg(
+    <>
+      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4" />
+      <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.4" />
+    </>,
+  ),
+  download: svg(
+    <>
+      <path
+        d="M8 2.5v7"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+      <path
+        d="M5 7l3 3 3-3"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M3 12.5h10"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </>,
+  ),
+  edit: svg(
+    <>
+      <path
+        d="M7.5 3H3a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1V8.5"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+      <path
+        d="M12.5 2.5a1.5 1.5 0 012 2L8 11l-2.5.5L6 9l6.5-6.5z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </>,
+  ),
   folder: svg(
     <>
       <rect
