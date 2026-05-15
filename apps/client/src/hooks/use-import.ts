@@ -104,6 +104,10 @@ export function useImport() {
     const { file, summary } = state;
     setState({ kind: 'submitting', file, summary });
     try {
+      // Idempotency-key generated inline (per call) inside importData — see
+      // Plan 04-04 §Task 2c: import is a single-shot admin operation, not a
+      // useMutation hook, so retry semantics live in the state machine
+      // (`reset()` + re-select file). No useRef caching needed.
       const report = await importData(summary.snapshot, mode);
       await queryClient.invalidateQueries({ queryKey: ['games'] });
       await queryClient.invalidateQueries({ queryKey: ['platforms'] });
