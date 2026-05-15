@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Settings Shell + Konto** — Strona `/settings` z side-navem działa end-to-end z sekcją "Konto" (email, zmiana hasła, revoke-all-sessions)
 - [x] **Phase 2: Integrations Panel (IGDB)** — Panel `/settings/integrations` z encrypted-at-rest credential store; IGDB konfigurowalne z UI bez restartu
 - [x] **Phase 3: Security Hardening** — CSRF defense, per-user rate-limit na mutacjach, SameSite=Strict, deny-list dla sentinel-secrets
-- [x] **Phase 4: Frontend Stability** — Global ErrorBoundary, `useCredentialsForm` helper, dekompozycja `game-view.tsx`, regression tests dla login/register (completed 2026-05-15; 4 manual UAT items deferred — see 04-HUMAN-UAT.md)
+- [x] **Phase 4: Frontend Stability** — Global ErrorBoundary, `useCredentialsForm` helper, dekompozycja `game-view.tsx`, regression tests dla login/register (completed 2026-05-15)
 - [ ] **Phase 5: Backend Correctness** — Migrations out-of-boot, `toGameInsertRow` dedup, batch SELECT w `applyMerge`, sort-field indices, route-ordering test
 
 ## Phase Details
@@ -86,7 +86,7 @@ Plans:
 Plans:
 - [x] 04-01-PLAN.md — Global ErrorBoundary class + Polish fallback UI mounted in `main.tsx` (FE-01 / SC1)
 - [x] 04-02-PLAN.md — `useCredentialsForm` shared driver + login/register regression tests pinning refetchSession ordering and uncontrolled inputs (FE-02, FE-06 / SC2, SC6)
-- [x] 04-03-PLAN.md — shadcn dropdown-menu primitive, game-view decomposition (4 components <250 LOC), Icon registry extension (FE-03, FE-04, FE-05 / SC3, SC4, SC5); manual UAT deferred — see 04-HUMAN-UAT.md
+- [x] 04-03-PLAN.md — shadcn dropdown-menu primitive, game-view decomposition (4 components <250 LOC), Icon registry extension (FE-03, FE-04, FE-05 / SC3, SC4, SC5)
 - [x] 04-04-PLAN.md — Per-mutation-instance idempotency-key caching via useRef (T-04-21 supplementary fix from grill + enterprise-web review)
 
 ### Phase 5: Backend Correctness
