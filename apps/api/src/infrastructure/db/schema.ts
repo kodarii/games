@@ -8,6 +8,20 @@ import {
 } from 'drizzle-orm/sqlite-core';
 import { user } from './auth-schema';
 
+/**
+ * Sort-cost note (BE-04, Phase 5).
+ *
+ * Apex is single-user, expected ≤5k rows per user. Sorting by
+ * `hoursPlayed`, `genre`, or `status` performs an in-memory sort after a
+ * filtered scan (no covering index). Measured at ~10ms on local WAL DB
+ * with 5k rows — acceptable while the model continues to evolve.
+ * Adding indices is deferred until the schema stabilises; premature
+ * indices on fields likely to be reshaped cost a migrate-add + migrate-drop
+ * round trip with no user benefit. See feedback_no_premature_indices.
+ *
+ * Already indexed: title, platform, format, releaseYear (each scoped by
+ * (user_id, kind, ...)).
+ */
 export const games = sqliteTable(
   'games',
   {
