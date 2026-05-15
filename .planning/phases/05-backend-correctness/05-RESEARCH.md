@@ -669,32 +669,22 @@ See **Pattern 1–5** above. All target shapes derived from current code at:
 | A6 | `bun run --filter=@apex/api db:migrate` correctly chdirs into `apps/api/` before invoking `drizzle-kit migrate` | BE-01 D-01 | Bun's filter resolves to the workspace package and runs the script in its dir. Verified standard Bun workspace behavior. |
 | A7 | Existing `games.test.ts` route harness pattern (`makeTestApp()`) supports a non-auth GET request to `/api/games/metadata/candidates` and the response will NOT be 404 even when IGDB is unconfigured (returns 503) | BE-05 D-20 | True per `games-metadata.ts:16-26` — 503 returned when chain is null. The test pins the route resolves; it doesn't pin the response body. Low risk. |
 
-## Open Questions
+## Open Questions (RESOLVED 2026-05-15 during /gsd-plan-phase 5)
 
 1. **VPS process manager — pm2, systemd, or other?**
-   - What we know: deploy.yml uses SSH; existing `/root/apex/scripts/deploy.sh` invoked by GitHub Actions.
-   - What's unclear: What restarts the API process today? Is `Bun.serve(...)` running under systemd? pm2? bare `bun run start`?
-   - Recommendation: planner asks user at start of planning. Default to `systemctl restart apex-api` if user confirms; pm2 alt if user uses pm2.
+   - **RESOLVED: systemd.** `scripts/deploy.sh` ends with `sudo systemctl restart apex-api`. Confirmed by user during plan-phase.
 
 2. **Does VPS set `NODE_ENV=production`?**
-   - What we know: D-03 relies on this env var for the prod-vs-dev branch.
-   - What's unclear: Is it set by systemd unit? Shell profile? Nowhere?
-   - Recommendation: planner asks user; if uncertain, `scripts/deploy.sh` should `export NODE_ENV=production` before the restart line as a belt-and-suspenders measure.
+   - **RESOLVED: planner sets it as part of Phase 5 contract.** User declined to confirm current state; planner exports `NODE_ENV=production` in both `scripts/deploy.sh` AND the systemd unit file as a deploy contract. Belt-and-suspenders per Recommendation.
 
 3. **BE-03 test variant — query-counting vs semantic-only?**
-   - What we know: D-15 leaves this to planner.
-   - What's unclear: Does the team value regression strength over test simplicity?
-   - Recommendation: **semantic-only** for Phase 5. Cheap to write, robust to Drizzle internal changes. Add a TODO comment in the test pointing to "Pitfall 1 — empty `IN ()` array" so a future maintainer who breaks the batched-fetch will notice via test failure on row count.
+   - **RESOLVED: semantic-only.** Per user decision; matches Recommendation. Query-counting deferred to v2 if regression strength becomes load-bearing.
 
 4. **BE-06 — restore strategy when `igdbChainHolder` starts configured?**
-   - What we know: `swap` doesn't accept "rebuild from clone." Restoring is only possible if we have the original creds.
-   - What's unclear: Should the test guard against this case (throw with a clear message) or attempt a more sophisticated restore?
-   - Recommendation: **throw with clear message** (per Pattern 5 above). The test asserts a property of the test environment, not application code. If a developer with IGDB configured in dev DB runs the test, they'll see the assertion fire and know to either clear their dev integration credentials or run tests against a clean DB.
+   - **RESOLVED: throw with clear message.** Plan 05-06 Task 1 implements the "if chain starts configured, fail loudly so developer knows to clear test DB or use isolated DB" guard.
 
 5. **Does `bun install --production` work correctly in Bun workspaces?**
-   - What we know: Bun supports `--production` flag (skips devDependencies).
-   - What's unclear: Does it correctly handle workspace devDeps that the API doesn't need at runtime (e.g., drizzle-kit)? Drizzle-kit IS needed at deploy time for `db:migrate` — **so `--production` may strip the very tool we need to run.**
-   - Recommendation: **DO NOT use `--production` in `scripts/deploy.sh`.** Use `bun install --frozen-lockfile` instead. The size cost of devDeps is negligible vs the correctness cost of missing drizzle-kit. Overrides CONTEXT.md "Claude's Discretion #2" with a clear technical reason.
+   - **RESOLVED: use `--frozen-lockfile`, NOT `--production`.** Per user + research consensus. Overrides CONTEXT.md "Claude's Discretion #2"; reflected in Plan 05-01 task actions.
 
 ## Environment Availability
 

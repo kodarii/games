@@ -1,10 +1,11 @@
 ---
 phase: 5
 slug: backend-correctness
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: approved
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-05-15
+approved: 2026-05-15
 ---
 
 # Phase 5 — Validation Strategy
@@ -39,19 +40,19 @@ created: 2026-05-15
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| {TBD}-BE02-01 | BE-02 | 1 | BE-02 | T-5-03 (per-user scoping preserved) | All 3 callers emit rows with same column shape via `toGameInsertRow` | integration | `bun test apps/api/src/infrastructure/db/__tests__/to-game-insert-row.test.ts` | ❌ W0 | ⬜ pending |
-| {TBD}-BE02-02 | BE-02 | 1 | BE-02 (SC-2) | — | `rg "kind: [a-zA-Z]+\.kind" apps/api/src --type ts` returns exactly 1 match | static | `bun run scripts/check-row-builder-dedup.sh` *(or inline grep in CI)* | ❌ W0 | ⬜ pending |
-| {TBD}-BE03-01 | BE-03 | 2 | BE-03 (SC-3) | T-5-03 (IDOR via batched IN) | After merging 100 games + 5 platforms (semantic-only test), all rows present with correct upsert semantics; per-user scoping preserved | integration | `bun test apps/api/src/infrastructure/import/__tests__/apply-merge.test.ts` | ❌ W0 | ⬜ pending |
-| {TBD}-BE04-01 | BE-04 | 3 | BE-04 (SC-4) | — | Block comment present over `games` table in `schema.ts`; CONCERNS.md updated with "Resolved in Phase 5" marker | static | `bun run scripts/check-sort-cost-note.sh` *(or inline grep)* | ❌ W0 (script optional) | ⬜ pending |
-| {TBD}-BE01-01 | BE-01 | 4 | BE-01 (SC-1) | T-5-01 (deploy fail-safe) | `scripts/deploy.sh` exits non-zero if `db:migrate` fails AND restart command not executed | manual | run `scripts/deploy.sh` locally against broken migration; assert exit > 0 and no `systemctl restart` log | ❌ Wave 0: contract + `set -euo pipefail` semantics | ⬜ pending |
-| {TBD}-BE01-02 | BE-01 | 4 | BE-01 (SC-1, D-03) | T-5-05 | Boot in `NODE_ENV=production` skips auto-migrate; boot in `NODE_ENV=development` runs it | manual | `NODE_ENV=production bun --cwd apps/api src/index.ts` against fully-migrated DB → green; against scratch DB → fail-fast on first query | ✅ existing `client.ts` | ⬜ pending |
-| {TBD}-BE05-01 | BE-05 | 5 | BE-05 (SC-5) | — | `GET /api/games/metadata/candidates` returns status ≠ 404 (acceptable: 200/400/503) | unit | `bun test apps/api/src/routes/games.test.ts -t "route ordering pin"` | ✅ existing test file (add `describe`) | ⬜ pending |
-| {TBD}-BE06-01 | BE-06 | 5 | BE-06 (SC-6) | T-5-02 (singleton tampering in tests) | When `igdbChainHolder.swap(null)`, `/api/games/:id/metadata` returns 503; `afterEach` restores prior chain | integration | `bun test apps/api/src/__tests__/wiring.test.ts -t "503 when disabled"` | ❌ W0 | ⬜ pending |
-| {TBD}-BE06-02 | BE-06 | 5 | BE-06 (SC-6) | — | Two sequential `await import('../wiring')` calls return identical `igdbChainHolder`/`db` references (singleton identity) | integration | `bun test apps/api/src/__tests__/wiring.test.ts -t "singleton identity"` | ❌ W0 | ⬜ pending |
+| 05-02-T1 | BE-02 | 1 | BE-02 | T-5-03 (per-user scoping preserved) | All 3 callers emit rows with same column shape via `toGameInsertRow` | integration | `bun test apps/api/src/infrastructure/db/__tests__/to-game-insert-row.test.ts` | ❌ W0 | ⬜ pending |
+| 05-02-T2 | BE-02 | 1 | BE-02 (SC-2) | — | `rg "kind: [a-zA-Z]+\.kind" apps/api/src --type ts` returns exactly 1 match | static | `bun run scripts/check-row-builder-dedup.sh` *(or inline grep in CI)* | ❌ W0 | ⬜ pending |
+| 05-03-T1 | BE-03 | 2 | BE-03 (SC-3) | T-5-03 (IDOR via batched IN) | After merging 100 games + 5 platforms (semantic-only test), all rows present with correct upsert semantics; per-user scoping preserved | integration | `bun test apps/api/src/infrastructure/import/__tests__/apply-merge.test.ts` | ❌ W0 | ⬜ pending |
+| 05-04-T1 | BE-04 | 3 | BE-04 (SC-4) | — | Block comment present over `games` table in `schema.ts`; CONCERNS.md updated with "Resolved in Phase 5" marker | static | `bun run scripts/check-sort-cost-note.sh` *(or inline grep)* | ❌ W0 (script optional) | ⬜ pending |
+| 05-01-T1 | BE-01 | 4 | BE-01 (SC-1) | T-5-01 (deploy fail-safe) | `scripts/deploy.sh` exits non-zero if `db:migrate` fails AND restart command not executed | manual | run `scripts/deploy.sh` locally against broken migration; assert exit > 0 and no `systemctl restart` log | ❌ Wave 0: contract + `set -euo pipefail` semantics | ⬜ pending |
+| 05-01-T2 | BE-01 | 4 | BE-01 (SC-1, D-03) | T-5-05 | Boot in `NODE_ENV=production` skips auto-migrate; boot in `NODE_ENV=development` runs it | manual | `NODE_ENV=production bun --cwd apps/api src/index.ts` against fully-migrated DB → green; against scratch DB → fail-fast on first query | ✅ existing `client.ts` | ⬜ pending |
+| 05-05-T1 | BE-05 | 5 | BE-05 (SC-5) | — | `GET /api/games/metadata/candidates` returns status ≠ 404 (acceptable: 200/400/503) | unit | `bun test apps/api/src/routes/games.test.ts -t "route ordering pin"` | ✅ existing test file (add `describe`) | ⬜ pending |
+| 05-06-T1 | BE-06 | 5 | BE-06 (SC-6) | T-5-02 (singleton tampering in tests) | When `igdbChainHolder.swap(null)`, `/api/games/:id/metadata` returns 503; `afterEach` restores prior chain | integration | `bun test apps/api/src/__tests__/wiring.test.ts -t "503 when disabled"` | ❌ W0 | ⬜ pending |
+| 05-06-T2 | BE-06 | 5 | BE-06 (SC-6) | — | Two sequential `await import('../wiring')` calls return identical `igdbChainHolder`/`db` references (singleton identity) | integration | `bun test apps/api/src/__tests__/wiring.test.ts -t "singleton identity"` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
-*Task IDs are placeholders — the planner replaces `{TBD}` with concrete `PLAN-XX-YY` task numbers once PLAN.md is written.*
+*Task IDs follow the `{plan-id}-T{n}` convention (e.g. `05-02-T1` = first `<task>` block in `05-02-PLAN.md`).*
 
 ---
 
@@ -76,14 +77,15 @@ created: 2026-05-15
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter (after planner instantiates task IDs)
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (3 new test files owned by 05-02, 05-03, 05-06)
+- [x] No watch-mode flags (every `bun test` invocation is one-shot)
+- [x] Feedback latency < 30s (full suite ~30s; quick run ~5s)
+- [x] `nyquist_compliant: true` set in frontmatter
+- [x] Task IDs instantiated to `{plan-id}-T{n}` convention
 
-**Approval:** pending
+**Approval:** approved 2026-05-15
 
 ---
 
@@ -93,3 +95,4 @@ created: 2026-05-15
 - **Restart mechanism:** systemd (`systemctl restart apex-api`) per user decision (2026-05-15). `scripts/deploy.sh` ends with `sudo systemctl restart apex-api`.
 - **NODE_ENV contract:** `scripts/deploy.sh` and the systemd unit file MUST export `NODE_ENV=production` for the apex-api service. This is a Phase 5 deploy contract (per user decision 2026-05-15 — "don't know yet, planner sets it").
 - **Install flag:** `bun install --frozen-lockfile` (NOT `--production`) per user + research decision — preserves `drizzle-kit` needed by `db:migrate`.
+- **Wave chain rationale (6 sequential waves):** The linear chain `05-02 → 05-03 → 05-04 → 05-01 → 05-05 → 05-06` is **not** a code-dependency chain — only `05-02 → 05-03` is a true code dependency (the helper must exist before BE-03 wires it). The other four edges serialize writes to the **shared** `.planning/codebase/CONCERNS.md` document (each plan rewrites a distinct bullet under "Resolved in Phase 5" — concurrent edits would conflict). This trades wave-parallelism (could be ~3 waves) for safe, single-writer doc updates. Accepted trade-off per plan-checker iteration-1 verdict (2026-05-15).
