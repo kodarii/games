@@ -1,5 +1,6 @@
 import type { Game, GameFormat, GameSortField, GamesResponse, SortDir } from '@/types';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRef } from 'react';
 import {
   type CreateGameInput,
   type CreateWishlistInput,
@@ -23,6 +24,7 @@ import {
   fetchMyPermissions,
   fetchPlatforms,
   moveToCollection,
+  newIdempotencyKey,
   updateGame,
   uploadCover,
 } from './api';
@@ -86,9 +88,12 @@ export function useInfiniteWishlistQuery(params: InfiniteGamesParams) {
 
 export function useCreateWishlistMutation() {
   const qc = useQueryClient();
+  const idempotencyKeyRef = useRef(newIdempotencyKey());
   return useMutation({
-    mutationFn: (input: CreateWishlistInput) => createWishlistItem(input),
+    mutationFn: (input: CreateWishlistInput) =>
+      createWishlistItem(input, idempotencyKeyRef.current),
     onSuccess: () => {
+      idempotencyKeyRef.current = newIdempotencyKey();
       qc.invalidateQueries({ queryKey: ['games', 'wishlist'] });
     },
   });
@@ -104,9 +109,11 @@ export function useGameQuery(id: string | number | undefined) {
 
 export function useCreateGameMutation() {
   const qc = useQueryClient();
+  const idempotencyKeyRef = useRef(newIdempotencyKey());
   return useMutation({
-    mutationFn: (input: CreateGameInput) => createGame(input),
+    mutationFn: (input: CreateGameInput) => createGame(input, idempotencyKeyRef.current),
     onSuccess: () => {
+      idempotencyKeyRef.current = newIdempotencyKey();
       qc.invalidateQueries({ queryKey: ['games'] });
     },
   });
@@ -225,15 +232,20 @@ export function useMyPermissions() {
 }
 
 export function useUploadCoverMutation() {
+  const idempotencyKeyRef = useRef(newIdempotencyKey());
   return useMutation({
-    mutationFn: (file: File) => uploadCover(file),
+    mutationFn: (file: File) => uploadCover(file, idempotencyKeyRef.current),
+    onSuccess: () => {
+      idempotencyKeyRef.current = newIdempotencyKey();
+    },
   });
 }
 
 export function useMoveToCollectionMutation() {
   const qc = useQueryClient();
+  const idempotencyKeyRef = useRef(newIdempotencyKey());
   return useMutation({
-    mutationFn: (externalId: string) => moveToCollection(externalId),
+    mutationFn: (externalId: string) => moveToCollection(externalId, idempotencyKeyRef.current),
     onMutate: async (externalId) => {
       await qc.cancelQueries({ queryKey: ['games', 'wishlist'] });
       const snapshot = qc.getQueriesData<{ pages: Array<{ items: Game[] }> }>({
@@ -256,6 +268,13 @@ export function useMoveToCollectionMutation() {
       if (ctx?.snapshot) {
         ctx.snapshot.forEach(([key, data]) => qc.setQueryData(key, data));
       }
+    },
+    // Reset key ONLY on success — retry-after-failure must use the same key so
+    // server-side idempotency middleware can deduplicate. Placing the reset in
+    // onSettled / onError would re-introduce the per-retry-fresh-UUID bug that
+    // T-04-21 was originally meant to mitigate.
+    onSuccess: () => {
+      idempotencyKeyRef.current = newIdempotencyKey();
     },
     onSettled: (_data, _err, externalId) => {
       qc.invalidateQueries({ queryKey: ['games', 'wishlist'] });
