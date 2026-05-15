@@ -20,8 +20,15 @@ export { ApiError } from './api-fetch';
  * operation* — i.e. generate once at the call site, pass to fetch, reuse if
  * the network attempt is retried. Producing a new UUID per retry defeats the
  * server-side idempotency cache.
+ *
+ * Preferred callers cache one key per mutation instance via `useRef` and pass
+ * it explicitly into the mutation function (see `apps/client/src/lib/queries.ts`
+ * and `apps/client/src/hooks/use-igdb-integration.ts`). Mutation functions
+ * accept an optional `idempotencyKey` argument; when omitted, a fresh UUID is
+ * generated inline as backward-compatible fallback (e.g. single-shot
+ * non-retry call sites like `use-import.ts`).
  */
-function newIdempotencyKey(): string {
+export function newIdempotencyKey(): string {
   return crypto.randomUUID();
 }
 
@@ -59,19 +66,19 @@ export interface CreateWishlistInput {
   developer?: string;
 }
 
-export function createWishlistItem(input: CreateWishlistInput): Promise<Game> {
+export function createWishlistItem(input: CreateWishlistInput, idempotencyKey?: string): Promise<Game> {
   return apiFetch<Game>('/api/games', {
     method: 'POST',
     body: input,
-    idempotencyKey: newIdempotencyKey(),
+    idempotencyKey: idempotencyKey ?? newIdempotencyKey(),
   });
 }
 
-export function createGame(input: CreateGameInput): Promise<Game> {
+export function createGame(input: CreateGameInput, idempotencyKey?: string): Promise<Game> {
   return apiFetch<Game>('/api/games', {
     method: 'POST',
     body: input,
-    idempotencyKey: newIdempotencyKey(),
+    idempotencyKey: idempotencyKey ?? newIdempotencyKey(),
   });
 }
 
@@ -160,21 +167,21 @@ export function deleteDeveloper(id: number): Promise<Developer> {
   return apiFetch<Developer>(`/api/developers/${id}`, { method: 'DELETE' });
 }
 
-export function importData(snapshot: unknown, mode: ImportMode): Promise<ImportReport> {
+export function importData(snapshot: unknown, mode: ImportMode, idempotencyKey?: string): Promise<ImportReport> {
   return apiFetch<ImportReport>('/api/import', {
     method: 'POST',
     body: { mode, snapshot },
-    idempotencyKey: newIdempotencyKey(),
+    idempotencyKey: idempotencyKey ?? newIdempotencyKey(),
   });
 }
 
-export function uploadCover(file: File): Promise<{ url: string }> {
+export function uploadCover(file: File, idempotencyKey?: string): Promise<{ url: string }> {
   const fd = new FormData();
   fd.append('file', file);
   return apiFetch<{ url: string }>('/api/upload/cover', {
     method: 'POST',
     body: fd,
-    idempotencyKey: newIdempotencyKey(),
+    idempotencyKey: idempotencyKey ?? newIdempotencyKey(),
   });
 }
 
@@ -182,10 +189,10 @@ export function fetchMyPermissions(): Promise<{ canUploadCovers: boolean }> {
   return apiFetch<{ canUploadCovers: boolean }>('/api/me/permissions');
 }
 
-export function moveToCollection(externalId: string): Promise<{ game: Game }> {
+export function moveToCollection(externalId: string, idempotencyKey?: string): Promise<{ game: Game }> {
   return apiFetch<{ game: Game }>(`/api/games/${externalId}/move-to-collection`, {
     method: 'POST',
-    idempotencyKey: newIdempotencyKey(),
+    idempotencyKey: idempotencyKey ?? newIdempotencyKey(),
   });
 }
 
