@@ -78,6 +78,7 @@ export function useCredentialsForm<T extends Record<string, string>>(
         if (msg) errs[f.name] = msg;
       }
       if (Object.keys(errs).length > 0) {
+        setError(null); // clear stale banner from previous submission
         setFieldErrors(errs as Partial<Record<keyof T, string>>);
         return;
       }
@@ -87,8 +88,10 @@ export function useCredentialsForm<T extends Record<string, string>>(
       const result = await args.onSubmit(values as T);
       setIsPending(false);
 
-      if (result?.error) setError(result.error);
-      if (result?.fieldErrors) setFieldErrors(result.fieldErrors);
+      // Always overwrite both — using nullish coalescing so a missing field
+      // explicitly clears stale state instead of merging into prior errors.
+      setError(result?.error ?? null);
+      setFieldErrors(result?.fieldErrors ?? {});
     },
     [args, resetErrors],
   );
