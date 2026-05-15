@@ -242,9 +242,12 @@ describe('toGameInsertRow', () => {
     // catches drift: a NEW occurrence in production code (not tests) is a
     // signal to re-evaluate whether a 4th call-site warrants further dedup.
     const total = await countMatches([API_SRC_ROOT], /kind: \w+\.kind/g);
-    // Measured after BE-02 refactor (2026-05-15). Update with deliberate
-    // intent when call-sites change.
-    const EXPECTED_KIND_DOT_KIND_COUNT = 23;
+    // Measured after BE-02 refactor (2026-05-15) = 23. Updated by BE-03
+    // (2026-05-15) to 22 — applyMerge UPDATE branch no longer carries an
+    // inline shorthand reference to ng's kind (row built once via
+    // toGameInsertRow, then the kind property is stripped before
+    // `.set()`). Update with deliberate intent when call-sites change.
+    const EXPECTED_KIND_DOT_KIND_COUNT = 22;
     expect(total).toBe(EXPECTED_KIND_DOT_KIND_COUNT);
   });
 
