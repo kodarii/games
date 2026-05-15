@@ -242,12 +242,17 @@ describe('toGameInsertRow', () => {
     // catches drift: a NEW occurrence in production code (not tests) is a
     // signal to re-evaluate whether a 4th call-site warrants further dedup.
     const total = await countMatches([API_SRC_ROOT], /kind: \w+\.kind/g);
-    // Measured after BE-02 refactor (2026-05-15) = 23. Updated by BE-03
-    // (2026-05-15) to 22 — applyMerge UPDATE branch no longer carries an
-    // inline shorthand reference to ng's kind (row built once via
-    // toGameInsertRow, then the kind property is stripped before
-    // `.set()`). Update with deliberate intent when call-sites change.
-    const EXPECTED_KIND_DOT_KIND_COUNT = 22;
+    // Measured after BE-02 refactor = 23. Pin reverted to 23 after BE-02b
+    // review: `toGameInsertRow` REQUIRES `kind` as INPUT — it is the
+    // discriminant the rowBuilder switches on. Both call-sites in
+    // `infrastructure/import/drizzle-import-repository.ts` pass it
+    // through shorthand: applyMerge at line 73 and applyReplace at
+    // line 155. The strip happens on OUTPUT (line 117), where the
+    // `kind` property is removed from the built row before `.set(...)`
+    // in the UPDATE branch — never from the INPUT. Plan 05-08 did not
+    // and could not eliminate the input shorthand. 23 = post-Phase-5
+    // stable state. Update with deliberate intent when call-sites change.
+    const EXPECTED_KIND_DOT_KIND_COUNT = 23;
     expect(total).toBe(EXPECTED_KIND_DOT_KIND_COUNT);
   });
 
