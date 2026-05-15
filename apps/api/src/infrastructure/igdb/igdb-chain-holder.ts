@@ -82,6 +82,34 @@ export class IgdbChainHolder {
     this.deps.logger.event('igdb.chain.configured', {});
   }
 
+  /**
+   * TEST-ONLY. Sets the internal chain reference WITHOUT rebuilding sub-components.
+   *
+   * Production code MUST use `swap(creds | null)`, which deliberately rebuilds
+   * the CircuitBreaker / TokenStore / RateLimiter on every transition (see
+   * class TSDoc — sharing stale failure counts or queued requests across
+   * credentials is a correctness bug).
+   *
+   * This method exists solely so test fixtures (`apps/api/src/__tests__/_fixtures/igdb-chain-fixture.ts`)
+   * can snapshot+restore the EXACT prior chain instance around a file's
+   * beforeAll/afterAll lifecycle. `bun test` runs all files in a single
+   * process with a shared ESM module cache, so this singleton is shared;
+   * with `bun test --randomize` enabled file order is non-deterministic
+   * and we need an identity-preserving restore, not a rebuilt equivalent.
+   *
+   * The leading `__` is a convention marker: anything starting with `__`
+   * in this codebase is test-infrastructure-only. CI greps for
+   * `__setChainForTest` outside `_fixtures/**` and fails the build
+   * (wiring.test.ts Test 4 enforces this).
+   */
+  __setChainForTest(chain: IgdbChain | null): void {
+    this.chain = chain;
+    // Intentionally NOT touching `this.breaker` — its lifecycle is tied to
+    // the chain we're restoring. If the snapshot's chain was null, breaker
+    // was null too; if non-null, it was the breaker built when that chain
+    // was built. Either way the holder ends up in the same observable state.
+  }
+
   private build(creds: { clientId: string; clientSecret: string }): IgdbChain {
     const { logger } = this.deps;
     const breaker = new CircuitBreaker({
