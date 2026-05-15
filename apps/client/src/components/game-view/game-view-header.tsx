@@ -6,6 +6,12 @@ export interface GameViewHeaderProps {
   liveTitle: string;
   editMode: boolean;
   isSaving: boolean;
+  /**
+   * When false, the Save button is disabled (validation gate) but the button
+   * label remains 'Save' — distinct from the 'Saving…' label that shows while
+   * `isSaving` is true. Defaults to true.
+   */
+  canSave?: boolean;
   onCancel: () => void;
   onSave: () => void;
   onNavigate: (to: string) => void;
@@ -28,6 +34,7 @@ export function GameViewHeader({
   liveTitle,
   editMode,
   isSaving,
+  canSave = true,
   onCancel,
   onSave,
   onNavigate,
@@ -62,7 +69,7 @@ export function GameViewHeader({
             <button
               type="button"
               onClick={onSave}
-              disabled={isSaving}
+              disabled={isSaving || !canSave}
               className="cursor-pointer rounded-[7px] bg-apex-accent px-4 py-[6px] text-[12.5px] font-semibold text-white hover:bg-[#4562e0] disabled:opacity-50"
             >
               {isSaving ? 'Saving…' : 'Save'}

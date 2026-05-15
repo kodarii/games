@@ -96,6 +96,9 @@ function GameViewBody({
   const subtitle = [game.developer, game.platform].filter(Boolean).join(' · ');
   const backPath = game.kind === 'wishlist' ? '/wishlist' : '/games';
   const backLabel = game.kind === 'wishlist' ? 'Wishlist' : 'Games';
+  // Save is gated on platform: saveEdit silently aborts when empty, so the
+  // button must reflect that or the user clicks Save with no feedback (WR-06).
+  const canSave = !!draft.platform.trim();
 
   return (
     <>
@@ -105,6 +108,7 @@ function GameViewBody({
         liveTitle={liveTitle}
         editMode={editMode}
         isSaving={updateMutation.isPending}
+        canSave={canSave}
         onCancel={cancelEdit}
         onSave={saveEdit}
         onNavigate={(to) => navigate(to)}
