@@ -235,6 +235,11 @@ export function useUploadCoverMutation() {
   const idempotencyKeyRef = useRef(newIdempotencyKey());
   return useMutation({
     mutationFn: (file: File) => uploadCover(file, idempotencyKeyRef.current),
+    // File uploads must not auto-retry: even though the server is wired
+    // through idempotencyKeyMiddleware, UploadThing itself is not idempotent
+    // (a 5xx after persistence would re-upload on retry). The user must
+    // retry explicitly via the UI.
+    retry: 0,
     onSuccess: () => {
       idempotencyKeyRef.current = newIdempotencyKey();
     },
