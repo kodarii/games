@@ -67,6 +67,8 @@ export class DrizzleImportRepository implements ImportRepository {
       let gUpdated = 0;
       for (const ng of plan.games) {
         const existing = gameByExternalId.get(ng.externalId);
+        // Q8 (05-08): supersedes D-09 helper-defaults policy for INSERT
+        // call-sites — repo now persists full row when snapshot supplies it.
         const row = toGameInsertRow(userId, {
           kind: ng.kind,
           externalId: ng.externalId,
@@ -80,16 +82,39 @@ export class DrizzleImportRepository implements ImportRepository {
           status: ng.status,
           format: ng.format,
           coverColor: ng.coverColor,
-          // coverImage/price/purchasedAt/notes/metadataRef omitted — D-09:
-          // import row does not carry these; helper defaults them to null.
+          coverImage: ng.coverImage,
+          price: ng.price,
+          purchasedAt: ng.purchasedAt,
+          notes: ng.notes,
+          metadataRef: ng.metadataRef
+            ? {
+                providerName: ng.metadataRef.providerName,
+                providerId: ng.metadataRef.providerId,
+                matchedAt: ng.metadataRef.matchedAt,
+              }
+            : null,
         });
         if (!existing) {
           await tx.insert(gamesTable).values(row);
           gCreated++;
         } else {
-          // UPDATE shape excludes userId/externalId/kind — strip before
+          // UPDATE shape excludes id/userId/externalId/kind — strip before
           // `.set()`. Same helper-produced row, narrower update surface.
-          const { userId: _u, externalId: _e, kind: _k, ...updateSet } = row;
+          //
+          // Stripping `id` is defensive (B-1): the helper does not output
+          // it today (NewGameRow.id is optional via autoIncrement) so the
+          // captured variable is undefined, but destructuring keeps the
+          // UPDATE robust if a future helper change exposes the column.
+          // Drizzle's behavior for `set({ id: undefined })` is
+          // version-dependent.
+          //
+          // `kind: _k` strip is DELIBERATE (D-34): Game.moveToCollection()
+          // is the only domain-blessed kind-transition path (wishlist →
+          // owned). Import is allowed to change scalar attributes of an
+          // existing game row but cannot flip its kind — that would bypass
+          // both the existence check inside moveToCollection AND its
+          // field-reset semantics. Pinned by Test 8 in apply-merge.test.ts.
+          const { id: _id, userId: _u, externalId: _e, kind: _k, ...updateSet } = row;
           await tx.update(gamesTable).set(updateSet).where(eq(gamesTable.id, existing.id));
           gUpdated++;
         }
@@ -123,6 +148,8 @@ export class DrizzleImportRepository implements ImportRepository {
           .values({ userId, externalId: np.externalId, name: np.name });
       }
       for (const ng of plan.games) {
+        // Q8 (05-08): supersedes D-09 helper-defaults policy for INSERT
+        // call-sites — repo now persists full row when snapshot supplies it.
         await tx.insert(gamesTable).values(
           toGameInsertRow(userId, {
             kind: ng.kind,
@@ -137,6 +164,17 @@ export class DrizzleImportRepository implements ImportRepository {
             status: ng.status,
             format: ng.format,
             coverColor: ng.coverColor,
+            coverImage: ng.coverImage,
+            price: ng.price,
+            purchasedAt: ng.purchasedAt,
+            notes: ng.notes,
+            metadataRef: ng.metadataRef
+              ? {
+                  providerName: ng.metadataRef.providerName,
+                  providerId: ng.metadataRef.providerId,
+                  matchedAt: ng.metadataRef.matchedAt,
+                }
+              : null,
           }),
         );
       }

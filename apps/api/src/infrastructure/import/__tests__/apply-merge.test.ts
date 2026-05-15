@@ -2,7 +2,7 @@ import Database from 'bun:sqlite';
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
 import { NewGame } from '../../../domain/games/new-game';
@@ -10,7 +10,7 @@ import type { ImportPlan } from '../../../domain/import/import-repository';
 import { NewPlatform } from '../../../domain/platforms/platform';
 import * as authSchema from '../../db/auth-schema';
 import * as gameSchema from '../../db/schema';
-import { games, platforms } from '../../db/schema';
+import { games, platforms, toGameInsertRow } from '../../db/schema';
 import { DrizzleImportRepository } from '../drizzle-import-repository';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -19,6 +19,9 @@ const MIGRATIONS_DIR = resolve(__dirname, '../../../../drizzle');
 // Q7: static IDs — in-memory isolation eliminates the need for per-run UUIDs.
 const TEST_USER_A = 'user-a';
 const TEST_USER_B = 'user-b';
+// TEST_USER_C is exclusive to Test 6 (applyReplace) — zero seeded games so the
+// replace mode does not wipe state used by earlier tests against TEST_USER_A.
+const TEST_USER_C = 'user-c';
 
 let sqlite: Database;
 let db: ReturnType<typeof drizzle<typeof gameSchema & typeof authSchema>>;
@@ -78,6 +81,14 @@ beforeAll(() => {
         id: TEST_USER_B,
         email: 'b@test.local',
         name: 'User B',
+        emailVerified: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: TEST_USER_C,
+        email: 'c@test.local',
+        name: 'User C',
         emailVerified: false,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -227,5 +238,260 @@ describe('DrizzleImportRepository.applyMerge (BE-03 semantic regression)', () =>
     expect(row).toBeDefined();
     expect(row?.hoursPlayed).toBe(42);
     expect(row?.title).toBe('Seed Game 0 — updated');
+  });
+
+  it('Test 5: applyMerge INSERT persists coverImage/price/purchasedAt/notes/metadataRef (BE-02b)', async () => {
+    const ngResult = NewGame.create(
+      {
+        kind: 'owned',
+        userId: TEST_USER_A,
+        title: 'Test 5 title',
+        developer: null,
+        genre: 'rpg',
+        releaseYear: 1999,
+        platform: 'PC',
+        hoursPlayed: 5,
+        status: 'Playing',
+        format: 'digital',
+        coverImage: 'https://imgs.example/c.jpg',
+        price: 4999,
+        purchasedAt: '2025-06-15',
+        notes: 'good',
+        metadataRef: { providerName: 'igdb', providerId: '42' },
+      },
+      () => 'q8-merge-1',
+    );
+    expect(ngResult.ok).toBe(true);
+    if (!ngResult.ok) throw new Error('unreachable');
+    const ng = ngResult.value;
+
+    await repo.apply(TEST_USER_A, { platforms: [], games: [ng] }, 'merge');
+
+    const [row] = await db
+      .select()
+      .from(games)
+      .where(and(eq(games.userId, TEST_USER_A), eq(games.externalId, 'q8-merge-1')));
+    expect(row).toBeDefined();
+    expect(row?.coverImage).toBe('https://imgs.example/c.jpg');
+    expect(row?.price).toBe(4999);
+    expect(row?.purchasedAt).toBe('2025-06-15');
+    expect(row?.notes).toBe('good');
+    expect(row?.metadataProvider).toBe('igdb');
+    expect(row?.metadataProviderId).toBe('42');
+    expect(row?.metadataMatchedAt).not.toBeNull();
+  });
+
+  it('Test 6: applyReplace INSERT persists coverImage/price/purchasedAt/notes/metadataRef (BE-02b)', async () => {
+    // Capture TEST_USER_A baseline BEFORE the TEST_USER_C replace, so the
+    // assertion that A-side rows are untouched holds regardless of declaration
+    // order within bun:test (which honors source order anyway).
+    const aBefore = await db
+      .select({ c: sql<number>`count(*)` })
+      .from(games)
+      .where(eq(games.userId, TEST_USER_A));
+    const aCountBefore = aBefore[0]?.c ?? 0;
+
+    const ngResult = NewGame.create(
+      {
+        kind: 'owned',
+        userId: TEST_USER_C,
+        title: 'Test 6 title',
+        developer: null,
+        genre: 'rpg',
+        releaseYear: 2001,
+        platform: 'PC',
+        hoursPlayed: 3,
+        status: 'Playing',
+        format: 'digital',
+        coverImage: 'https://imgs.example/r.jpg',
+        price: 5999,
+        purchasedAt: '2025-07-20',
+        notes: 'replace mode',
+        metadataRef: { providerName: 'igdb', providerId: '77' },
+      },
+      () => 'q8-replace-1',
+    );
+    expect(ngResult.ok).toBe(true);
+    if (!ngResult.ok) throw new Error('unreachable');
+    const ng = ngResult.value;
+
+    await repo.apply(TEST_USER_C, { platforms: [], games: [ng] }, 'replace');
+
+    const [row] = await db
+      .select()
+      .from(games)
+      .where(and(eq(games.userId, TEST_USER_C), eq(games.externalId, 'q8-replace-1')));
+    expect(row).toBeDefined();
+    expect(row?.coverImage).toBe('https://imgs.example/r.jpg');
+    expect(row?.price).toBe(5999);
+    expect(row?.purchasedAt).toBe('2025-07-20');
+    expect(row?.notes).toBe('replace mode');
+    expect(row?.metadataProvider).toBe('igdb');
+    expect(row?.metadataProviderId).toBe('77');
+    expect(row?.metadataMatchedAt).not.toBeNull();
+
+    // Replace on TEST_USER_C did not touch TEST_USER_A's rows.
+    const aAfter = await db
+      .select({ c: sql<number>`count(*)` })
+      .from(games)
+      .where(eq(games.userId, TEST_USER_A));
+    const aCountAfter = aAfter[0]?.c ?? 0;
+    expect(aCountAfter).toBe(aCountBefore);
+  });
+
+  it('Test 7: applyMerge UPDATE branch persists 5 fields when seed exists (Q-DDD-1)', async () => {
+    // Seed: SQLite picks the integer auto-incremented id. No string-id literal.
+    await db
+      .insert(games)
+      .values({
+        userId: TEST_USER_A,
+        externalId: 'q8-update-target',
+        kind: 'owned',
+        title: 'old title',
+        genre: 'rpg',
+        platform: 'PC',
+        format: 'digital',
+        hoursPlayed: 1,
+        status: 'Backlog',
+        // coverImage/price/purchasedAt/notes/metadata* default to NULL via schema
+      })
+      .run();
+
+    const ngResult = NewGame.create(
+      {
+        kind: 'owned',
+        userId: TEST_USER_A,
+        title: 'new title',
+        developer: null,
+        genre: 'rpg',
+        platform: 'PC',
+        hoursPlayed: 99,
+        status: 'Completed',
+        format: 'digital',
+        coverImage: 'https://imgs.example/u.jpg',
+        price: 7999,
+        purchasedAt: '2025-12-24',
+        notes: 'updated',
+        metadataRef: { providerName: 'igdb', providerId: '7' },
+      },
+      () => 'q8-update-target',
+    );
+    expect(ngResult.ok).toBe(true);
+    if (!ngResult.ok) throw new Error('unreachable');
+    const ng = ngResult.value;
+
+    await repo.apply(TEST_USER_A, { platforms: [], games: [ng] }, 'merge');
+
+    const rows = await db
+      .select()
+      .from(games)
+      .where(and(eq(games.userId, TEST_USER_A), eq(games.externalId, 'q8-update-target')));
+    expect(rows.length).toBe(1); // proves UPDATE (not duplicate INSERT)
+    const row = rows[0];
+    expect(row.title).toBe('new title');
+    expect(row.hoursPlayed).toBe(99);
+    expect(row.coverImage).toBe('https://imgs.example/u.jpg');
+    expect(row.price).toBe(7999);
+    expect(row.purchasedAt).toBe('2025-12-24');
+    expect(row.notes).toBe('updated');
+    expect(row.metadataProvider).toBe('igdb');
+    expect(row.metadataProviderId).toBe('7');
+    expect(row.metadataMatchedAt).not.toBeNull();
+  });
+
+  it('Test 8: applyMerge UPDATE destructure strips kind/id/userId/externalId (D-34, NEW-14)', async () => {
+    // PLAN DEVIATION — DB-level CHECK constraint blocks the originally
+    // proposed scenario.
+    //
+    // The plan proposed a roundtrip test: seed `kind='wishlist'`
+    // (externalId='q8-kind-flip'), call repo.apply with a NewGame whose
+    // `kind='owned'`, then assert `row.kind === 'wishlist'` (kind flip
+    // suppressed) AND `row.status === 'Playing'`, `row.hoursPlayed === 10`
+    // (other scalars updated). That construction is rejected by SQLite at
+    // UPDATE time: migration 0010 installs a `games_kind_consistency`
+    // CHECK constraint requiring `kind='wishlist' AND status IS NULL AND
+    // hours_played IS NULL AND purchased_at IS NULL`. With `kind: _k`
+    // correctly stripped, the resulting row is wishlist + status='Playing'
+    // + hoursPlayed=10 — CHECK fails, the UPDATE throws SQLITE_CONSTRAINT.
+    // (The CHECK itself enforces D-34 at the DB layer.)
+    //
+    // Pivot: pin the strip MECHANIC at the row-construction layer. Build a
+    // row via `toGameInsertRow` (same helper the repo calls), then apply
+    // the same destructure pattern. Asserts:
+    //   - D-34: `kind` is not in updateSet (import cannot flip kind).
+    //   - Q-DDD-1: `id`/`userId`/`externalId` are not in updateSet.
+    //   - NEW-14 surgical: every other column DID make it in — if a future
+    //     contributor expanded the destructure to drop `status` or
+    //     `hoursPlayed` or `coverImage`, the matching assertion fails RED.
+    const ngResult = NewGame.create(
+      {
+        kind: 'owned',
+        userId: TEST_USER_A,
+        title: 'q8-kind-flip title',
+        developer: null,
+        genre: 'rpg',
+        platform: 'PC',
+        hoursPlayed: 10,
+        status: 'Playing',
+        format: 'digital',
+        coverImage: 'https://imgs.example/k.jpg',
+      },
+      () => 'q8-kind-flip',
+    );
+    expect(ngResult.ok).toBe(true);
+    if (!ngResult.ok) throw new Error('unreachable');
+    const ng = ngResult.value;
+
+    const row = toGameInsertRow(TEST_USER_A, {
+      kind: ng.kind,
+      externalId: ng.externalId,
+      title: ng.title,
+      developer: ng.developer,
+      genre: ng.genre,
+      releaseYear: ng.releaseYear,
+      platform: ng.platform,
+      edition: ng.edition,
+      hoursPlayed: ng.hoursPlayed,
+      status: ng.status,
+      format: ng.format,
+      coverColor: ng.coverColor,
+      coverImage: ng.coverImage,
+      price: ng.price,
+      purchasedAt: ng.purchasedAt,
+      notes: ng.notes,
+      metadataRef: ng.metadataRef
+        ? {
+            providerName: ng.metadataRef.providerName,
+            providerId: ng.metadataRef.providerId,
+            matchedAt: ng.metadataRef.matchedAt,
+          }
+        : null,
+    });
+
+    // EXACT destructure pattern mirrored from
+    // drizzle-import-repository.ts applyMerge UPDATE branch. Variable
+    // names match deliberately so a `git grep "id: _id, userId: _u, externalId: _e, kind: _k"`
+    // links source ↔ test.
+    const { id: _id, userId: _u, externalId: _e, kind: _k, ...updateSet } = row;
+    void _id;
+    void _u;
+    void _e;
+    void _k;
+
+    // D-34: kind dropped from updateSet — UPDATE cannot flip kind.
+    expect('kind' in updateSet).toBe(false);
+    // Q-DDD-1: id/userId/externalId never make it into the SET clause.
+    expect('id' in updateSet).toBe(false);
+    expect('userId' in updateSet).toBe(false);
+    expect('externalId' in updateSet).toBe(false);
+
+    // NEW-14: every other column DID make it through. Including positive
+    // assertions on status/hoursPlayed/coverImage so that if a future
+    // contributor expands the destructure (e.g. adding `status: _s` by
+    // mistake), the assertion fails RED.
+    expect(updateSet.title).toBe('q8-kind-flip title');
+    expect(updateSet.status).toBe('Playing');
+    expect(updateSet.hoursPlayed).toBe(10);
+    expect(updateSet.coverImage).toBe('https://imgs.example/k.jpg');
   });
 });

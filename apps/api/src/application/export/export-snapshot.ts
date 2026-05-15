@@ -9,6 +9,25 @@ export interface ExportedPlatform {
   name: string;
 }
 
+/**
+ * FIXME(BE-02c, F-08-1): Export-side drop of `coverImage` and the 3
+ * `metadata*` columns persisted by the games table.
+ *
+ * The v4 snapshot schema (packages/shared/src/import-schema-v4.ts) does
+ * not declare these fields, so this interface intentionally omits them
+ * to stay symmetric with the schema. The trade-off: a snapshot exported
+ * today cannot round-trip cover art or IGDB matches; they are repo-
+ * persisted (BE-02b, plan 05-08) but not snapshot-portable.
+ *
+ * When v5 lands (see corresponding FIXME(BE-02c, F-08-1) block in
+ * apps/api/src/application/import/import-data.ts), this mapping must
+ * emit the 4 columns AND the v5 zod schema in @apex/shared must accept
+ * them. Both directions of the round-trip then become load-bearing,
+ * and the `not.toHaveProperty` pins in round-trip.test.ts Test 1 flip
+ * to positive preservation.
+ *
+ * Discovery: `grep -r 'FIXME(BE-02c' apps/api/src` returns 4 hits.
+ */
 export interface ExportedGame {
   externalId: string;
   kind: 'owned' | 'wishlist';
