@@ -123,3 +123,38 @@ Phases execute in numeric order: 1 → 2 → (3, 4, 5 can run in parallel)
 | 3. Security Hardening | shipped (out-of-flow) | Complete | 2026-05-14 |
 | 4. Frontend Stability | 0/TBD | Not started | - |
 | 5. Backend Correctness | 0/TBD | Not started | - |
+
+### Phase 6: Per-user IGDB chain registry + multi-tenancy invariant audit
+
+**Goal:** Replace global `IgdbChainHolder` with a per-user `IgdbChainRegistry` so the runtime IGDB pipeline (token store, breaker, rate limiter) matches the per-user storage invariant; audit codebase for analogous global-state-vs-per-user bugs; correct stale comments and CLAUDE.md framing that imply k8s / horizontal scale on a single-VPS deploy
+**Requirements**: TBD (planner derives from FINDINGS.md)
+**Depends on:** Phase 5
+**Plans:** 0 plans
+
+**Input artifacts:**
+- `.planning/phases/06-per-user-igdb-chain-registry-multi-tenancy-invariant-audit/FINDINGS.md` — grill-me audit of `apps/api/src/index.ts` (2026-05-20), sections A (runtime fix), B (comment + CLAUDE.md staleness), C (out-of-scope follow-ups)
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 6 to break down)
+
+### Phase 7: Composition root class + interfaces/http layer + result mapper + domain events scaffolding
+
+**Goal:** Zastąpić `wiring.ts` (module-level singletons + side-effect imports) klasą `Application` z explicit lifecycle (start/stop/cleanup, signal handlers, migracje wyciągnięte z `db/client.ts` side-effect); przenieść `routes/` do `interfaces/http/<aggregate>/<aggregate>-router.ts` (hexagonal naming); dodać cienki `resultToResponse(c, result, statusMap)` helper który eliminuje boilerplate `switch (result.error.kind)` w każdej trasie bez rezygnacji z `Result<T, E>`; dodać scaffolding `domain/shared/aggregate-root.ts` + `domain/shared/domain-event.ts` + `infrastructure/events/in-process-event-bus.ts` i wpiąć go w dwa realne case'y: `GameDeleted` (zastępuje synchroniczne czyszczenie covera w `delete-game.ts` — orphan-cleanup cron zostaje jako fallback dla starych deletów) i `GameMetadataApplied` (placeholder handler tylko loguje strukturalnie — pokazuje że bus działa end-to-end). Inwariant per-user pozostaje nienaruszony — `userId` wszędzie, NIE wprowadzamy `organizationId`/multi-tenancy.
+
+**Mode:** mvp
+**Depends on:** Phase 6
+**Requirements:** AR-01, AR-02, AR-03, AR-04, AR-05, AR-06, AR-07
+**Success Criteria** (what must be TRUE):
+  1. `apps/api/src/wiring.ts` znika; jego zawartość żyje w `apps/api/src/application.ts` jako klasa `Application` z metodami `start(port)`, `stop(exitCode)`, `cleanup()`, `registerProcessHandlers()`, `runMigrations()`, `registerMiddleware()`, `registerRoutes()`, `registerEventHandlers()`. `index.ts` redukuje się do `new Application().start(port)`. Migracje są wywoływane z `Application.runMigrations()` — `infrastructure/db/client.ts` NIE odpala migracji jako side-effect na import (regression test pinuje że re-import `db/client.ts` w teście nie powoduje rerun migracji ani zmian w `apps/api/data/`).
+  2. Wszystkie istniejące pliki z `apps/api/src/routes/<name>.ts` zostają przeniesione do `apps/api/src/interfaces/http/<aggregate>/<aggregate>-router.ts` (np. `routes/games.ts` → `interfaces/http/games/games-router.ts`). Middleware (`require-auth`, `idempotency-key`, `request-context`) ląduje w `interfaces/http/middleware/`. Współdzielone helpery (`_problem-json.ts`, `_make-dictionary-router.ts`) idą do `interfaces/http/_shared/`. Wszystkie importy zaktualizowane, `bun run lint` + typecheck przechodzą.
+  3. `interfaces/http/_shared/result-to-response.ts` eksportuje `resultToResponse<T, E extends { kind: string }>(c, result, mapper)` gdzie `mapper` to `Record<E['kind'], number>` (status) lub `Record<E['kind'], (err) => Response>` (custom). Wszystkie mutating routes w `interfaces/http/games/games-router.ts` używają tego helpera — `rg "switch \(result\.error\.kind\)" apps/api/src/interfaces` zwraca 0 wyników. Problem+JSON (RFC 7807) jest zachowany — helper deleguje do `problemJson(...)`.
+  4. `domain/shared/aggregate-root.ts` definiuje `abstract class AggregateRoot` z `protected raise(event)` + `pullDomainEvents()`. `domain/shared/domain-event.ts` definiuje `interface DomainEvent { eventName: string; aggregateId: string; userId: string; occurredAt: Date }`. `infrastructure/events/in-process-event-bus.ts` implementuje `EventBus` port (z `domain/shared/event-bus.ts`) z fail-fast publikowaniem + logiem.
+  5. `Game` extends `AggregateRoot`. `Game.delete()` (nowa metoda na agregacie) raise'uje `GameDeleted { gameId, userId, coverImageUrl }`. Use-case `delete-game.ts` po pomyślnym `repo.delete(...)` wywołuje `eventBus.publishAll(game.pullDomainEvents())`. Handler `GameDeletedCoverCleanupHandler` w `application/events/` woła `coverStorage.delete(coverImageUrl)` jeśli nie-null. Cron orphan-cleanup zostaje jako fallback dla deletów sprzed deployu — TSDoc nad cronem to dokumentuje.
+  6. `Game.applyMetadata(...)` raise'uje `GameMetadataApplied { gameId, userId, externalRef }`. Handler `GameMetadataAppliedLogHandler` loguje `'game.metadata.applied'` przez request-scoped logger. (Placeholder — pokazuje że event bus przepływa userId z agregatu do handlera; przyszłe handlery dostają darmowy hook.)
+  7. Wszystkie istniejące testy przechodzą bez zmian behawioralnych (`bun test apps/api` zielony). Nowy test `apps/api/src/application/__tests__/event-flow.test.ts` weryfikuje że (a) `Game.delete()` powoduje wywołanie `coverStorage.delete` z poprawnym URL przez handler, (b) `Game.applyMetadata` powoduje wywołanie logger.info z eventName `'game.metadata.applied'` przez handler. Per-user IDOR test (`games.idor.test.ts`) nadal zielony — żaden event ani handler nie crosstalkuje między userami (handler dostaje `userId` z eventu, nie z globalnego stanu).
+
+**Plans:** TBD
+**UI hint:** no
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 7 to break down)

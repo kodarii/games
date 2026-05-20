@@ -55,6 +55,16 @@
 - [ ] **BE-05**: Assertion test w `apps/api/src/routes/games.test.ts` weryfikuje że `GET /api/games/metadata/candidates` zwraca status różny od 404 (gwarancja Hono route ordering)
 - [ ] **BE-06**: `wiring.ts` ma test (smoke) że `igdbConfigured === false` skutkuje 503 na endpointach IGDB, oraz że singleton identity zachowana między requestami
 
+### Architecture (Phase 7 — composition + layering + events)
+
+- [ ] **AR-01**: `apps/api/src/wiring.ts` zastąpione przez `apps/api/src/application.ts` (klasa `Application` z lifecycle: `start`/`stop`/`cleanup`/`registerProcessHandlers`/`runMigrations`/`registerMiddleware`/`registerRoutes`/`registerEventHandlers`); `index.ts` = `new Application().start(port)`. Migracje wywoływane z `Application.runMigrations()`, NIE jako side-effect importu `db/client.ts`.
+- [ ] **AR-02**: Wszystkie pliki z `apps/api/src/routes/` przeniesione do `apps/api/src/interfaces/http/<aggregate>/<aggregate>-router.ts` (np. `routes/games.ts` → `interfaces/http/games/games-router.ts`). Middleware do `interfaces/http/middleware/`, współdzielone helpery (problem-json, make-dictionary-router) do `interfaces/http/_shared/`. Lint + typecheck zielone.
+- [ ] **AR-03**: `interfaces/http/_shared/result-to-response.ts` eksportuje `resultToResponse<T, E extends { kind: string }>(c, result, mapper)`; wszystkie mutating routes w `interfaces/http/games/games-router.ts` używają tego helpera. `rg "switch \(result\.error\.kind\)" apps/api/src/interfaces` zwraca 0. Problem+JSON (RFC 7807) zachowany.
+- [ ] **AR-04**: `domain/shared/aggregate-root.ts` (abstract class `AggregateRoot` z `protected raise(event)` + `pullDomainEvents()`), `domain/shared/domain-event.ts` (`interface DomainEvent { eventName; aggregateId; userId; occurredAt }`), `domain/shared/event-bus.ts` (port), `infrastructure/events/in-process-event-bus.ts` (adapter, fail-fast + log).
+- [ ] **AR-05**: `Game` extends `AggregateRoot`; `Game.delete()` raise'uje `GameDeleted { gameId, userId, coverImageUrl }`; `delete-game.ts` po `repo.delete(...)` woła `eventBus.publishAll(game.pullDomainEvents())`; handler `GameDeletedCoverCleanupHandler` w `application/events/` czyści `coverStorage`. Cron orphan-cleanup zostaje jako fallback dla starych deletów (udokumentowane TSDoc).
+- [ ] **AR-06**: `Game.applyMetadata` raise'uje `GameMetadataApplied { gameId, userId, externalRef }`; handler `GameMetadataAppliedLogHandler` loguje `'game.metadata.applied'` przez request-scoped logger.
+- [ ] **AR-07**: Nowy test `apps/api/src/application/__tests__/event-flow.test.ts` weryfikuje że `Game.delete()` triggeruje `coverStorage.delete` z poprawnym URL i `Game.applyMetadata` triggeruje `logger.info` z eventName `game.metadata.applied`. `games.idor.test.ts` zielony — żaden event ani handler nie crosstalkuje między userami (userId płynie z eventu, nie z globalnego stanu). Cała sucha suita `bun test apps/api` zielona.
+
 ## v2 Requirements
 
 Deferred do następnych milestone'ów (świadomie poza zakresem).

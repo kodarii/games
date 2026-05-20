@@ -99,6 +99,7 @@ None yet.
 ### Roadmap Evolution
 
 - 2026-05-20: Phase 6 added (`per-user-correctness`). Re-opens milestone v1.0. Trigger: dev session uncovered that `IgdbChainHolder` is single-global while `integration_credentials` is per-user — token crosstalk across users. Scope: `IgdbChainRegistry` per-user + audit of all global runtime state (cron lock, idempotency, rate-limiter, etc.). Retires CLAUDE.md's "single-user model" framing.
+- 2026-05-20: Phase 7 added (`composition-root-class-interfaces-http-layer-result-mapper-d`). Trigger: comparative review of electrician-offer-app/server/src — that codebase has stronger composition-root + layer separation. Scope: (1) `Application` class replaces `wiring.ts` with explicit lifecycle + migrations out of `db/client.ts` side-effect, (2) `routes/` → `interfaces/http/<aggregate>/<aggregate>-router.ts`, (3) `resultToResponse` helper to cut `switch(result.error.kind)` boilerplate while keeping `Result<T, E>` type-safety, (4) `AggregateRoot` + `DomainEvent` + `InProcessEventBus` scaffolding + two real wirings: `GameDeleted` → cover cleanup handler (cron stays as fallback) and `GameMetadataApplied` → log handler (placeholder demonstrating end-to-end flow). Per-user invariant preserved — NO `organizationId`/multi-tenancy import.
 
 ### Quick Tasks Completed
 
