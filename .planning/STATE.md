@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-stopped_at: Phase 5 context gathered
-last_updated: "2026-05-15T09:16:09.507Z"
-last_activity: 2026-05-15
+status: complete
+stopped_at: Milestone v1.0 complete
+last_updated: "2026-05-20T00:00:00.000Z"
+last_activity: 2026-05-20
 progress:
   total_phases: 5
-  completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
+  completed_phases: 5
+  total_plans: 15
+  completed_plans: 15
   percent: 100
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 
 ## Current Position
 
-Phase: 5
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-05-15
+Phase: 5 (closed)
+Plan: 05-01..05-08 all shipped
+Status: Milestone v1.0 complete — ready for `/gsd-complete-milestone`
+Last activity: 2026-05-20
 
-Progress: [████████░░] 80% (4 of 5 phases)
+Progress: [██████████] 100% (5 of 5 phases)
 
 **Phase 2 + Phase 3 note:** shipped out-of-flow (without `.planning/phases/02-*` or `03-*` directories). Implementation evidence in commits:
 
@@ -52,8 +52,8 @@ Progress: [████████░░] 80% (4 of 5 phases)
 | 1. Settings Shell + Konto | 3/3 | — | — |
 | 2. Integrations Panel (IGDB) | shipped out-of-flow | — | — |
 | 3. Security Hardening | shipped out-of-flow | — | — |
-| 4. Frontend Stability | 0/TBD | — | — |
-| 5. Backend Correctness | 0/TBD | — | — |
+| 4. Frontend Stability | shipped | — | — |
+| 5. Backend Correctness | 8/8 | — | — |
 | 04 | 4 | - | - |
 
 **Recent Trend:**
@@ -116,7 +116,6 @@ Items acknowledged and carried forward as v2 / out-of-scope:
 
 ## Session Continuity
 
-Last session: 2026-05-15T09:16:09.502Z
-Stopped at: Phase 5 context gathered
-Resume file:
-.planning/phases/05-backend-correctness/05-CONTEXT.md
+Last session: 2026-05-20T00:00:00.000Z
+Stopped at: Milestone v1.0 complete (Phase 5 closed by e5157f3)
+Resume file: —
