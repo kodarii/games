@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: complete
-stopped_at: Milestone v1.0 complete
-last_updated: "2026-05-20T00:00:00.000Z"
+status: planning
+stopped_at: Phase 6 context gathered
+last_updated: "2026-05-20T20:32:28.269Z"
 last_activity: 2026-05-20
 progress:
-  total_phases: 5
-  completed_phases: 5
+  total_phases: 6
+  completed_phases: 2
   total_plans: 15
-  completed_plans: 15
-  percent: 100
+  completed_plans: 11
+  percent: 73
 ---
 
 # Project State
@@ -21,16 +21,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Właściciel zawsze wie co ma i co chce kupić, i może to sprawdzić w kilka sekund — precyzja, szybkość, fokus.
-**Current focus:** Phase 05 — backend-correctness
+**Current focus:** Phase 06 — per-user IGDB chain registry + multi-tenancy invariant audit
 
 ## Current Position
 
-Phase: 5 (closed)
-Plan: 05-01..05-08 all shipped
-Status: Milestone v1.0 complete — ready for `/gsd-complete-milestone`
+Phase: 6 (ready to plan)
+Plan: TBD — run `/gsd-plan-phase 6`
+Status: Ready to plan
 Last activity: 2026-05-20
 
-Progress: [██████████] 100% (5 of 5 phases)
+Progress: [████████░░] 83% (5 of 6 phases)
+
+**Why Phase 6 (v1.0 re-open):** Phase 5 closed before we caught that `IgdbChainHolder` is a single global instance while `integration_credentials` storage is per-user. Saved row for user B silently overrides the live chain used by user A's requests — token crosstalk, breaker blame-routing across accounts, and quota mixing. Surfaced in dev when seven leftover test users coexisted with a real account. Phase 6 makes per-user the actual runtime invariant (registry, not holder) and audits the rest of the codebase for analogous global-state-vs-per-user bugs (cron locks, idempotency, mutation rate-limiter, etc.). CLAUDE.md "single-user model" framing is being retired — the app is per-user end-to-end.
 
 **Phase 2 + Phase 3 note:** shipped out-of-flow (without `.planning/phases/02-*` or `03-*` directories). Implementation evidence in commits:
 
@@ -54,6 +56,7 @@ Progress: [██████████] 100% (5 of 5 phases)
 | 3. Security Hardening | shipped out-of-flow | — | — |
 | 4. Frontend Stability | shipped | — | — |
 | 5. Backend Correctness | 8/8 | — | — |
+| 6. Per-user IGDB chain registry + multi-tenancy audit | 0/TBD | — | — |
 | 04 | 4 | - | - |
 
 **Recent Trend:**
@@ -93,6 +96,10 @@ None yet.
 
 None yet.
 
+### Roadmap Evolution
+
+- 2026-05-20: Phase 6 added (`per-user-correctness`). Re-opens milestone v1.0. Trigger: dev session uncovered that `IgdbChainHolder` is single-global while `integration_credentials` is per-user — token crosstalk across users. Scope: `IgdbChainRegistry` per-user + audit of all global runtime state (cron lock, idempotency, rate-limiter, etc.). Retires CLAUDE.md's "single-user model" framing.
+
 ### Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |
@@ -116,6 +123,6 @@ Items acknowledged and carried forward as v2 / out-of-scope:
 
 ## Session Continuity
 
-Last session: 2026-05-20T00:00:00.000Z
-Stopped at: Milestone v1.0 complete (Phase 5 closed by e5157f3)
-Resume file: —
+Last session: 2026-05-20T20:32:28.265Z
+Stopped at: Phase 6 context gathered
+Resume file: .planning/phases/06-per-user-igdb-chain-registry-multi-tenancy-invariant-audit/06-CONTEXT.md
