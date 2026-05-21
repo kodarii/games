@@ -1,5 +1,7 @@
 import type { GameRepository } from '../../domain/games/game-repository';
 import type { IdempotencyKeyRepository } from '../idempotency/idempotency-key-repository';
+import type { Logger } from '../../infrastructure/logging/logger';
+import type { TaskResult } from '../../infrastructure/lifecycle/scheduler';
 import type { CoverStorage } from './cover-storage';
 
 function extractKey(url: string): string {
@@ -28,11 +30,8 @@ export interface CleanupOrphansOptions {
    */
   readonly idempotencyTtlMs?: number;
   readonly now?: () => number;
+  readonly logger?: Logger;
 }
-
-export type CleanupOutcome =
-  | ({ status: 'ran' } & CleanupRunResult)
-  | { status: 'skipped'; reason: 'lock_held' | 'no_storage' };
 
 /**
  * Port for a distributed advisory lock — kept narrow so the application
@@ -51,6 +50,7 @@ const DEFAULT_IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 export class CleanupOrphans {
   private readonly idempotencyTtlMs: number;
   private readonly now: () => number;
+  private readonly logger: Logger | undefined;
 
   constructor(
     private readonly storage: CoverStorage | null,
@@ -61,6 +61,7 @@ export class CleanupOrphans {
   ) {
     this.idempotencyTtlMs = options.idempotencyTtlMs ?? DEFAULT_IDEMPOTENCY_TTL_MS;
     this.now = options.now ?? (() => Date.now());
+    this.logger = options.logger;
   }
 
   /**
@@ -69,7 +70,7 @@ export class CleanupOrphans {
    * executes. When no cover storage is configured the sweep is skipped — no
    * orphan covers exist to clean up.
    */
-  async run(): Promise<CleanupOutcome> {
+  async run(): Promise<TaskResult> {
     if (!this.storage) {
       return { status: 'skipped', reason: 'no_storage' };
     }
@@ -82,7 +83,10 @@ export class CleanupOrphans {
 
     try {
       const result = await this.sweep(this.storage);
-      return { status: 'ran', ...result };
+      if (result.idempotencyKeysDeleted > 0) {
+        this.logger?.event('idempotency.cleanup.done', { deleted: result.idempotencyKeysDeleted });
+      }
+      return { status: 'completed', details: { listed: result.listed, inDb: result.inDb, orphans: result.orphans, deleted: result.deleted, failed: result.failed, idempotencyKeysDeleted: result.idempotencyKeysDeleted } };
     } finally {
       if (this.lock) {
         await this.lock.release(LOCK_NAME);
