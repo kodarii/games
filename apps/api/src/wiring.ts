@@ -193,9 +193,7 @@ export const clearIgdbIntegration = new ClearIgdbIntegration({
   transactionRunner,
 });
 
-await primeIgdbChainFromDb();
-
-async function primeIgdbChainFromDb(): Promise<void> {
+export async function primeIgdbChainFromDb(): Promise<void> {
   const stored = await integrationCredentialsRepository.findByUserAndKind(
     // Single-user deploy: any saved row for the IGDB integration applies. We
     // still keep the per-user scoping in storage to leave room for future

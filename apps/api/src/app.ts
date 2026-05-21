@@ -58,6 +58,7 @@ import {
   importData as wiringImportData,
   cleanupOrphans as wiringCleanupOrphans,
   sweepRateLimitBuckets as wiringSweepRateLimitBuckets,
+  primeIgdbChainFromDb as wiringPrime,
 } from './wiring';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -171,6 +172,14 @@ export class Application {
     try {
       await this.runMigrations();
       await this.verifyDatabase();
+      try {
+        await this.igdb.prime();
+      } catch (err) {
+        baseLogger.event('igdb.prime.failed', {
+          reason: err instanceof Error ? err.message : String(err),
+        });
+        // Do NOT rethrow — chain stays unconfigured, routes return 503.
+      }
       this.registerMiddleware();
       this.registerRoutes();
       this.scheduler.start();
@@ -391,11 +400,7 @@ export class Application {
       save: wiringSaveIgdbIntegration,
       clear: wiringClearIgdbIntegration,
       credentialsRepo: wiringIntegrationCredentialsRepository,
-      // Phase 2 incremental: wiring.ts still runs `await primeIgdbChainFromDb()`
-      // at module load. Task 15 swaps this no-op for the real prime function.
-      prime: async () => {
-        /* already primed by wiring.ts top-level await */
-      },
+      prime: () => wiringPrime(),
     });
   }
 
