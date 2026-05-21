@@ -38,7 +38,7 @@ export class ClearIgdbIntegration {
       const txRepo = this.deps.repo.withTx(tx);
       const txStorage = this.deps.tokenStorage.withTx(tx);
       await txRepo.delete(userId, IGDB_KIND);
-      await txStorage.clear();
+      await txStorage.clear(userId, IGDB_KIND);
     });
     this.deps.chainHolder.swap(null);
     return ok(undefined);

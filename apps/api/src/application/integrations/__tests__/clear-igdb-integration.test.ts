@@ -78,11 +78,11 @@ function makeFakeTokenStorage(log: CallLog): IntegrationTokenStorage {
     async read() {
       return row;
     },
-    async write(record) {
+    async write(_userId, _kind, record) {
       row = record;
     },
-    async clear() {
-      log.push('tokenStorage.clear');
+    async clear(userId, kind) {
+      log.push(`tokenStorage.clear(${userId},${kind})`);
       row = null;
     },
     withTx(tx) {
@@ -161,11 +161,11 @@ describe('ClearIgdbIntegration', () => {
     // happens before the chain swap.
     expect(log.entries[0]).toBe('tx.begin');
     expect(log.entries).toContain('repo.delete');
-    expect(log.entries).toContain('tokenStorage.clear');
+    expect(log.entries).toContain(`tokenStorage.clear(${USER_ID},igdb)`);
 
     const commitIdx = log.entries.indexOf('tx.commit');
     const repoDeleteIdx = log.entries.indexOf('repo.delete');
-    const tokenClearIdx = log.entries.indexOf('tokenStorage.clear');
+    const tokenClearIdx = log.entries.indexOf(`tokenStorage.clear(${USER_ID},igdb)`);
     const swapIdx = log.entries.indexOf('chainHolder.swap');
     expect(repoDeleteIdx).toBeLessThan(commitIdx);
     expect(tokenClearIdx).toBeLessThan(commitIdx);

@@ -27,16 +27,20 @@ function makeFakeStorage(opts: FakeStorageOptions = {}) {
   let current: StoredIntegrationToken | null = opts.initial ?? null;
   let reads = 0;
   let writes = 0;
+  const calls: Array<{ op: 'read' | 'write' | 'clear'; userId: string; kind: string }> = [];
   const storage: IntegrationTokenStorage = {
-    async read() {
+    async read(userId, kind) {
       reads += 1;
+      calls.push({ op: 'read', userId, kind });
       return current;
     },
-    async write(record) {
+    async write(userId, kind, record) {
       writes += 1;
+      calls.push({ op: 'write', userId, kind });
       current = record;
     },
-    async clear() {
+    async clear(userId, kind) {
+      calls.push({ op: 'clear', userId, kind });
       current = null;
     },
     withTx() {
@@ -53,6 +57,9 @@ function makeFakeStorage(opts: FakeStorageOptions = {}) {
     },
     get current() {
       return current;
+    },
+    get calls() {
+      return calls;
     },
   };
 }
@@ -87,6 +94,7 @@ describe('IgdbTokenStore', () => {
     const fetcher = makeFetchOk('access-1', 5_000_000);
     const store = new IgdbTokenStore({
       storage: fakeStorage.storage,
+      userId: 'user-tok-test',
       clientId: 'cid',
       clientSecret: 'sec',
       fetchImpl: fetcher.fetchImpl,
@@ -110,6 +118,7 @@ describe('IgdbTokenStore', () => {
     const fetcher = makeFetchOk('should-not-fetch', 5_000_000);
     const store = new IgdbTokenStore({
       storage: fakeStorage.storage,
+      userId: 'user-tok-test',
       clientId: 'cid',
       clientSecret: 'sec',
       fetchImpl: fetcher.fetchImpl,
@@ -131,6 +140,7 @@ describe('IgdbTokenStore', () => {
     const fetcher = makeFetchOk('fresh', 5_000_000);
     const store = new IgdbTokenStore({
       storage: fakeStorage.storage,
+      userId: 'user-tok-test',
       clientId: 'cid',
       clientSecret: 'sec',
       fetchImpl: fetcher.fetchImpl,
@@ -151,6 +161,7 @@ describe('IgdbTokenStore', () => {
       })) as unknown as typeof fetch;
     const store = new IgdbTokenStore({
       storage: fakeStorage.storage,
+      userId: 'user-tok-test',
       clientId: 'cid',
       clientSecret: 'sec',
       fetchImpl,
@@ -171,6 +182,7 @@ describe('IgdbTokenStore', () => {
 
     const store = new IgdbTokenStore({
       storage: fakeStorage.storage,
+      userId: 'user-tok-test',
       clientId: 'cid',
       clientSecret: 'sec',
       fetchImpl,
@@ -209,7 +221,7 @@ describe('IgdbTokenStore', () => {
       async read() {
         return current;
       },
-      async write(record) {
+      async write(_userId, _kind, record) {
         writes += 1;
         if (failNext) {
           failNext = false;
@@ -227,6 +239,7 @@ describe('IgdbTokenStore', () => {
     const fetcher = makeFetchOk('eventual', 5_000_000);
     const store = new IgdbTokenStore({
       storage: recoverable,
+      userId: 'user-tok-test',
       clientId: 'cid',
       clientSecret: 'sec',
       fetchImpl: fetcher.fetchImpl,
@@ -251,6 +264,7 @@ describe('IgdbTokenStore', () => {
     const fetcher = makeFetchOk('new', 5_000_000);
     const store = new IgdbTokenStore({
       storage: fakeStorage.storage,
+      userId: 'user-tok-test',
       clientId: 'cid',
       clientSecret: 'sec',
       fetchImpl: fetcher.fetchImpl,
@@ -261,5 +275,18 @@ describe('IgdbTokenStore', () => {
     expect(token).toBe('new');
     expect(fetcher.calls).toBe(1);
     expect(fakeStorage.current?.accessToken).toBe('new');
+  });
+
+  it('passes userId + igdb kind to the storage on every call', async () => {
+    const fake = makeFakeStorage();
+    const store = new IgdbTokenStore({
+      storage: fake.storage,
+      userId: 'user-tok-test',
+      clientId: 'cid',
+      clientSecret: 'sec',
+      fetchImpl: makeFetchOk('t', 3600).fetchImpl,
+    });
+    await store.getValidToken();
+    expect(fake.calls.every((c) => c.userId === 'user-tok-test' && c.kind === 'igdb')).toBe(true);
   });
 });

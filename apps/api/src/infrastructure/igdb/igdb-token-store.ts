@@ -19,6 +19,7 @@ const tokenResponseSchema = z.object({
 
 export interface IgdbTokenStoreOptions {
   readonly storage: IntegrationTokenStorage;
+  readonly userId: string;
   readonly clientId: string;
   readonly clientSecret: string;
   readonly fetchImpl?: typeof fetch;
@@ -38,6 +39,7 @@ export class IgdbTokenStoreError extends Error {
 
 export class IgdbTokenStore {
   private readonly storage: IntegrationTokenStorage;
+  private readonly userId: string;
   private readonly clientId: string;
   private readonly clientSecret: string;
   private readonly fetchImpl: typeof fetch;
@@ -47,6 +49,7 @@ export class IgdbTokenStore {
 
   constructor(opts: IgdbTokenStoreOptions) {
     this.storage = opts.storage;
+    this.userId = opts.userId;
     this.clientId = opts.clientId;
     this.clientSecret = opts.clientSecret;
     this.fetchImpl = opts.fetchImpl ?? fetch;
@@ -54,7 +57,7 @@ export class IgdbTokenStore {
   }
 
   async getValidToken(): Promise<string> {
-    const existing = await this.storage.read();
+    const existing = await this.storage.read(this.userId, 'igdb');
     if (existing !== null && this.isUsable(existing)) {
       return existing.accessToken;
     }
@@ -88,7 +91,7 @@ export class IgdbTokenStore {
     // next caller restarts the cycle.
     const obtainedAt = this.now();
     const expiresAt = new Date(obtainedAt.getTime() + fetched.expiresInSeconds * 1000);
-    await this.storage.write({
+    await this.storage.write(this.userId, 'igdb', {
       accessToken: fetched.accessToken,
       expiresAt,
       obtainedAt,

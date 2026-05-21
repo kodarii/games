@@ -1,18 +1,13 @@
+import type { IntegrationKind } from './integration-value-objects';
+
 /**
  * Persistence port for an external integration's cached OAuth token.
  *
- * Single-row semantics — implementations store at most one record per
- * integration (IGDB today; Steam/RAWG/etc. will follow). The
- * `(userId, kind)` partitioning lives in the adapter; the port stays neutral
- * because rotating-token providers may share a single global row.
+ * Scoped per user: `(userId, kind)` is the row identity. The adapter against
+ * `integration_oauth_token` enforces this via a composite primary key.
  *
  * `withTx(tx)` returns a copy bound to a transaction handle so application
  * code can delete the token atomically with the credentials row.
- *
- * BREAKING-CHANGE WATCH: if multi-tenant IGDB credentials land
- * (Application.firstUserIdOrNull is currently single-tenant), `read/write/clear`
- * will gain a `userId` parameter. Treat the current shape as deliberately
- * minimal under that assumption.
  */
 export interface StoredIntegrationToken {
   readonly accessToken: string;
@@ -21,8 +16,8 @@ export interface StoredIntegrationToken {
 }
 
 export interface IntegrationTokenStorage {
-  read(): Promise<StoredIntegrationToken | null>;
-  write(record: StoredIntegrationToken): Promise<void>;
-  clear(): Promise<void>;
+  read(userId: string, kind: IntegrationKind): Promise<StoredIntegrationToken | null>;
+  write(userId: string, kind: IntegrationKind, record: StoredIntegrationToken): Promise<void>;
+  clear(userId: string, kind: IntegrationKind): Promise<void>;
   withTx(tx: unknown): IntegrationTokenStorage;
 }
