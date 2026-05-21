@@ -11,10 +11,8 @@ import { baseLogger } from './infrastructure/logging/logger';
 import { requestContext } from './infrastructure/logging/request-context-middleware';
 import { Scheduler } from './infrastructure/lifecycle/scheduler';
 import { attachProblemJsonErrorHandler } from './routes/_problem-json';
-import { developers } from './routes/developers';
 import { createExportRouter } from './routes/export';
 import { createGamesRouter } from './routes/games';
-import { genres } from './routes/genres';
 import { createHealthRouter } from './routes/health';
 import { createImportRouter } from './routes/import';
 import { createIntegrationsRouter } from './routes/integrations';
@@ -22,7 +20,6 @@ import { createMeRouter } from './routes/me';
 import { originGuard } from './routes/middleware/origin-guard';
 import { type AuthVariables, requireAuth } from './routes/middleware/require-auth';
 import { requireUploadPermission } from './routes/middleware/require-upload-permission';
-import { platforms } from './routes/platforms';
 import { createUploadRoute } from './routes/upload';
 import {
   clearIgdbIntegration,
@@ -270,9 +267,17 @@ export class Application {
         idempotencyKey: this.httpMw.idempotencyKey,
       }),
     );
-    this.mountAuthed('/api/platforms', platforms);
-    this.mountAuthed('/api/genres', genres);
-    this.mountAuthed('/api/developers', developers);
+    this.hono.use('/api/platforms/*', requireAuth);
+    this.hono.use('/api/platforms/*', this.httpMw.rateLimitMutations);
+    this.hono.route('/api/platforms', this.dictionaries.platforms.router);
+
+    this.hono.use('/api/genres/*', requireAuth);
+    this.hono.use('/api/genres/*', this.httpMw.rateLimitMutations);
+    this.hono.route('/api/genres', this.dictionaries.genres.router);
+
+    this.hono.use('/api/developers/*', requireAuth);
+    this.hono.use('/api/developers/*', this.httpMw.rateLimitMutations);
+    this.hono.route('/api/developers', this.dictionaries.developers.router);
 
     this.hono.use('/api/export/*', requireAuth);
     this.hono.use('/api/export/*', this.httpMw.rateLimitMutations);
