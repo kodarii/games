@@ -18,7 +18,10 @@ import { createImportRouter } from './routes/import';
 import { createIntegrationsRouter } from './routes/integrations';
 import { createMeRouter } from './routes/me';
 import { originGuard } from './routes/middleware/origin-guard';
-import { type AuthVariables, requireAuth } from './routes/middleware/require-auth';
+import {
+  type AuthVariables,
+  requireAuth,
+} from './routes/middleware/require-auth';
 import { requireUploadPermission } from './routes/middleware/require-upload-permission';
 import { createUploadRoute } from './routes/upload';
 import { CleanupOrphans } from './application/cover-storage/cleanup-orphans';
@@ -84,9 +87,15 @@ function ensureError(value: unknown): Error {
 
 interface Persistence {
   readonly gameRepository: DrizzleGameRepository;
-  readonly platformRepository: ReturnType<typeof makeDrizzleDictionaryRepository<PlatformKind>>;
-  readonly genreRepository: ReturnType<typeof makeDrizzleDictionaryRepository<GenreKind>>;
-  readonly developerRepository: ReturnType<typeof makeDrizzleDictionaryRepository<DeveloperKind>>;
+  readonly platformRepository: ReturnType<
+    typeof makeDrizzleDictionaryRepository<PlatformKind>
+  >;
+  readonly genreRepository: ReturnType<
+    typeof makeDrizzleDictionaryRepository<GenreKind>
+  >;
+  readonly developerRepository: ReturnType<
+    typeof makeDrizzleDictionaryRepository<DeveloperKind>
+  >;
   readonly importRepository: DrizzleImportRepository;
   readonly idempotencyKeyRepository: IdempotencyKeyRepository;
   readonly transactionRunner: DrizzleTransactionRunner;
@@ -120,9 +129,13 @@ interface GameOps {
 }
 
 interface Dictionaries {
-  readonly platforms: { readonly router: ReturnType<typeof makeDictionaryRouter> };
+  readonly platforms: {
+    readonly router: ReturnType<typeof makeDictionaryRouter>;
+  };
   readonly genres: { readonly router: ReturnType<typeof makeDictionaryRouter> };
-  readonly developers: { readonly router: ReturnType<typeof makeDictionaryRouter> };
+  readonly developers: {
+    readonly router: ReturnType<typeof makeDictionaryRouter>;
+  };
 }
 
 interface DataIO {
@@ -159,25 +172,11 @@ export class Application {
     this.coverStorageBundle = this.buildCoverStorage();
     this.httpMw = this.buildHttpMiddleware();
     this.igdb = this.buildIgdbStack();
-    this.gameOps      = this.buildGameUseCases();
+    this.gameOps = this.buildGameUseCases();
     this.dictionaries = this.buildDictionaryStack();
-    this.dataIO       = this.buildDataIO();
-    this.cron         = this.buildCronStack();
-    this.scheduler = new Scheduler({
-      logger: baseLogger,
-      tasks: [
-        {
-          name: 'cleanup.orphans',
-          intervalMs: ONE_HOUR_MS,
-          run: () => this.cron.cleanupOrphans.run(),
-        },
-        {
-          name: 'rate_limit.sweep',
-          intervalMs: FIVE_MINUTES_MS,
-          run: () => this.cron.sweepRateLimitBuckets.run(),
-        },
-      ],
-    });
+    this.dataIO = this.buildDataIO();
+    this.cron = this.buildCronStack();
+    this.scheduler = this.buildScheduler();
     this.registerProcessHandlers();
   }
 
@@ -202,7 +201,10 @@ export class Application {
       this.registerRoutes();
       this.scheduler.start();
       this.bunServer = Bun.serve({ port, fetch: this.hono.fetch });
-      baseLogger.event('api.listening', { port, url: `http://localhost:${port}` });
+      baseLogger.event('api.listening', {
+        port,
+        url: `http://localhost:${port}`,
+      });
     } catch (err) {
       baseLogger.error({ event: 'startup.failed', err: ensureError(err) });
       await this.cleanup();
@@ -210,7 +212,10 @@ export class Application {
     }
   }
 
-  async stop(signal: NodeJS.Signals | 'exception' = 'SIGTERM', exitCode = 0): Promise<void> {
+  async stop(
+    signal: NodeJS.Signals | 'exception' = 'SIGTERM',
+    exitCode = 0,
+  ): Promise<void> {
     if (this.shuttingDown) return;
     this.shuttingDown = true;
 
@@ -229,9 +234,14 @@ export class Application {
     const migrationsFolder = resolve(here, '../drizzle');
     try {
       migrate(db, { migrationsFolder });
-      baseLogger.event('startup.migrations.applied', { folder: migrationsFolder });
+      baseLogger.event('startup.migrations.applied', {
+        folder: migrationsFolder,
+      });
     } catch (err) {
-      baseLogger.error({ event: 'startup.migrations.failed', err: ensureError(err) });
+      baseLogger.error({
+        event: 'startup.migrations.failed',
+        err: ensureError(err),
+      });
       throw err;
     }
   }
@@ -240,7 +250,10 @@ export class Application {
     try {
       await db.run(sql`SELECT 1`);
     } catch (err) {
-      baseLogger.error({ event: 'startup.db.unreachable', err: ensureError(err) });
+      baseLogger.error({
+        event: 'startup.db.unreachable',
+        err: ensureError(err),
+      });
       throw err;
     }
   }
@@ -277,7 +290,9 @@ export class Application {
   private registerRoutes(): void {
     this.hono.get('/', (c) => c.json({ name: 'apex-api', status: 'ok' }));
 
-    this.hono.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw));
+    this.hono.on(['POST', 'GET'], '/api/auth/*', (c) =>
+      auth.handler(c.req.raw),
+    );
 
     this.hono.use('/api/games/*', requireAuth);
     this.hono.use('/api/games/*', this.httpMw.rateLimitMutations);
@@ -308,7 +323,10 @@ export class Application {
 
     this.hono.use('/api/export/*', requireAuth);
     this.hono.use('/api/export/*', this.httpMw.rateLimitMutations);
-    this.hono.route('/api/export', createExportRouter({ exportData: this.dataIO.exportData }));
+    this.hono.route(
+      '/api/export',
+      createExportRouter({ exportData: this.dataIO.exportData }),
+    );
 
     this.hono.use('/api/import/*', requireAuth);
     this.hono.use('/api/import/*', this.httpMw.rateLimitMutations);
@@ -324,7 +342,9 @@ export class Application {
     this.hono.use('/api/me/*', this.httpMw.rateLimitMutations);
     this.hono.route(
       '/api/me',
-      createMeRouter({ coverStorageAvailable: this.coverStorageBundle.available }),
+      createMeRouter({
+        coverStorageAvailable: this.coverStorageBundle.available,
+      }),
     );
 
     this.hono.use('/api/integrations/*', requireAuth);
@@ -344,7 +364,10 @@ export class Application {
     this.hono.use('/api/upload/*', this.httpMw.rateLimitMutations);
     this.hono.route(
       '/api/upload',
-      createUploadRoute(this.coverStorageBundle.storage, this.httpMw.idempotencyKey),
+      createUploadRoute(
+        this.coverStorageBundle.storage,
+        this.httpMw.idempotencyKey,
+      ),
     );
   }
 
@@ -359,7 +382,9 @@ export class Application {
     });
     const outcome = await Promise.race([drained, timedOut]);
     if (outcome === 'timeout') {
-      baseLogger.event('shutdown.drain.timeout', { drainMs: env.SHUTDOWN_DRAIN_MS });
+      baseLogger.event('shutdown.drain.timeout', {
+        drainMs: env.SHUTDOWN_DRAIN_MS,
+      });
       await server.stop(true);
     } else {
       baseLogger.event('shutdown.drain.complete', {});
@@ -371,7 +396,10 @@ export class Application {
       sqlite.close();
       baseLogger.event('shutdown.db.closed', {});
     } catch (err) {
-      baseLogger.error({ event: 'shutdown.db.close_failed', err: ensureError(err) });
+      baseLogger.error({
+        event: 'shutdown.db.close_failed',
+        err: ensureError(err),
+      });
     }
   }
 
@@ -466,7 +494,8 @@ export class Application {
       );
       if (stored === null) {
         baseLogger.event('igdb.disabled', {
-          reason: 'no integration_credentials row for IGDB; metadata feature disabled',
+          reason:
+            'no integration_credentials row for IGDB; metadata feature disabled',
         });
         return;
       }
@@ -476,7 +505,9 @@ export class Application {
         });
         return;
       }
-      const decryptResult = integrationCipher.decrypt(stored.clientSecretCiphertext);
+      const decryptResult = integrationCipher.decrypt(
+        stored.clientSecretCiphertext,
+      );
       if (!decryptResult.ok) {
         baseLogger.event('igdb.disabled', {
           reason: `failed to decrypt stored IGDB client secret: ${decryptResult.error.kind}`,
@@ -495,11 +526,18 @@ export class Application {
     const p = this.persistence;
     return Object.freeze({
       create: new CreateGame(p.gameRepository, p.platformRepository),
-      update: new UpdateGame(p.gameRepository, p.platformRepository, p.transactionRunner),
+      update: new UpdateGame(
+        p.gameRepository,
+        p.platformRepository,
+        p.transactionRunner,
+      ),
       delete: new DeleteGame(p.gameRepository, p.transactionRunner),
       list: new ListGames(p.gameRepository),
       get: new GetGame(p.gameRepository),
-      moveToCollection: new MoveToCollection(p.gameRepository, p.transactionRunner),
+      moveToCollection: new MoveToCollection(
+        p.gameRepository,
+        p.transactionRunner,
+      ),
     });
   }
 
@@ -536,9 +574,15 @@ export class Application {
       maxNameLength: PLATFORM_NAME_MAX_LENGTH,
     });
     return Object.freeze({
-      platforms: Object.freeze({ router: makeDictionaryRouter({ useCases: platformUseCases }) }),
-      genres: Object.freeze({ router: makeDictionaryRouter({ useCases: genreUseCases }) }),
-      developers: Object.freeze({ router: makeDictionaryRouter({ useCases: developerUseCases }) }),
+      platforms: Object.freeze({
+        router: makeDictionaryRouter({ useCases: platformUseCases }),
+      }),
+      genres: Object.freeze({
+        router: makeDictionaryRouter({ useCases: genreUseCases }),
+      }),
+      developers: Object.freeze({
+        router: makeDictionaryRouter({ useCases: developerUseCases }),
+      }),
     });
   }
 
@@ -546,7 +590,29 @@ export class Application {
     const p = this.persistence;
     return Object.freeze({
       exportData: new ExportData(p.gameRepository, p.platformRepository),
-      importData: new ImportData(p.gameRepository, p.platformRepository, p.importRepository),
+      importData: new ImportData(
+        p.gameRepository,
+        p.platformRepository,
+        p.importRepository,
+      ),
+    });
+  }
+
+  private buildScheduler(): Scheduler {
+    return new Scheduler({
+      logger: baseLogger,
+      tasks: [
+        {
+          name: 'cleanup.orphans',
+          intervalMs: ONE_HOUR_MS,
+          run: () => this.cron.cleanupOrphans.run(),
+        },
+        {
+          name: 'rate_limit.sweep',
+          intervalMs: FIVE_MINUTES_MS,
+          run: () => this.cron.sweepRateLimitBuckets.run(),
+        },
+      ],
     });
   }
 
@@ -572,7 +638,9 @@ export class Application {
     });
   }
 
-  static buildForTesting(_overrides: ApplicationTestOverrides = {}): Application {
+  static buildForTesting(
+    _overrides: ApplicationTestOverrides = {},
+  ): Application {
     const app = new Application();
     return app;
   }
@@ -609,11 +677,17 @@ export class Application {
       void this.stop('SIGINT', 0);
     });
     process.on('uncaughtException', (err) => {
-      baseLogger.error({ event: 'fatal.uncaughtException', err: ensureError(err) });
+      baseLogger.error({
+        event: 'fatal.uncaughtException',
+        err: ensureError(err),
+      });
       void this.stop('exception', 1);
     });
     process.on('unhandledRejection', (reason) => {
-      baseLogger.error({ event: 'fatal.unhandledRejection', err: ensureError(reason) });
+      baseLogger.error({
+        event: 'fatal.unhandledRejection',
+        err: ensureError(reason),
+      });
       void this.stop('exception', 1);
     });
   }
