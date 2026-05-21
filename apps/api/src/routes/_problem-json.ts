@@ -60,6 +60,83 @@ export function internalProblem(detail = 'Unexpected error'): ProblemJson {
   };
 }
 
+export function notFoundProblem(detail = 'Resource not found'): ProblemJson {
+  return {
+    type: '/errors/not-found',
+    title: 'Not found',
+    status: 404,
+    detail,
+  };
+}
+
+export function conflictProblem(detail: string, type = '/errors/conflict'): ProblemJson {
+  return {
+    type,
+    title: 'Conflict',
+    status: 409,
+    detail,
+  };
+}
+
+export function featureDisabledProblem(detail: string): ProblemJson {
+  return {
+    type: '/errors/feature-disabled',
+    title: 'Feature disabled',
+    status: 503,
+    detail,
+  };
+}
+
+export function snapshotStaleProblem(
+  fields: readonly string[],
+): ProblemJson & { fields: readonly string[] } {
+  return {
+    type: '/errors/snapshot-stale',
+    title: 'Stale or tampered snapshot',
+    status: 400,
+    detail:
+      'Snapshot does not match the cached provider response. Re-fetch metadata candidates and retry.',
+    fields,
+  };
+}
+
+export function cacheMissProblem(): ProblemJson {
+  return {
+    type: '/errors/cache-miss',
+    title: 'Metadata cache miss',
+    status: 409,
+    detail: 'No cached candidate for this providerId. Refresh metadata candidates and retry.',
+  };
+}
+
+export function invalidBodyProblem(issues: ZodIssue[]): ProblemJson {
+  return {
+    type: '/errors/invalid-body',
+    title: 'Invalid request body',
+    status: 400,
+    detail: issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; '),
+    issues,
+  };
+}
+
+export function invalidFileProblem(detail = 'Invalid file'): ProblemJson {
+  return {
+    type: '/errors/invalid-file',
+    title: 'Invalid file',
+    status: 400,
+    detail,
+  };
+}
+
+export function uploadFailedProblem(detail = 'Upload failed'): ProblemJson {
+  return {
+    type: '/errors/upload-failed',
+    title: 'Upload failed',
+    status: 502,
+    detail,
+  };
+}
+
 /**
  * Generic helper to return a `application/problem+json` response from any route or middleware.
  * Centralises the status-code narrowing required by Hono's `c.json` overload set.

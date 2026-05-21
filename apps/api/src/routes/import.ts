@@ -3,6 +3,7 @@ import type { MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { z } from 'zod';
 import type { ImportData } from '../application/import/import-data';
+import { domainProblem, invalidBodyProblem, payloadTooLargeProblem } from './_problem-json';
 import type { AuthVariables } from './middleware/require-auth';
 
 const BodySchema = z.object({
@@ -21,7 +22,7 @@ export function createImportRouter(deps: ImportRouterDeps): Hono<{ Variables: Au
     '/',
     bodyLimit({
       maxSize: 5 * 1024 * 1024,
-      onError: (c) => c.json({ error: 'payload_too_large' }, 413),
+      onError: (c) => c.json(payloadTooLargeProblem('Import body exceeds 5MB limit'), 413),
     }),
     deps.idempotencyKey,
     async (c) => {
@@ -29,12 +30,12 @@ export function createImportRouter(deps: ImportRouterDeps): Hono<{ Variables: Au
       const body = await c.req.json().catch(() => null);
       const parsed = BodySchema.safeParse(body);
       if (!parsed.success) {
-        return c.json({ error: 'invalid_body', issues: parsed.error.issues }, 400);
+        return c.json(invalidBodyProblem(parsed.error.issues), 400);
       }
       const rawJson = JSON.stringify(parsed.data.snapshot);
       const result = await deps.importData.execute(userId, rawJson, parsed.data.mode);
       if (!result.ok) {
-        return c.json({ error: result.error.kind, detail: result.error }, 400);
+        return c.json(domainProblem(result.error), 400);
       }
       return c.json(result.value);
     },

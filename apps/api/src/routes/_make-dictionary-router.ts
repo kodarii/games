@@ -1,7 +1,13 @@
 import { Hono } from 'hono';
 import type { DictionaryUseCases } from '../application/dictionary/make-dictionary-use-cases';
 import type { DictionaryKind } from '../domain/dictionary/dictionary';
-import { domainProblem, internalProblem, zodIssuesToProblemJson } from './_problem-json';
+import {
+  conflictProblem,
+  domainProblem,
+  internalProblem,
+  notFoundProblem,
+  zodIssuesToProblemJson,
+} from './_problem-json';
 import type { AuthVariables } from './middleware/require-auth';
 
 export interface MakeDictionaryRouterDeps<TKind extends DictionaryKind> {
@@ -37,7 +43,11 @@ export function makeDictionaryRouter<TKind extends DictionaryKind>(
       const e = result.error;
       if (e.kind === 'invalid_input') return c.json(zodIssuesToProblemJson(e.issues), 400);
       if (e.kind === 'domain') return c.json(domainProblem(e.error), 400);
-      if (e.kind === 'name_taken') return c.json({ error: 'name_taken' }, 409);
+      if (e.kind === 'name_taken')
+        return c.json(
+          conflictProblem('A dictionary entry with this name already exists', '/errors/name-taken'),
+          409,
+        );
       return c.json(internalProblem('unknown error'), 500);
     }
     return c.json(result.value, 201);
@@ -45,14 +55,18 @@ export function makeDictionaryRouter<TKind extends DictionaryKind>(
 
   router.delete('/:id', async (c) => {
     const id = Number(c.req.param('id'));
-    if (!Number.isFinite(id)) return c.json({ error: 'Invalid id' }, 400);
+    if (!Number.isFinite(id)) return c.json(domainProblem({ kind: 'invalid_id' }), 400);
     const userId = c.get('user').id;
     const result = await useCases.delete.execute(id, userId);
     if (!result.ok) {
       const e = result.error;
-      if (e.kind === 'not_found') return c.json({ error: 'not found' }, 404);
-      if (e.kind === 'in_use') return c.json({ error: 'in_use' }, 409);
-      return c.json({ error: 'unknown error' }, 500);
+      if (e.kind === 'not_found') return c.json(notFoundProblem(), 404);
+      if (e.kind === 'in_use')
+        return c.json(
+          conflictProblem('Dictionary entry is still referenced by a game', '/errors/in-use'),
+          409,
+        );
+      return c.json(internalProblem('unknown error'), 500);
     }
     return c.json(result.value);
   });
