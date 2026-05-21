@@ -115,6 +115,7 @@ describe('CleanupOrphans', () => {
 
     expect(storage.deleted).toEqual([]);
     if (r.status !== 'completed') throw new Error('expected completed');
+    if (!r.details) throw new Error('expected details');
     expect(r.details.deleted).toBe(0);
   });
 
@@ -219,6 +220,7 @@ describe('CleanupOrphans', () => {
     const r = await cleanup.run();
 
     if (r.status !== 'completed') throw new Error('expected completed');
+    if (!r.details) throw new Error('expected details');
     expect(r.details.idempotencyKeysDeleted).toBe(7);
     expect(idempotency.deletedCalls).toEqual([now - ttlMs]);
   });
