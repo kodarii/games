@@ -46,6 +46,10 @@ import {
   coverStorageAvailable as wiringCoverStorageAvailable,
   idempotencyKeyMiddleware as wiringIdempotencyKeyMiddleware,
   rateLimitMutations as wiringRateLimitMutations,
+  igdbChainHolder as wiringIgdbChainHolder,
+  saveIgdbIntegration as wiringSaveIgdbIntegration,
+  clearIgdbIntegration as wiringClearIgdbIntegration,
+  integrationCredentialsRepository as wiringIntegrationCredentialsRepository,
 } from './wiring';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -75,6 +79,14 @@ interface HttpMiddleware {
   readonly rateLimitMutations: typeof wiringRateLimitMutations;
 }
 
+interface IgdbStack {
+  readonly holder: typeof wiringIgdbChainHolder;
+  readonly save: typeof wiringSaveIgdbIntegration;
+  readonly clear: typeof wiringClearIgdbIntegration;
+  readonly credentialsRepo: typeof wiringIntegrationCredentialsRepository;
+  readonly prime: () => Promise<void>;
+}
+
 export class Application {
   private readonly hono = new Hono<{ Variables: AuthVariables }>();
   private bunServer: ReturnType<typeof Bun.serve> | null = null;
@@ -83,12 +95,14 @@ export class Application {
   private readonly persistence: Persistence;
   private readonly coverStorageBundle: CoverStorageBundle;
   private readonly httpMw: HttpMiddleware;
+  private readonly igdb: IgdbStack;
   private readonly scheduler: Scheduler;
 
   constructor() {
     this.persistence = this.buildPersistence();
     this.coverStorageBundle = this.buildCoverStorage();
     this.httpMw = this.buildHttpMiddleware();
+    this.igdb = this.buildIgdbStack();
     this.scheduler = new Scheduler({
       logger: baseLogger,
       tasks: [
@@ -287,6 +301,20 @@ export class Application {
     return Object.freeze({
       idempotencyKey: wiringIdempotencyKeyMiddleware,
       rateLimitMutations: wiringRateLimitMutations,
+    });
+  }
+
+  private buildIgdbStack(): IgdbStack {
+    return Object.freeze({
+      holder: wiringIgdbChainHolder,
+      save: wiringSaveIgdbIntegration,
+      clear: wiringClearIgdbIntegration,
+      credentialsRepo: wiringIntegrationCredentialsRepository,
+      // Phase 2 incremental: wiring.ts still runs `await primeIgdbChainFromDb()`
+      // at module load. Task 15 swaps this no-op for the real prime function.
+      prime: async () => {
+        /* already primed by wiring.ts top-level await */
+      },
     });
   }
 
