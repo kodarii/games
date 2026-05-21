@@ -140,16 +140,6 @@ export class DrizzleGameRepository implements GameRepository {
     return { items: items.map((row) => this.mapRowToGame(row)), total };
   }
 
-  async findById(id: number): Promise<Game | null> {
-    const result = await this.db.select().from(gamesTable).where(eq(gamesTable.id, id)).limit(1);
-
-    if (result.length === 0) {
-      return null;
-    }
-
-    return this.mapRowToGame(result[0]);
-  }
-
   async findByExternalId(userId: string, externalId: string): Promise<Game | null> {
     const [row] = await this.db
       .select()

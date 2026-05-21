@@ -57,7 +57,6 @@ class FakeGameRepository implements GameRepository {
   withTx = (_tx: unknown): GameRepository => this;
   list = async (_q: ListGamesQuery): Promise<ListGamesResult> => ({ items: [], total: 0 });
   listAll = async (): Promise<Game[]> => [];
-  findById = async (): Promise<Game | null> => null;
   findByExternalId = async (): Promise<Game | null> => null;
   create = async (_g: NewGame): Promise<Game> => {
     throw new Error('unused');

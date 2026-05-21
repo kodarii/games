@@ -21,22 +21,26 @@ export function migrateToCurrent(
 ): Result<ImportSnapshot, MigrateError> {
   if (version === 1) {
     const parsed = ImportSnapshotV1Schema.safeParse(raw);
-    if (!parsed.success) return err({ kind: 'invalid_shape', version, issues: parsed.error.issues });
+    if (!parsed.success)
+      return err({ kind: 'invalid_shape', version, issues: parsed.error.issues });
     return ok(migrateV3toV4(migrateV2toV3(migrateV1toV2(parsed.data, idGenerator))));
   }
   if (version === 2) {
     const parsed = ImportSnapshotV2Schema.safeParse(raw);
-    if (!parsed.success) return err({ kind: 'invalid_shape', version, issues: parsed.error.issues });
+    if (!parsed.success)
+      return err({ kind: 'invalid_shape', version, issues: parsed.error.issues });
     return ok(migrateV3toV4(migrateV2toV3(parsed.data)));
   }
   if (version === 3) {
     const parsed = ImportSnapshotV3Schema.safeParse(raw);
-    if (!parsed.success) return err({ kind: 'invalid_shape', version, issues: parsed.error.issues });
+    if (!parsed.success)
+      return err({ kind: 'invalid_shape', version, issues: parsed.error.issues });
     return ok(migrateV3toV4(parsed.data));
   }
   if (version === 4) {
     const parsed = ImportSnapshotV4Schema.safeParse(raw);
-    if (!parsed.success) return err({ kind: 'invalid_shape', version, issues: parsed.error.issues });
+    if (!parsed.success)
+      return err({ kind: 'invalid_shape', version, issues: parsed.error.issues });
     return ok(parsed.data);
   }
   return err({ kind: 'unsupported_version', version });

@@ -55,7 +55,6 @@ export interface GameRepository {
   withTx(tx: unknown): GameRepository;
   list(query: ListGamesQuery): Promise<ListGamesResult>;
   listAll(userId: string): Promise<Game[]>;
-  findById(id: number): Promise<Game | null>;
   findByExternalId(userId: string, externalId: string): Promise<Game | null>;
   create(game: NewGame): Promise<Game>;
   /**

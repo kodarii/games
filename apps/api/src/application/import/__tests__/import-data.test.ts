@@ -60,9 +60,6 @@ class FakeGameRepository implements GameRepository {
   async listAll(_userId: string): Promise<Game[]> {
     return [];
   }
-  async findById(_id: number): Promise<Game | null> {
-    return null;
-  }
   async findByExternalId(_userId: string, _externalId: string): Promise<Game | null> {
     return null;
   }
