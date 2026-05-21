@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from 'bun:test';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { ClearIgdbIntegration } from '../../application/integrations/clear-igdb-integration';
 import { GetIgdbIntegrationStatus } from '../../application/integrations/get-igdb-integration-status';
@@ -12,13 +12,13 @@ import { db } from '../../infrastructure/db/client';
 import { DrizzleTransactionRunner } from '../../infrastructure/db/drizzle-transaction-runner';
 import {
   idempotencyKeys as idempotencyKeysTable,
-  igdbOauthToken as igdbOauthTokenTable,
   integrationCredentials as integrationCredentialsTable,
+  integrationOauthToken as integrationOauthTokenTable,
 } from '../../infrastructure/db/schema';
 import { DrizzleIdempotencyKeyRepository } from '../../infrastructure/idempotency/drizzle-idempotency-key-repository';
-import { DrizzleIgdbTokenStorage } from '../../infrastructure/igdb/drizzle-igdb-token-storage';
 import { Aes256GcmCipher } from '../../infrastructure/integrations/aes-256-gcm-cipher';
 import { DrizzleIntegrationCredentialsRepository } from '../../infrastructure/integrations/drizzle-integration-credentials-repository';
+import { DrizzleIntegrationOauthTokenStorage } from '../../infrastructure/integrations/drizzle-integration-oauth-token-storage';
 import { requestContext } from '../../infrastructure/logging/request-context-middleware';
 import { attachProblemJsonErrorHandler } from '../_problem-json';
 import { createIntegrationsRouter } from '../integrations';
@@ -53,13 +53,13 @@ function createFakeVerifier(state: FakeVerifierState): IgdbCredentialsVerifier {
 
 interface InMemoryChainSwapper {
   swaps: Array<{ clientId: string; clientSecret: string } | null>;
-  swap(creds: { clientId: string; clientSecret: string } | null): void;
+  swap(userId: string, creds: { clientId: string; clientSecret: string } | null): void;
 }
 
 function createChainSwapper(): InMemoryChainSwapper {
   return {
     swaps: [],
-    swap(creds) {
+    swap(_userId, creds) {
       this.swaps.push(creds === null ? null : { ...creds });
     },
   };
@@ -97,7 +97,7 @@ function buildApp(options: BuildOptions): BuiltApp {
 
   const repo = new DrizzleIntegrationCredentialsRepository();
   const cipher = new Aes256GcmCipher();
-  const tokenStorage = new DrizzleIgdbTokenStorage();
+  const tokenStorage = new DrizzleIntegrationOauthTokenStorage();
   const transactionRunner = new DrizzleTransactionRunner(db);
   const idempotencyRepo = new DrizzleIdempotencyKeyRepository();
 
@@ -149,7 +149,9 @@ async function cleanup(userIds: readonly string[]): Promise<void> {
     await db.delete(integrationCredentialsTable).where(eq(integrationCredentialsTable.userId, uid));
     await db.delete(idempotencyKeysTable).where(eq(idempotencyKeysTable.userId, uid));
   }
-  await db.delete(igdbOauthTokenTable);
+  await db
+    .delete(integrationOauthTokenTable)
+    .where(inArray(integrationOauthTokenTable.userId, userIds as string[]));
 }
 
 const VALID_BODY = {

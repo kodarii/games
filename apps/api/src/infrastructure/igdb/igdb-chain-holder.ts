@@ -68,7 +68,7 @@ export class IgdbChainHolder {
     return this.chain !== null;
   }
 
-  swap(creds: { clientId: string; clientSecret: string } | null): void {
+  swap(userId: string, creds: { clientId: string; clientSecret: string } | null): void {
     if (creds === null) {
       if (this.breaker !== null) {
         this.breaker.reset();
@@ -78,7 +78,7 @@ export class IgdbChainHolder {
       this.deps.logger.event('igdb.chain.cleared', {});
       return;
     }
-    this.chain = this.build(creds);
+    this.chain = this.build(userId, creds);
     this.deps.logger.event('igdb.chain.configured', {});
   }
 
@@ -110,7 +110,7 @@ export class IgdbChainHolder {
     // was built. Either way the holder ends up in the same observable state.
   }
 
-  private build(creds: { clientId: string; clientSecret: string }): IgdbChain {
+  private build(userId: string, creds: { clientId: string; clientSecret: string }): IgdbChain {
     const { logger } = this.deps;
     const breaker = new CircuitBreaker({
       failureThreshold: 5,
@@ -127,6 +127,7 @@ export class IgdbChainHolder {
 
     const tokenStore = new IgdbTokenStore({
       storage: this.deps.tokenStorage,
+      userId,
       clientId: creds.clientId,
       clientSecret: creds.clientSecret,
     });

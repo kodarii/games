@@ -41,7 +41,7 @@ export type SaveIgdbIntegrationError =
  * by a fake in tests without dragging in the full holder construction.
  */
 export interface IgdbChainSwapper {
-  swap(creds: { clientId: string; clientSecret: string } | null): void;
+  swap(userId: string, creds: { clientId: string; clientSecret: string } | null): void;
 }
 
 export interface SaveIgdbIntegrationDeps {
@@ -193,9 +193,12 @@ export class SaveIgdbIntegration {
     // Step 5: swap the runtime chain. If the user is disabling, clear the
     // chain so the rest of the process honours that immediately.
     if (effectiveEnabled) {
-      this.deps.chainHolder.swap({ clientId: data.clientId, clientSecret: plaintext });
+      this.deps.chainHolder.swap(userId, {
+        clientId: data.clientId,
+        clientSecret: plaintext,
+      });
     } else {
-      this.deps.chainHolder.swap(null);
+      this.deps.chainHolder.swap(userId, null);
     }
 
     return ok({ creds: aggregate });

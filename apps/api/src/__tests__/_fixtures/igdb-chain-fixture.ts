@@ -15,7 +15,7 @@ export function useDisabledIgdbChain(holder: IgdbChainHolder): void {
   let snapshot: ChainSnapshot = null;
   beforeAll(() => {
     snapshot = holder.get();
-    holder.swap(null);
+    holder.swap('fixture-user', null);
   });
   afterAll(() => {
     holder.__setChainForTest(snapshot);
@@ -34,7 +34,7 @@ export function usePrimedIgdbChain(
   let snapshot: ChainSnapshot = null;
   beforeAll(() => {
     snapshot = holder.get();
-    holder.swap(creds);
+    holder.swap('fixture-user', creds);
   });
   afterAll(() => {
     holder.__setChainForTest(snapshot);

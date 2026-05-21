@@ -20,14 +20,14 @@ const FIXED_NOW = new Date('2025-01-01T00:00:00.000Z');
 const FIXED_UUID = '00000000-0000-4000-8000-000000000000';
 
 interface FakeChainHolder {
-  swap(creds: { clientId: string; clientSecret: string } | null): void;
+  swap(userId: string, creds: { clientId: string; clientSecret: string } | null): void;
   readonly swaps: ReadonlyArray<{ clientId: string; clientSecret: string } | null>;
 }
 
 function makeFakeChainHolder(): FakeChainHolder {
   const swaps: Array<{ clientId: string; clientSecret: string } | null> = [];
   return {
-    swap(creds) {
+    swap(_userId, creds) {
       swaps.push(creds);
     },
     get swaps() {

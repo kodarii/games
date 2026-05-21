@@ -40,7 +40,7 @@ export class ClearIgdbIntegration {
       await txRepo.delete(userId, IGDB_KIND);
       await txStorage.clear(userId, IGDB_KIND);
     });
-    this.deps.chainHolder.swap(null);
+    this.deps.chainHolder.swap(userId, null);
     return ok(undefined);
   }
 }

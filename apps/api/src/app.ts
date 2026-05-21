@@ -51,11 +51,11 @@ import {
 import { makeDrizzleDictionaryRepository } from './infrastructure/dictionary/make-drizzle-dictionary-repository';
 import { DrizzleGameRepository } from './infrastructure/games/drizzle-game-repository';
 import { DrizzleIdempotencyKeyRepository } from './infrastructure/idempotency/drizzle-idempotency-key-repository';
-import { DrizzleIgdbTokenStorage } from './infrastructure/igdb/drizzle-igdb-token-storage';
 import { IgdbChainHolder } from './infrastructure/igdb/igdb-chain-holder';
 import { DrizzleImportRepository } from './infrastructure/import/drizzle-import-repository';
 import { Aes256GcmCipher } from './infrastructure/integrations/aes-256-gcm-cipher';
 import { DrizzleIntegrationCredentialsRepository } from './infrastructure/integrations/drizzle-integration-credentials-repository';
+import { DrizzleIntegrationOauthTokenStorage } from './infrastructure/integrations/drizzle-integration-oauth-token-storage';
 import { TwitchIgdbCredentialsVerifier } from './infrastructure/integrations/twitch-igdb-credentials-verifier';
 import { Scheduler } from './infrastructure/lifecycle/scheduler';
 import { baseLogger } from './infrastructure/logging/logger';
@@ -443,7 +443,7 @@ export class Application {
 
   private buildIgdbStack(): IgdbStack {
     const metadataCacheRepository = new MetadataCacheRepository();
-    const igdbTokenStorage = new DrizzleIgdbTokenStorage();
+    const igdbTokenStorage = new DrizzleIntegrationOauthTokenStorage();
     const integrationCipher = new Aes256GcmCipher();
     const credentialsRepo = new DrizzleIntegrationCredentialsRepository();
     const holder = new IgdbChainHolder({
@@ -499,7 +499,7 @@ export class Application {
         });
         return;
       }
-      holder.swap({
+      holder.swap(stored.userId, {
         clientId: stored.clientId.value,
         clientSecret: decryptResult.value,
       });

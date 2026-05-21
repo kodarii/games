@@ -114,14 +114,14 @@ function makeFakeTxRunner(log: CallLog, opts: { rollback?: boolean } = {}): Tran
 }
 
 interface FakeChainHolder {
-  swap(creds: { clientId: string; clientSecret: string } | null): void;
+  swap(userId: string, creds: { clientId: string; clientSecret: string } | null): void;
   readonly swaps: ReadonlyArray<{ clientId: string; clientSecret: string } | null>;
 }
 
 function makeFakeChainHolder(log: CallLog): FakeChainHolder {
   const swaps: Array<{ clientId: string; clientSecret: string } | null> = [];
   return {
-    swap(creds) {
+    swap(_userId, creds) {
       log.push('chainHolder.swap');
       swaps.push(creds);
     },

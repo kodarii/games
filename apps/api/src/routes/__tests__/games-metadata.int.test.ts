@@ -6,14 +6,18 @@ import { SearchGameMetadata } from '../../application/games/search-game-metadata
 import { isCoverHostAllowed } from '../../infrastructure/config/cover-hosts';
 import { db } from '../../infrastructure/db/client';
 import { DrizzleTransactionRunner } from '../../infrastructure/db/drizzle-transaction-runner';
-import { games as gamesTable, igdbOauthToken, metadataCache } from '../../infrastructure/db/schema';
+import {
+  games as gamesTable,
+  integrationOauthToken,
+  metadataCache,
+} from '../../infrastructure/db/schema';
 import { DrizzleGameRepository } from '../../infrastructure/games/drizzle-game-repository';
 import { CircuitBreaker } from '../../infrastructure/igdb/circuit-breaker';
-import { DrizzleIgdbTokenStorage } from '../../infrastructure/igdb/drizzle-igdb-token-storage';
 import type { IgdbChain, IgdbChainHolder } from '../../infrastructure/igdb/igdb-chain-holder';
 import { IgdbGameMetadataProvider } from '../../infrastructure/igdb/igdb-game-metadata-provider';
 import { IgdbHttpClient } from '../../infrastructure/igdb/igdb-http-client';
 import { IgdbTokenStore } from '../../infrastructure/igdb/igdb-token-store';
+import { DrizzleIntegrationOauthTokenStorage } from '../../infrastructure/integrations/drizzle-integration-oauth-token-storage';
 import { baseLogger } from '../../infrastructure/logging/logger';
 import { requestContext } from '../../infrastructure/logging/request-context-middleware';
 import { CachingGameMetadataProvider } from '../../infrastructure/metadata/caching-game-metadata-provider';
@@ -90,9 +94,10 @@ function buildApp(state: FakeIgdbState): BuiltApp {
     throw new Error(`Unexpected fetch url in test: ${url}`);
   }) as unknown as typeof fetch;
 
-  const tokenStorage = new DrizzleIgdbTokenStorage();
+  const tokenStorage = new DrizzleIntegrationOauthTokenStorage();
   const tokenStore = new IgdbTokenStore({
     storage: tokenStorage,
+    userId: TEST_USER_ID,
     clientId: 'test-client-id',
     clientSecret: 'test-secret',
     fetchImpl,
@@ -177,7 +182,7 @@ describe('GET /api/games/metadata/candidates (integration with fake IGDB)', () =
 
   beforeAll(async () => {
     // Make sure no token row interferes with a leaked test run.
-    await db.delete(igdbOauthToken);
+    await db.delete(integrationOauthToken);
     built = buildApp(state);
   });
 
@@ -192,7 +197,7 @@ describe('GET /api/games/metadata/candidates (integration with fake IGDB)', () =
 
   afterAll(async () => {
     await built.resetCache();
-    await db.delete(igdbOauthToken);
+    await db.delete(integrationOauthToken);
     await db.delete(gamesTable).where(inArray(gamesTable.externalId, [`test-${TEST_USER_ID}`]));
   });
 

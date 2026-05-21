@@ -213,15 +213,6 @@ export const metadataCache = sqliteTable(
 export type MetadataCacheRow = typeof metadataCache.$inferSelect;
 export type NewMetadataCacheRow = typeof metadataCache.$inferInsert;
 
-export const igdbOauthToken = sqliteTable('igdb_oauth_token', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  accessToken: text('access_token').notNull(),
-  expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
-  obtainedAt: integer('obtained_at', { mode: 'timestamp' }).notNull(),
-});
-
-export type IgdbOauthTokenRow = typeof igdbOauthToken.$inferSelect;
-export type NewIgdbOauthTokenRow = typeof igdbOauthToken.$inferInsert;
 
 /**
  * Distributed advisory lock for cron jobs (single-region, SQLite-based).
@@ -299,6 +290,30 @@ export const integrationCredentials = sqliteTable(
 
 export type IntegrationCredentialRow = typeof integrationCredentials.$inferSelect;
 export type NewIntegrationCredentialRow = typeof integrationCredentials.$inferInsert;
+
+/**
+ * Per-user cached OAuth bearer token for an external integration. Composite
+ * primary key `(user_id, integration)` so each user's Twitch app-access token
+ * is isolated from every other user's. Row lifetime is fully machine-managed
+ * (rotated by IgdbTokenStore on expiry). Cascade-deletes with the parent
+ * `integration_credentials` row through the shared `user_id` FK.
+ */
+export const integrationOauthToken = sqliteTable(
+  'integration_oauth_token',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    integration: text('integration').notNull(),
+    accessToken: text('access_token').notNull(),
+    expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+    obtainedAt: integer('obtained_at', { mode: 'timestamp' }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.integration] })],
+);
+
+export type IntegrationOauthTokenRow = typeof integrationOauthToken.$inferSelect;
+export type NewIntegrationOauthTokenRow = typeof integrationOauthToken.$inferInsert;
 
 /**
  * Per-user fixed-window mutation rate-limit buckets.
