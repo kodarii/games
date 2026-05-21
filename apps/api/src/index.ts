@@ -164,7 +164,7 @@ const rateLimitSweepTimer = setInterval(async () => {
     if (result.status === 'skipped') {
       baseLogger.event('rate_limit.sweep.skipped', { reason: result.reason });
     } else {
-      baseLogger.event('rate_limit.sweep.completed', { deleted: result.deleted });
+      baseLogger.event('rate_limit.sweep.completed', result.details ?? {});
     }
   } catch (err) {
     baseLogger.error({

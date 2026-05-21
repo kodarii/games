@@ -27,8 +27,7 @@ describe('SweepRateLimitBuckets', () => {
     const lock = { tryAcquire: async () => true, release: async () => {} };
     const sweep = new SweepRateLimitBuckets({ db, lock, now: () => now });
     const result = await sweep.run();
-    expect(result.status).toBe('ran');
-    if (result.status === 'ran') expect(result.deleted).toBe(2);
+    expect(result).toEqual({ status: 'completed', details: { deleted: 2 } });
 
     const remaining = await db
       .select()
@@ -41,6 +40,6 @@ describe('SweepRateLimitBuckets', () => {
     const lock = { tryAcquire: async () => false, release: async () => {} };
     const sweep = new SweepRateLimitBuckets({ db, lock, now: () => Date.now() });
     const result = await sweep.run();
-    expect(result.status).toBe('skipped');
+    expect(result).toEqual({ status: 'skipped', reason: 'lock_held' });
   });
 });
