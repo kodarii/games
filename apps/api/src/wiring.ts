@@ -262,7 +262,10 @@ export const cleanupOrphans = new CleanupOrphans(
   gameRepository,
   idempotencyKeyRepository,
   cronLock,
-  { idempotencyTtlMs: env.IDEMPOTENCY_TTL_HOURS * 60 * 60 * 1000 },
+  {
+    idempotencyTtlMs: env.IDEMPOTENCY_TTL_HOURS * 60 * 60 * 1000,
+    logger: baseLogger,
+  },
 );
 
 export const sweepRateLimitBuckets = new SweepRateLimitBuckets({
