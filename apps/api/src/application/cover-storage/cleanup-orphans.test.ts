@@ -7,11 +7,11 @@ import type {
 } from '../../domain/games/game-repository';
 import type { GameUpdate } from '../../domain/games/game-update';
 import type { NewGame } from '../../domain/games/new-game';
+import type { LogFields, Logger } from '../../infrastructure/logging/logger';
 import type {
   IdempotencyKeyRepository,
   IdempotencyRecord,
 } from '../idempotency/idempotency-key-repository';
-import type { LogFields, Logger } from '../../infrastructure/logging/logger';
 import { CleanupOrphans } from './cleanup-orphans';
 import type { CoverStorage } from './cover-storage';
 

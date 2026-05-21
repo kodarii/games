@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
+import { Application } from '../../app';
 import { db } from '../../infrastructure/db/client';
 import { games as gamesTable, platforms as platformsTable } from '../../infrastructure/db/schema';
 import { requestContext } from '../../infrastructure/logging/request-context-middleware';
@@ -8,7 +9,6 @@ import { attachProblemJsonErrorHandler } from '../_problem-json';
 import { createGamesRouter } from '../games';
 import { originGuard } from '../middleware/origin-guard';
 import type { AuthVariables } from '../middleware/require-auth';
-import { Application } from '../../app';
 
 const _testApp = Application.buildForTesting();
 const _gameOps = _testApp.gameOpsForTesting();

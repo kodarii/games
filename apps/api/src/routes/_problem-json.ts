@@ -60,6 +60,24 @@ export function internalProblem(detail = 'Unexpected error'): ProblemJson {
   };
 }
 
+export function unauthorizedProblem(detail = 'Authentication required'): ProblemJson {
+  return {
+    type: '/errors/unauthorized',
+    title: 'Unauthorized',
+    status: 401,
+    detail,
+  };
+}
+
+export function forbiddenProblem(detail = 'Forbidden'): ProblemJson {
+  return {
+    type: '/errors/forbidden',
+    title: 'Forbidden',
+    status: 403,
+    detail,
+  };
+}
+
 export function notFoundProblem(detail = 'Resource not found'): ProblemJson {
   return {
     type: '/errors/not-found',

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test';
+import { TokenBucketRateLimiter } from '../../metadata/rate-limiter';
 import { CircuitBreaker } from '../circuit-breaker';
 import { IgdbHttpClient, IgdbHttpError } from '../igdb-http-client';
 import type { IgdbTokenStore } from '../igdb-token-store';
-import { TokenBucketRateLimiter } from '../../metadata/rate-limiter';
 
 interface FakeTokenStoreState {
   token: string;

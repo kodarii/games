@@ -1,6 +1,6 @@
+import { type ImportSnapshot, ImportSnapshotExternalSchema } from '@apex/shared';
 import { z } from 'zod';
-import { ImportSnapshotExternalSchema, type ImportSnapshot } from '@apex/shared';
-import { err, ok, type Result } from '../../domain/shared/result';
+import { type Result, err, ok } from '../../domain/shared/result';
 import { migrateToCurrent } from './migrations';
 import { externalToCurrent } from './migrations/external-to-current';
 

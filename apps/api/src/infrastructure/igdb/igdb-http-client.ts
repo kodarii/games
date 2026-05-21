@@ -1,6 +1,6 @@
+import type { TokenBucketRateLimiter } from '../metadata/rate-limiter';
 import type { CircuitBreaker } from './circuit-breaker';
 import type { IgdbTokenStore } from './igdb-token-store';
-import type { TokenBucketRateLimiter } from '../metadata/rate-limiter';
 
 const MAX_RETRIES = 2; // total attempts = 1 + MAX_RETRIES
 const BASE_BACKOFF_MS = 200;

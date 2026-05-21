@@ -1,11 +1,11 @@
 import {
+  type ImportSnapshot,
   ImportSnapshotV1Schema,
   ImportSnapshotV2Schema,
   ImportSnapshotV3Schema,
   ImportSnapshotV4Schema,
-  type ImportSnapshot,
 } from '@apex/shared';
-import { err, ok, type Result } from '../../../domain/shared/result';
+import { type Result, err, ok } from '../../../domain/shared/result';
 import { migrateV1toV2 } from './v1-to-v2';
 import { migrateV2toV3 } from './v2-to-v3';
 import { migrateV3toV4 } from './v3-to-v4';

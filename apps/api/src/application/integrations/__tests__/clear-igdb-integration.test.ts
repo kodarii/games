@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { IntegrationCredentials as IntegrationCredentialsClass } from '../../../domain/integrations/integration-credentials';
 import type { IntegrationCredentialsRepository } from '../../../domain/integrations/integration-credentials-repository';
-import type { IntegrationKind } from '../../../domain/integrations/integration-value-objects';
 import type {
   IntegrationTokenStorage,
   StoredIntegrationToken,
 } from '../../../domain/integrations/integration-token-storage';
+import type { IntegrationKind } from '../../../domain/integrations/integration-value-objects';
 import type { TransactionRunner } from '../../shared/transaction-runner';
 import { ClearIgdbIntegration } from '../clear-igdb-integration';
 

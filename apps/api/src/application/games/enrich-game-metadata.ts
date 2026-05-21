@@ -5,9 +5,9 @@ import type { Game } from '../../domain/games/game';
 import type { GameMetadataCandidate } from '../../domain/games/game-metadata-provider';
 import { type GameRepository, OptimisticLockError } from '../../domain/games/game-repository';
 import type { GameValidationError } from '../../domain/games/game-value-objects';
+import { isProviderSupported } from '../../domain/integrations/supported-providers';
 import { err, ok } from '../../domain/shared/result';
 import type { Result } from '../../domain/shared/result';
-import { isProviderSupported } from '../../domain/integrations/supported-providers';
 import type { TransactionRunner } from '../shared/transaction-runner';
 
 const inputSchema = z.object({

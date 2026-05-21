@@ -1,26 +1,9 @@
-import { sql } from 'drizzle-orm';
-import { Hono } from 'hono';
-import { cors } from 'hono/cors';
-import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { auth } from './infrastructure/auth/auth';
-import { env } from './infrastructure/config/env';
-import { db, sqlite } from './infrastructure/db/client';
-import { baseLogger } from './infrastructure/logging/logger';
-import { requestContext } from './infrastructure/logging/request-context-middleware';
-import { Scheduler } from './infrastructure/lifecycle/scheduler';
-import { attachProblemJsonErrorHandler } from './routes/_problem-json';
-import { createExportRouter } from './routes/export';
-import { createGamesRouter } from './routes/games';
-import { createHealthRouter } from './routes/health';
-import { createImportRouter } from './routes/import';
-import { createIntegrationsRouter } from './routes/integrations';
-import { createMeRouter } from './routes/me';
-import { originGuard } from './routes/middleware/origin-guard';
-import { type AuthVariables, requireAuth } from './routes/middleware/require-auth';
-import { requireUploadPermission } from './routes/middleware/require-upload-permission';
-import { createUploadRoute } from './routes/upload';
+import { sql } from 'drizzle-orm';
+import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import { CleanupOrphans } from './application/cover-storage/cleanup-orphans';
 import type { CoverStorage } from './application/cover-storage/cover-storage';
 import { makeDictionaryUseCases } from './application/dictionary/make-dictionary-use-cases';
@@ -52,10 +35,13 @@ import {
   PLATFORM_NAME_MAX_LENGTH,
   type PlatformKind,
 } from './domain/platforms/platform';
+import { auth } from './infrastructure/auth/auth';
 import { isCoverHostAllowed } from './infrastructure/config/cover-hosts';
+import { env } from './infrastructure/config/env';
 import { UploadThingCoverStorage } from './infrastructure/cover-storage/uploadthing-cover-storage';
 import { CronLock } from './infrastructure/cron/cron-lock';
 import { user as authUser } from './infrastructure/db/auth-schema';
+import { db, sqlite } from './infrastructure/db/client';
 import { DrizzleTransactionRunner } from './infrastructure/db/drizzle-transaction-runner';
 import {
   developers as developersTable,
@@ -71,11 +57,25 @@ import { DrizzleImportRepository } from './infrastructure/import/drizzle-import-
 import { Aes256GcmCipher } from './infrastructure/integrations/aes-256-gcm-cipher';
 import { DrizzleIntegrationCredentialsRepository } from './infrastructure/integrations/drizzle-integration-credentials-repository';
 import { TwitchIgdbCredentialsVerifier } from './infrastructure/integrations/twitch-igdb-credentials-verifier';
+import { Scheduler } from './infrastructure/lifecycle/scheduler';
+import { baseLogger } from './infrastructure/logging/logger';
+import { requestContext } from './infrastructure/logging/request-context-middleware';
 import { MetadataCacheRepository } from './infrastructure/metadata/metadata-cache-repository';
-import { makeDictionaryRouter } from './routes/_make-dictionary-router';
-import { idempotencyKey as idempotencyKeyMiddlewareFactory } from './routes/middleware/idempotency-key';
 import { DrizzleRateLimitBucketRepository } from './infrastructure/rate-limit/drizzle-rate-limit-bucket-repository';
 import { mutationRateLimit } from './infrastructure/rate-limit/mutation-rate-limit-middleware';
+import { makeDictionaryRouter } from './routes/_make-dictionary-router';
+import { attachProblemJsonErrorHandler } from './routes/_problem-json';
+import { createExportRouter } from './routes/export';
+import { createGamesRouter } from './routes/games';
+import { createHealthRouter } from './routes/health';
+import { createImportRouter } from './routes/import';
+import { createIntegrationsRouter } from './routes/integrations';
+import { createMeRouter } from './routes/me';
+import { idempotencyKey as idempotencyKeyMiddlewareFactory } from './routes/middleware/idempotency-key';
+import { originGuard } from './routes/middleware/origin-guard';
+import { type AuthVariables, requireAuth } from './routes/middleware/require-auth';
+import { requireUploadPermission } from './routes/middleware/require-upload-permission';
+import { createUploadRoute } from './routes/upload';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const FIVE_MINUTES_MS = 5 * 60 * 1000;

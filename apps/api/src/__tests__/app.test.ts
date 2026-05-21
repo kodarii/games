@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from 'bun:te
 import { Hono } from 'hono';
 import { Application } from '../app';
 import { sqlite } from '../infrastructure/db/client';
-import { requestContext } from '../infrastructure/logging/request-context-middleware';
 import { baseLogger } from '../infrastructure/logging/logger';
+import { requestContext } from '../infrastructure/logging/request-context-middleware';
 import { attachProblemJsonErrorHandler } from '../routes/_problem-json';
 import { createGamesRouter } from '../routes/games';
 import type { AuthVariables } from '../routes/middleware/require-auth';

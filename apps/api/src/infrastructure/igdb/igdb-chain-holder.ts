@@ -3,6 +3,7 @@ import { SearchGameMetadata } from '../../application/games/search-game-metadata
 import type { TransactionRunner } from '../../application/shared/transaction-runner';
 import type { IsCoverHostAllowed } from '../../domain/games/cover-image-url';
 import type { GameRepository } from '../../domain/games/game-repository';
+import type { IntegrationTokenStorage } from '../../domain/integrations/integration-token-storage';
 import type { Logger } from '../logging/logger';
 import { CachingGameMetadataProvider } from '../metadata/caching-game-metadata-provider';
 import type { MetadataCacheRepository } from '../metadata/metadata-cache-repository';
@@ -10,7 +11,6 @@ import { TokenBucketRateLimiter } from '../metadata/rate-limiter';
 import { CircuitBreaker } from './circuit-breaker';
 import { IgdbGameMetadataProvider } from './igdb-game-metadata-provider';
 import { IgdbHttpClient } from './igdb-http-client';
-import type { IntegrationTokenStorage } from '../../domain/integrations/integration-token-storage';
 import { IgdbTokenStore } from './igdb-token-store';
 
 /**
