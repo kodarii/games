@@ -42,6 +42,10 @@ import {
   importRepository as wiringImportRepository,
   idempotencyKeyRepository as wiringIdempotencyKeyRepository,
   transactionRunner as wiringTransactionRunner,
+  coverStorage as wiringCoverStorage,
+  coverStorageAvailable as wiringCoverStorageAvailable,
+  idempotencyKeyMiddleware as wiringIdempotencyKeyMiddleware,
+  rateLimitMutations as wiringRateLimitMutations,
 } from './wiring';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -61,16 +65,30 @@ interface Persistence {
   readonly transactionRunner: typeof wiringTransactionRunner;
 }
 
+interface CoverStorageBundle {
+  readonly storage: typeof wiringCoverStorage;
+  readonly available: typeof wiringCoverStorageAvailable;
+}
+
+interface HttpMiddleware {
+  readonly idempotencyKey: typeof wiringIdempotencyKeyMiddleware;
+  readonly rateLimitMutations: typeof wiringRateLimitMutations;
+}
+
 export class Application {
   private readonly hono = new Hono<{ Variables: AuthVariables }>();
   private bunServer: ReturnType<typeof Bun.serve> | null = null;
   private shuttingDown = false;
   private started = false;
   private readonly persistence: Persistence;
+  private readonly coverStorageBundle: CoverStorageBundle;
+  private readonly httpMw: HttpMiddleware;
   private readonly scheduler: Scheduler;
 
   constructor() {
     this.persistence = this.buildPersistence();
+    this.coverStorageBundle = this.buildCoverStorage();
+    this.httpMw = this.buildHttpMiddleware();
     this.scheduler = new Scheduler({
       logger: baseLogger,
       tasks: [
@@ -255,6 +273,20 @@ export class Application {
       importRepository: wiringImportRepository,
       idempotencyKeyRepository: wiringIdempotencyKeyRepository,
       transactionRunner: wiringTransactionRunner,
+    });
+  }
+
+  private buildCoverStorage(): CoverStorageBundle {
+    return Object.freeze({
+      storage: wiringCoverStorage,
+      available: wiringCoverStorageAvailable,
+    });
+  }
+
+  private buildHttpMiddleware(): HttpMiddleware {
+    return Object.freeze({
+      idempotencyKey: wiringIdempotencyKeyMiddleware,
+      rateLimitMutations: wiringRateLimitMutations,
     });
   }
 
