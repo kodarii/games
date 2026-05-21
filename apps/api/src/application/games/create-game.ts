@@ -6,7 +6,7 @@ import { NewGame, type NewGameProps } from '../../domain/games/new-game';
 import type { PlatformRepository } from '../../domain/platforms/platform-repository';
 import { err, ok } from '../../domain/shared/result';
 import type { Result } from '../../domain/shared/result';
-import { isProviderSupported } from '../../infrastructure/config/providers';
+import { isProviderSupported } from '../../domain/integrations/supported-providers';
 
 const purchasedAtSchema = z
   .string()

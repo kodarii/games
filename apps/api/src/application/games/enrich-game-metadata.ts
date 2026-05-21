@@ -7,7 +7,7 @@ import { type GameRepository, OptimisticLockError } from '../../domain/games/gam
 import type { GameValidationError } from '../../domain/games/game-value-objects';
 import { err, ok } from '../../domain/shared/result';
 import type { Result } from '../../domain/shared/result';
-import { isProviderSupported } from '../../infrastructure/config/providers';
+import { isProviderSupported } from '../../domain/integrations/supported-providers';
 import type { TransactionRunner } from '../shared/transaction-runner';
 
 const inputSchema = z.object({

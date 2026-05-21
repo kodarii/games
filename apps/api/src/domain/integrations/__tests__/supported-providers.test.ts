@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
-import { SUPPORTED_PROVIDERS, isProviderSupported } from '../providers';
+import { SUPPORTED_PROVIDERS, isProviderSupported } from '../supported-providers';
 
-describe('providers config', () => {
+describe('supported providers', () => {
   it('accepts every name in SUPPORTED_PROVIDERS', () => {
     for (const name of SUPPORTED_PROVIDERS) {
       expect(isProviderSupported(name)).toBe(true);
