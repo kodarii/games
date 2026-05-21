@@ -10,7 +10,8 @@ import {
 import { requestContext } from '../../infrastructure/logging/request-context-middleware';
 import { attachProblemJsonErrorHandler } from '../_problem-json';
 import { createGamesRouter } from '../games';
-import { mutationRateLimit } from '../middleware/mutation-rate-limit';
+import { DrizzleRateLimitBucketRepository } from '../../infrastructure/rate-limit/drizzle-rate-limit-bucket-repository';
+import { mutationRateLimit } from '../../infrastructure/rate-limit/mutation-rate-limit-middleware';
 import type { AuthVariables } from '../middleware/require-auth';
 import { Application } from '../../app';
 
@@ -40,7 +41,8 @@ function makeApp(now: () => number, limit: number) {
     if (u) c.set('user', { id: u } as AuthVariables['user']);
     await next();
   });
-  app.use('/api/games/*', mutationRateLimit({ db, now, limit }));
+  const repo = new DrizzleRateLimitBucketRepository(db);
+  app.use('/api/games/*', mutationRateLimit({ repo, now, limit }));
   app.route('/api/games', games);
   return app;
 }

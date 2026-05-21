@@ -1,11 +1,13 @@
 import { afterAll, beforeEach, describe, expect, it } from 'bun:test';
-import { eq } from 'drizzle-orm';
+import { inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
-import { db } from '../../../infrastructure/db/client';
-import { rateLimitBuckets } from '../../../infrastructure/db/schema';
-import { createLogger } from '../../../infrastructure/logging/logger';
-import { type MutationRateLimitDeps, mutationRateLimit } from '../mutation-rate-limit';
-import type { AuthVariables } from '../require-auth';
+import type { RateLimitBucketRepository } from '../../../domain/rate-limit/rate-limit-bucket-repository';
+import type { AuthVariables } from '../../../routes/middleware/require-auth';
+import { db } from '../../db/client';
+import { rateLimitBuckets } from '../../db/schema';
+import { createLogger } from '../../logging/logger';
+import { DrizzleRateLimitBucketRepository } from '../drizzle-rate-limit-bucket-repository';
+import { mutationRateLimit } from '../mutation-rate-limit-middleware';
 
 const USER_A = `test-rl-a-${crypto.randomUUID()}`;
 const USER_B = `test-rl-b-${crypto.randomUUID()}`;
@@ -17,14 +19,14 @@ function makeApp(now: () => number, limit?: number) {
     if (userHeader) c.set('user', { id: userHeader } as AuthVariables['user']);
     await next();
   });
-  app.use('/api/*', mutationRateLimit({ db, now, limit }));
+  const repo = new DrizzleRateLimitBucketRepository(db);
+  app.use('/api/*', mutationRateLimit({ repo, now, limit }));
   app.all('/api/echo', (c) => c.json({ ok: true }));
   return app;
 }
 
 async function clearBuckets() {
-  await db.delete(rateLimitBuckets).where(eq(rateLimitBuckets.userId, USER_A));
-  await db.delete(rateLimitBuckets).where(eq(rateLimitBuckets.userId, USER_B));
+  await db.delete(rateLimitBuckets).where(inArray(rateLimitBuckets.userId, [USER_A, USER_B]));
 }
 
 beforeEach(async () => {
@@ -123,22 +125,24 @@ describe('mutationRateLimit', () => {
   it('fails closed with 429 + Retry-After when the limiter store throws', async () => {
     const lines: string[] = [];
     const logger = createLogger({ level: 'debug', sink: (l) => lines.push(l) });
-    const brokenDb = {
-      insert: () => ({
-        values: () => ({
-          onConflictDoUpdate: () => ({
-            returning: () => Promise.reject(new Error('disk I/O error')),
-          }),
-        }),
-      }),
-    } as unknown as MutationRateLimitDeps['db'];
+    const brokenRepo: RateLimitBucketRepository = {
+      async increment() {
+        throw new Error('disk I/O error');
+      },
+      async deleteOlderThan() {
+        return 0;
+      },
+    };
     const app = new Hono<{ Variables: AuthVariables }>();
     app.use('/api/*', async (c, next) => {
       c.set('user', { id: USER_A } as AuthVariables['user']);
       c.set('logger', logger);
       await next();
     });
-    app.use('/api/*', mutationRateLimit({ db: brokenDb, now: () => 1_700_000_000_000, limit: 60 }));
+    app.use(
+      '/api/*',
+      mutationRateLimit({ repo: brokenRepo, now: () => 1_700_000_000_000, limit: 60 }),
+    );
     app.all('/api/echo', (c) => c.json({ ok: true }));
 
     const res = await app.request('/api/echo', { method: 'POST' });
@@ -163,7 +167,8 @@ describe('mutationRateLimit', () => {
       c.set('logger', logger);
       await next();
     });
-    app.use('/api/*', mutationRateLimit({ db, now: () => t0, limit: 1 }));
+    const repo = new DrizzleRateLimitBucketRepository(db);
+    app.use('/api/*', mutationRateLimit({ repo, now: () => t0, limit: 1 }));
     app.all('/api/echo', (c) => c.json({ ok: true }));
 
     const ok = await app.request('/api/echo', { method: 'POST' });

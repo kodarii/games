@@ -73,7 +73,8 @@ import { TwitchIgdbCredentialsVerifier } from './infrastructure/integrations/twi
 import { MetadataCacheRepository } from './infrastructure/metadata/metadata-cache-repository';
 import { makeDictionaryRouter } from './routes/_make-dictionary-router';
 import { idempotencyKey as idempotencyKeyMiddlewareFactory } from './routes/middleware/idempotency-key';
-import { mutationRateLimit } from './routes/middleware/mutation-rate-limit';
+import { DrizzleRateLimitBucketRepository } from './infrastructure/rate-limit/drizzle-rate-limit-bucket-repository';
+import { mutationRateLimit } from './infrastructure/rate-limit/mutation-rate-limit-middleware';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
@@ -420,11 +421,16 @@ export class Application {
   }
 
   private buildHttpMiddleware(): HttpMiddleware {
+    // Both call sites construct their own DrizzleRateLimitBucketRepository
+    // because the adapter is stateless (single `db` field, no cache). Folding
+    // the repo into `Persistence` would centralize this, but ripples through
+    // the Persistence shape — defer until the next persistence refactor.
+    const rateLimitRepo = new DrizzleRateLimitBucketRepository(db);
     return Object.freeze({
       idempotencyKey: idempotencyKeyMiddlewareFactory({
         repo: this.persistence.idempotencyKeyRepository,
       }),
-      rateLimitMutations: mutationRateLimit({ db, now: () => Date.now() }),
+      rateLimitMutations: mutationRateLimit({ repo: rateLimitRepo, now: () => Date.now() }),
     });
   }
 
@@ -606,7 +612,7 @@ export class Application {
         },
       ),
       sweepRateLimitBuckets: new SweepRateLimitBuckets({
-        db,
+        repo: new DrizzleRateLimitBucketRepository(db),
         lock: cronLock,
         now: () => Date.now(),
       }),
