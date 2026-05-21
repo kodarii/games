@@ -1,5 +1,5 @@
 import type { RateLimitBucketRepository } from '../../domain/rate-limit/rate-limit-bucket-repository';
-import type { TaskResult } from '../../infrastructure/lifecycle/scheduler';
+import type { TaskResult } from '../shared/scheduler';
 
 const WINDOW_MS = 60_000;
 const LOCK_NAME = 'sweep-rate-limit-buckets';

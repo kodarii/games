@@ -1,8 +1,7 @@
-import type { LogFields, Logger } from '../logging/logger';
+import type { TaskResult } from '../../application/shared/scheduler';
+import type { Logger } from '../logging/logger';
 
-export type TaskResult =
-  | { status: 'completed'; details?: LogFields }
-  | { status: 'skipped'; reason: string };
+export type { TaskResult } from '../../application/shared/scheduler';
 
 export interface Task {
   readonly name: string;
