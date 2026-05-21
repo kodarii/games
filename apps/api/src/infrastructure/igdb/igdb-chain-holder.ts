@@ -10,7 +10,7 @@ import { TokenBucketRateLimiter } from '../metadata/rate-limiter';
 import { CircuitBreaker } from './circuit-breaker';
 import { IgdbGameMetadataProvider } from './igdb-game-metadata-provider';
 import { IgdbHttpClient } from './igdb-http-client';
-import type { IgdbTokenStorage } from './igdb-token-store';
+import type { IntegrationTokenStorage } from '../../domain/integrations/integration-token-storage';
 import { IgdbTokenStore } from './igdb-token-store';
 
 /**
@@ -26,7 +26,7 @@ export interface IgdbChain {
 
 export interface IgdbChainHolderDeps {
   readonly logger: Logger;
-  readonly tokenStorage: IgdbTokenStorage;
+  readonly tokenStorage: IntegrationTokenStorage;
   readonly metadataCacheRepository: MetadataCacheRepository;
   readonly gameRepository: GameRepository;
   readonly transactionRunner: TransactionRunner;

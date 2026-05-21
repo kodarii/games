@@ -3,9 +3,9 @@ import { IntegrationCredentials as IntegrationCredentialsClass } from '../../../
 import type { IntegrationCredentialsRepository } from '../../../domain/integrations/integration-credentials-repository';
 import type { IntegrationKind } from '../../../domain/integrations/integration-value-objects';
 import type {
-  IgdbTokenStorage,
-  StoredIgdbToken,
-} from '../../../infrastructure/igdb/igdb-token-store';
+  IntegrationTokenStorage,
+  StoredIntegrationToken,
+} from '../../../domain/integrations/integration-token-storage';
 import type { TransactionRunner } from '../../shared/transaction-runner';
 import { ClearIgdbIntegration } from '../clear-igdb-integration';
 
@@ -68,13 +68,13 @@ function makeFakeRepo(
   return repo;
 }
 
-function makeFakeTokenStorage(log: CallLog): IgdbTokenStorage {
-  let row: StoredIgdbToken | null = {
+function makeFakeTokenStorage(log: CallLog): IntegrationTokenStorage {
+  let row: StoredIntegrationToken | null = {
     accessToken: 'token',
     expiresAt: new Date(),
     obtainedAt: new Date(),
   };
-  const storage: IgdbTokenStorage = {
+  const storage: IntegrationTokenStorage = {
     async read() {
       return row;
     },
@@ -134,7 +134,7 @@ function makeFakeChainHolder(log: CallLog): FakeChainHolder {
 describe('ClearIgdbIntegration', () => {
   let log: CallLog;
   let repo: IntegrationCredentialsRepository;
-  let tokenStorage: IgdbTokenStorage;
+  let tokenStorage: IntegrationTokenStorage;
   let txRunner: TransactionRunner;
   let chainHolder: FakeChainHolder;
   let useCase: ClearIgdbIntegration;

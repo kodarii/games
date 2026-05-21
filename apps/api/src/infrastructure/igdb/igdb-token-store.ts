@@ -2,6 +2,10 @@
 // Horizontal scale-out would race on DB write; revisit if deployed to >1 instance.
 
 import { z } from 'zod';
+import type {
+  IntegrationTokenStorage,
+  StoredIntegrationToken,
+} from '../../domain/integrations/integration-token-storage';
 
 const TWITCH_TOKEN_URL = 'https://id.twitch.tv/oauth2/token';
 const REFRESH_GRACE_MS = 24 * 60 * 60 * 1000; // refresh when less than 1 day to expiry
@@ -13,35 +17,8 @@ const tokenResponseSchema = z.object({
   token_type: z.string(),
 });
 
-/** Persisted shape of the single IGDB OAuth token row. */
-export interface StoredIgdbToken {
-  readonly accessToken: string;
-  readonly expiresAt: Date;
-  readonly obtainedAt: Date;
-}
-
-/**
- * Persistence port. Production wires this to a Drizzle-backed implementation
- * that targets the `igdb_oauth_token` table (id = 1). Tests inject an
- * in-memory fake.
- *
- * `withTx(tx)` returns a copy of the storage bound to the given transaction
- * handle, letting use-cases that delete the token in the same atomic write
- * block as the credentials row participate in a single SQLite transaction.
- *
- * `clear()` deletes the singleton row. Used when the user disconnects the
- * IGDB integration so the cached OAuth token is not reused against fresh
- * credentials.
- */
-export interface IgdbTokenStorage {
-  read(): Promise<StoredIgdbToken | null>;
-  write(record: StoredIgdbToken): Promise<void>;
-  clear(): Promise<void>;
-  withTx(tx: unknown): IgdbTokenStorage;
-}
-
 export interface IgdbTokenStoreOptions {
-  readonly storage: IgdbTokenStorage;
+  readonly storage: IntegrationTokenStorage;
   readonly clientId: string;
   readonly clientSecret: string;
   readonly fetchImpl?: typeof fetch;
@@ -60,7 +37,7 @@ export class IgdbTokenStoreError extends Error {
 }
 
 export class IgdbTokenStore {
-  private readonly storage: IgdbTokenStorage;
+  private readonly storage: IntegrationTokenStorage;
   private readonly clientId: string;
   private readonly clientSecret: string;
   private readonly fetchImpl: typeof fetch;
@@ -88,7 +65,7 @@ export class IgdbTokenStore {
     return this.refreshOnce();
   }
 
-  private isUsable(token: StoredIgdbToken): boolean {
+  private isUsable(token: StoredIntegrationToken): boolean {
     const remaining = token.expiresAt.getTime() - this.now().getTime();
     return remaining > REFRESH_GRACE_MS;
   }
