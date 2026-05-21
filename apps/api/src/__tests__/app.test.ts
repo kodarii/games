@@ -54,7 +54,7 @@ describe('Application lifecycle (BE-07)', () => {
   it('stop() stops scheduler, drains server, closes db, exits 0', async () => {
     const app = new Application();
     await app.start(0);
-    let exited: number | null = null;
+    let exited = -1;
     exitSpy.mockImplementation(((code?: number) => {
       exited = code ?? 0;
       throw new Error('__exit');
