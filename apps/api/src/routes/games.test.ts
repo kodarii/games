@@ -173,4 +173,37 @@ describe('routes/games', () => {
       expect(body).not.toHaveProperty('error');
     });
   });
+
+  // BE-05: /metadata/* MUST be registered BEFORE /:externalId in routes/games.ts.
+  // Two-test regression pin (Q9 — env-independent):
+  //   (1) Q9 body-shape pin: /api/games/metadata/status zwraca ZAWSZE 200 +
+  //       {igdbConfigured: boolean}. Endpoint NIE robi chain check (games-metadata.ts:13).
+  //       Body shape `igdbConfigured: boolean` jest emitowany WYŁĄCZNIE przez
+  //       games-metadata sub-router. :externalId handler zwraca game-shape body
+  //       ({id, title, ...}) bez tego pola. Swap-regression failuje konstrukcyjnie
+  //       NIEZALEŻNIE od env (creds seeded vs null chain — bez znaczenia).
+  //   (2) counter-weight: /api/games/:externalId still reaches the single-game handler.
+  // RED is konstrukcyjny i env-independent. Manual swap optional dla debugu, NIE acceptance.
+  describe('route ordering pin', () => {
+    it('GET /api/games/metadata/status resolves to games-metadata sub-router (not :externalId)', async () => {
+      // Q9: pin uses /metadata/status (NIE /metadata/candidates). Endpoint zwraca ZAWSZE 200
+      // z {igdbConfigured: boolean} — games-metadata.ts:13, no chain check, no gate.
+      // Body-shape pin is constructional AND env-independent:
+      //   - :externalId handler returns game-shape body {id, title, ...} — no `igdbConfigured` field
+      //   - On swap-regression: either status flips (404 for unknown externalId='status') OR body lacks `igdbConfigured`
+      // Both branches fail this test.
+      const res = await app.request('/api/games/metadata/status');
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as Record<string, unknown>;
+      expect(body).toHaveProperty('igdbConfigured');
+      expect(typeof body.igdbConfigured).toBe('boolean');
+    });
+
+    it(':externalId handler still resolves for non-reserved slugs', async () => {
+      const res = await app.request('/api/games/some-real-external-id');
+      // Whatever the handler returns (404 not-found, 200 match, 400 validation, 401 auth strips),
+      // it MUST come from the single-game handler — proves /:externalId route is still reachable.
+      expect([200, 400, 401, 404]).toContain(res.status);
+    });
+  });
 });

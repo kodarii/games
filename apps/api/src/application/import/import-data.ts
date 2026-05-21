@@ -96,8 +96,47 @@ export class ImportData {
     }
 
     const newGames: NewGame[] = [];
+    /**
+     * FIXME(BE-02c, F-08-1): Production-path silent drop of `coverImage` +
+     * `metadataRef`.
+     *
+     * `NewGame.create` accepts `coverImage` and `metadataRef` props (see
+     * apps/api/src/domain/games/new-game.ts NewGameProps), and
+     * `DrizzleImportRepository.applyMerge`/`applyReplace` were extended in
+     * Phase 5 (BE-02b, plan 05-08) to persist these fields at the repo
+     * boundary when supplied. However, the v4 snapshot schema does not
+     * declare them (packages/shared/src/import-schema-v4.ts) and
+     * `export-snapshot.ts` does not emit them. So `g.coverImage` and
+     * `g.metadataRef` are structurally `undefined` per the v4 schema at
+     * this call site, and the repo-layer fix is dead code on this path.
+     *
+     * v5 unblocking work (out of Phase 5):
+     *   1. Bump snapshot schema to `ExportSnapshotV5` with `coverImage`,
+     *      `metadataProvider`, `metadataProviderId`, `metadataMatchedAt`.
+     *      Keep v4 readable (additive).
+     *   2. Extend `toSnapshot` in export-snapshot.ts to emit those fields.
+     *   3. Add `coverImage: g.coverImage ?? null` and
+     *      `metadataRef: g.metadataRef ?? null` to the `NewGame.create`
+     *      call below.
+     *   4. Flip `round-trip.test.ts` Test 1's `not.toHaveProperty`
+     *      assertions to positive preservation assertions.
+     *   5. Update `.planning/codebase/CONCERNS.md` BE-02c entry to
+     *      "Resolved" and the 05-CONTEXT.md D-33 line to reflect the
+     *      lifted scope.
+     *
+     * The round-trip test in
+     * `apps/api/src/infrastructure/import/__tests__/round-trip.test.ts`
+     * carries `not.toHaveProperty('coverImage')` etc., which surfaces a
+     * discoverable RED signal that the v5 PR cannot quietly skip via
+     * export-side change alone — ImportData.execute must also be extended
+     * (this site).
+     *
+     * Discovery: `grep -r 'FIXME(BE-02c' apps/api/src` returns 4 hits
+     * (this block + the inline marker below, plus 2 in export-snapshot.ts).
+     */
     for (const [i, g] of snap.games.entries()) {
       const isWishlist = g.kind === 'wishlist';
+      // FIXME(BE-02c, F-08-1): coverImage + metadataRef not plumbed — v4 schema does not carry them. See block comment above.
       const r = NewGame.create(
         {
           kind: g.kind,

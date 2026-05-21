@@ -22,7 +22,7 @@ sqlite.exec('PRAGMA journal_mode = WAL;');
 export const db = drizzle({ client: sqlite, schema: { ...gameSchema, ...authSchema } });
 
 const g = globalThis as unknown as { __apexDbMigrated?: boolean };
-if (!g.__apexDbMigrated) {
+if (process.env.NODE_ENV !== 'production' && !g.__apexDbMigrated) {
   migrate(db, { migrationsFolder: MIGRATIONS_DIR });
   g.__apexDbMigrated = true;
 }

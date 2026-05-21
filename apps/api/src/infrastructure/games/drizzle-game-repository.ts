@@ -16,7 +16,7 @@ import type {
 import type { NewGame } from '../../domain/games/new-game';
 import { db as defaultDb } from '../db/client';
 import type { GameRow } from '../db/schema';
-import { games as gamesTable } from '../db/schema';
+import { games as gamesTable, toGameInsertRow } from '../db/schema';
 
 /**
  * Drizzle handle — accepts both the top-level `db` and a `tx` inside a
@@ -160,31 +160,35 @@ export class DrizzleGameRepository implements GameRepository {
   }
 
   async create(newGame: NewGame): Promise<Game> {
-    const metadataRef = newGame.metadataRef;
     const [inserted] = await this.db
       .insert(gamesTable)
-      .values({
-        externalId: newGame.externalId,
-        kind: newGame.kind,
-        userId: newGame.userId,
-        title: newGame.title,
-        developer: newGame.developer ?? null,
-        genre: newGame.genre,
-        releaseYear: newGame.releaseYear?.value ?? null,
-        platform: newGame.platform,
-        edition: newGame.edition ?? null,
-        hoursPlayed: newGame.hoursPlayed?.value ?? null,
-        status: newGame.status ?? null,
-        format: newGame.format,
-        coverColor: newGame.coverColor ?? null,
-        coverImage: newGame.coverImage ?? null,
-        price: newGame.price?.value ?? null,
-        purchasedAt: newGame.purchasedAt?.value ?? null,
-        notes: newGame.notes ?? null,
-        metadataProvider: metadataRef?.providerName ?? null,
-        metadataProviderId: metadataRef?.providerId ?? null,
-        metadataMatchedAt: metadataRef?.matchedAt.toISOString() ?? null,
-      })
+      .values(
+        toGameInsertRow(newGame.userId, {
+          kind: newGame.kind,
+          externalId: newGame.externalId,
+          title: newGame.title,
+          developer: newGame.developer,
+          genre: newGame.genre,
+          releaseYear: newGame.releaseYear,
+          platform: newGame.platform,
+          edition: newGame.edition,
+          hoursPlayed: newGame.hoursPlayed,
+          status: newGame.status,
+          format: newGame.format,
+          coverColor: newGame.coverColor,
+          coverImage: newGame.coverImage,
+          price: newGame.price,
+          purchasedAt: newGame.purchasedAt,
+          notes: newGame.notes,
+          metadataRef: newGame.metadataRef
+            ? {
+                providerName: newGame.metadataRef.providerName,
+                providerId: newGame.metadataRef.providerId,
+                matchedAt: newGame.metadataRef.matchedAt,
+              }
+            : null,
+        }),
+      )
       .returning();
 
     return this.mapRowToGame(inserted);
