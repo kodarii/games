@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'bun:test';
 import { and, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { ClearIgdbIntegration } from '../../application/integrations/clear-igdb-integration';
+import { GetIgdbIntegrationStatus } from '../../application/integrations/get-igdb-integration-status';
 import { SaveIgdbIntegration } from '../../application/integrations/save-igdb-integration';
 import type { IgdbCredentialsVerifier } from '../../domain/integrations/igdb-credentials-verifier';
 import type { VerifyError } from '../../domain/integrations/igdb-credentials-verifier';
@@ -135,7 +136,7 @@ function buildApp(options: BuildOptions): BuiltApp {
     createIntegrationsRouter({
       saveIgdbIntegration,
       clearIgdbIntegration,
-      integrationCredentialsRepository: repo,
+      getIgdbIntegrationStatus: new GetIgdbIntegrationStatus(repo),
       idempotencyKeyMiddleware,
     }),
   );

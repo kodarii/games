@@ -3,10 +3,10 @@ import type { Game } from '../../domain/games/game';
 import type { GameRepository } from '../../domain/games/game-repository';
 import type { GameValidationError } from '../../domain/games/game-value-objects';
 import { NewGame, type NewGameProps } from '../../domain/games/new-game';
+import { isProviderSupported } from '../../domain/integrations/supported-providers';
 import type { PlatformRepository } from '../../domain/platforms/platform-repository';
 import { err, ok } from '../../domain/shared/result';
 import type { Result } from '../../domain/shared/result';
-import { isProviderSupported } from '../../infrastructure/config/providers';
 
 const purchasedAtSchema = z
   .string()

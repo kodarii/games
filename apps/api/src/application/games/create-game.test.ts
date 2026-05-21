@@ -11,7 +11,6 @@ class FakeGameRepository implements GameRepository {
   withTx = (_tx: unknown): GameRepository => this;
   list = async () => ({ items: [], total: 0 });
   listAll = async (): Promise<Game[]> => [];
-  findById = async () => null;
   findByExternalId = async () => null;
   delete = async () => null;
   update = async () => null;

@@ -44,10 +44,6 @@ class FakeGameRepository implements GameRepository {
     return null;
   };
 
-  async findById(id: number): Promise<Game | null> {
-    return this.games.get(id) ?? null;
-  }
-
   async delete(userId: string, externalId: string, _expectedUpdatedAt: Date): Promise<Game | null> {
     const game = [...this.games.values()].find(
       (g) => g.externalId === externalId && g.userId === userId,
@@ -133,7 +129,7 @@ describe('DeleteGame', () => {
     if (!result.ok) {
       expect(result.error.kind).toBe('not_found');
     }
-    const stillExists = await repo.findById(1);
+    const stillExists = await repo.findByExternalId('user-A', 'ext-game-1');
     expect(stillExists).not.toBeNull();
   });
 

@@ -1,6 +1,6 @@
 import type { GameRepository } from '../../domain/games/game-repository';
 import type { PlatformRepository } from '../../domain/platforms/platform-repository';
-import { toSnapshot, type ExportSnapshot } from './export-snapshot';
+import { type ExportSnapshot, toSnapshot } from './export-snapshot';
 
 export class ExportData {
   constructor(

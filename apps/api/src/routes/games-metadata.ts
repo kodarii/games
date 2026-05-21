@@ -34,7 +34,7 @@ export function createGamesMetadataRouter(deps: GamesMetadataRouterDeps) {
       title: title.slice(0, 100),
       platform,
     });
-    const result = await chain.searchGameMetadata.execute({ title, platform }, c.get('logger'));
+    const result = await chain.searchGameMetadata.execute({ title, platform });
     if (!result.ok) {
       if (result.error.kind === 'invalid_input') {
         return c.json(zodIssuesToProblemJson(result.error.issues), 400);

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'bun:test';
-import { type IgdbTokenStorage, IgdbTokenStore, type StoredIgdbToken } from '../igdb-token-store';
+import type {
+  IntegrationTokenStorage,
+  StoredIntegrationToken,
+} from '../../../domain/integrations/integration-token-storage';
+import { IgdbTokenStore } from '../igdb-token-store';
 
 function createDeferred<T>(): {
   promise: Promise<T>;
@@ -16,14 +20,14 @@ function createDeferred<T>(): {
 }
 
 interface FakeStorageOptions {
-  initial?: StoredIgdbToken | null;
+  initial?: StoredIntegrationToken | null;
 }
 
 function makeFakeStorage(opts: FakeStorageOptions = {}) {
-  let current: StoredIgdbToken | null = opts.initial ?? null;
+  let current: StoredIntegrationToken | null = opts.initial ?? null;
   let reads = 0;
   let writes = 0;
-  const storage: IgdbTokenStorage = {
+  const storage: IntegrationTokenStorage = {
     async read() {
       reads += 1;
       return current;
@@ -97,7 +101,7 @@ describe('IgdbTokenStore', () => {
   });
 
   it('returns the cached token when valid (expires > 1 day away) without fetching', async () => {
-    const valid: StoredIgdbToken = {
+    const valid: StoredIntegrationToken = {
       accessToken: 'cached',
       expiresAt: new Date(NOW.getTime() + 10 * ONE_DAY_MS),
       obtainedAt: new Date(NOW.getTime() - ONE_DAY_MS),
@@ -118,7 +122,7 @@ describe('IgdbTokenStore', () => {
   });
 
   it('refreshes when the cached token expires in less than 1 day', async () => {
-    const expiringSoon: StoredIgdbToken = {
+    const expiringSoon: StoredIntegrationToken = {
       accessToken: 'stale',
       expiresAt: new Date(NOW.getTime() + 30 * 60 * 1000), // 30 min away
       obtainedAt: new Date(NOW.getTime() - 30 * ONE_DAY_MS),
@@ -198,10 +202,10 @@ describe('IgdbTokenStore', () => {
     // populated its in-memory memo BEFORE the DB write succeeded, the second
     // call would skip the fetch — proving memo poisoning. We assert that
     // doesn't happen by checking the fetch count after recovery.
-    let current: StoredIgdbToken | null = null;
+    let current: StoredIntegrationToken | null = null;
     let writes = 0;
     let failNext = true;
-    const recoverable: IgdbTokenStorage = {
+    const recoverable: IntegrationTokenStorage = {
       async read() {
         return current;
       },
@@ -238,7 +242,7 @@ describe('IgdbTokenStore', () => {
   });
 
   it('forceRefresh fetches a new token even when current one is fresh', async () => {
-    const valid: StoredIgdbToken = {
+    const valid: StoredIntegrationToken = {
       accessToken: 'old',
       expiresAt: new Date(NOW.getTime() + 10 * ONE_DAY_MS),
       obtainedAt: new Date(NOW.getTime() - ONE_DAY_MS),

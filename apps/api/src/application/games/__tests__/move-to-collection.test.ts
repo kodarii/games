@@ -64,9 +64,6 @@ class FakeGameRepository implements GameRepository {
   listAll = async (): Promise<Game[]> => {
     throw new Error('not implemented');
   };
-  findById = async (): Promise<Game | null> => {
-    throw new Error('not implemented');
-  };
   create = async (): Promise<Game> => {
     throw new Error('not implemented');
   };

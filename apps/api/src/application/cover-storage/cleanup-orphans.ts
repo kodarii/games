@@ -1,7 +1,7 @@
 import type { GameRepository } from '../../domain/games/game-repository';
 import type { IdempotencyKeyRepository } from '../idempotency/idempotency-key-repository';
-import type { Logger } from '../../infrastructure/logging/logger';
-import type { TaskResult } from '../../infrastructure/lifecycle/scheduler';
+import type { Logger } from '../shared/logger';
+import type { TaskResult } from '../shared/scheduler';
 import type { CoverStorage } from './cover-storage';
 
 function extractKey(url: string): string {
@@ -86,7 +86,17 @@ export class CleanupOrphans {
       if (result.idempotencyKeysDeleted > 0) {
         this.logger?.event('idempotency.cleanup.done', { deleted: result.idempotencyKeysDeleted });
       }
-      return { status: 'completed', details: { listed: result.listed, inDb: result.inDb, orphans: result.orphans, deleted: result.deleted, failed: result.failed, idempotencyKeysDeleted: result.idempotencyKeysDeleted } };
+      return {
+        status: 'completed',
+        details: {
+          listed: result.listed,
+          inDb: result.inDb,
+          orphans: result.orphans,
+          deleted: result.deleted,
+          failed: result.failed,
+          idempotencyKeysDeleted: result.idempotencyKeysDeleted,
+        },
+      };
     } finally {
       if (this.lock) {
         await this.lock.release(LOCK_NAME);

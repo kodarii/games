@@ -14,6 +14,7 @@ import type { IgdbChain, IgdbChainHolder } from '../../infrastructure/igdb/igdb-
 import { IgdbGameMetadataProvider } from '../../infrastructure/igdb/igdb-game-metadata-provider';
 import { IgdbHttpClient } from '../../infrastructure/igdb/igdb-http-client';
 import { IgdbTokenStore } from '../../infrastructure/igdb/igdb-token-store';
+import { baseLogger } from '../../infrastructure/logging/logger';
 import { requestContext } from '../../infrastructure/logging/request-context-middleware';
 import { CachingGameMetadataProvider } from '../../infrastructure/metadata/caching-game-metadata-provider';
 import { MetadataCacheRepository } from '../../infrastructure/metadata/metadata-cache-repository';
@@ -124,7 +125,7 @@ function buildApp(state: FakeIgdbState): BuiltApp {
     positiveTtlDays: 30,
     negativeTtlDays: 1,
   });
-  const searchGameMetadata = new SearchGameMetadata(cachingProvider, cacheRepo);
+  const searchGameMetadata = new SearchGameMetadata(cachingProvider, cacheRepo, baseLogger);
   // EnrichGameMetadata is local to this test app to keep it independent of
   // the runtime composition root. The metadata-router tests only exercise
   // the search side, so `enrichGameMetadata` is referenced below to keep

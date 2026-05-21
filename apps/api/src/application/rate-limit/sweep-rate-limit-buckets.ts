@@ -1,7 +1,5 @@
-import { lt } from 'drizzle-orm';
-import type { TaskResult } from '../../infrastructure/lifecycle/scheduler';
-import type { db as defaultDb } from '../../infrastructure/db/client';
-import { rateLimitBuckets } from '../../infrastructure/db/schema';
+import type { RateLimitBucketRepository } from '../../domain/rate-limit/rate-limit-bucket-repository';
+import type { TaskResult } from '../shared/scheduler';
 
 const WINDOW_MS = 60_000;
 const LOCK_NAME = 'sweep-rate-limit-buckets';
@@ -13,7 +11,7 @@ export interface SweepLock {
 }
 
 export interface SweepRateLimitBucketsDeps {
-  readonly db: typeof defaultDb;
+  readonly repo: RateLimitBucketRepository;
   readonly lock: SweepLock;
   readonly now: () => number;
 }
@@ -33,11 +31,8 @@ export class SweepRateLimitBuckets {
     if (!acquired) return { status: 'skipped', reason: 'lock_held' };
     try {
       const cutoff = this.deps.now() - WINDOW_MS;
-      const result = await this.deps.db
-        .delete(rateLimitBuckets)
-        .where(lt(rateLimitBuckets.windowStart, cutoff))
-        .returning({ windowStart: rateLimitBuckets.windowStart });
-      return { status: 'completed', details: { deleted: result.length } };
+      const deleted = await this.deps.repo.deleteOlderThan(cutoff);
+      return { status: 'completed', details: { deleted } };
     } finally {
       await this.deps.lock.release(LOCK_NAME);
     }

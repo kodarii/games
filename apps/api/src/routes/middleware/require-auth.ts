@@ -1,6 +1,7 @@
 import type { MiddlewareHandler } from 'hono';
 import { auth } from '../../infrastructure/auth/auth';
 import type { Logger } from '../../infrastructure/logging/logger';
+import { unauthorizedProblem } from '../_problem-json';
 
 export type AuthVariables = {
   user: typeof auth.$Infer.Session.user;
@@ -12,7 +13,7 @@ export type AuthVariables = {
 export const requireAuth: MiddlewareHandler<{ Variables: AuthVariables }> = async (c, next) => {
   const session = await auth.api.getSession({ headers: c.req.raw.headers });
   if (!session) {
-    return c.json({ error: 'unauthorized' }, 401);
+    return c.json(unauthorizedProblem(), 401);
   }
   c.set('user', session.user);
   c.set('session', session.session);

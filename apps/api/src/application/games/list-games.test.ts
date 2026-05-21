@@ -36,9 +36,6 @@ class FakeGameRepository implements GameRepository {
     const end = start + query.perPage;
     return { items: filtered.slice(start, end), total: filtered.length };
   };
-  findById = async (): Promise<Game | null> => {
-    throw new Error('not implemented');
-  };
   findByExternalId = async (): Promise<Game | null> => {
     throw new Error('not implemented');
   };

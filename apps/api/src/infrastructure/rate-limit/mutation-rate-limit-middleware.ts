@@ -1,17 +1,15 @@
-import { sql } from 'drizzle-orm';
 import type { MiddlewareHandler } from 'hono';
-import type { db as defaultDb } from '../../infrastructure/db/client';
-import { rateLimitBuckets } from '../../infrastructure/db/schema';
-import type { Logger } from '../../infrastructure/logging/logger';
-import { problemResponse } from '../_problem-json';
-import type { AuthVariables } from './require-auth';
+import type { RateLimitBucketRepository } from '../../domain/rate-limit/rate-limit-bucket-repository';
+import { problemResponse } from '../../routes/_problem-json';
+import type { AuthVariables } from '../../routes/middleware/require-auth';
+import type { Logger } from '../logging/logger';
 
 const MUTATING_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
 const WINDOW_MS = 60_000;
 const DEFAULT_LIMIT = 60;
 
 export interface MutationRateLimitDeps {
-  readonly db: typeof defaultDb;
+  readonly repo: RateLimitBucketRepository;
   readonly now: () => number;
   readonly limit?: number;
 }
@@ -19,10 +17,9 @@ export interface MutationRateLimitDeps {
 /**
  * Per-user fixed-window mutation rate limit.
  *
- * Persists counters in `rate_limit_buckets`. Atomic upsert via
- * `ON CONFLICT DO UPDATE … SET count = count + 1` returns the post-increment
- * count; SQLite WAL serializes concurrent writes so two mutations in the same
- * window cannot both insert.
+ * Persists counters via `RateLimitBucketRepository.increment`. The adapter
+ * uses an atomic UPSERT so the post-increment count is correct under
+ * concurrent writers in the same window.
  *
  * Reads (`GET`/`HEAD`/`OPTIONS`) are not counted. `requireAuth` MUST run
  * before this middleware so `c.get('user')` is populated; if not, we fail
@@ -51,19 +48,10 @@ export function mutationRateLimit(deps: MutationRateLimitDeps): MiddlewareHandle
 
     let currentCount: number;
     try {
-      const result = await deps.db
-        .insert(rateLimitBuckets)
-        .values({ userId: user.id, windowStart, count: 1 })
-        .onConflictDoUpdate({
-          target: [rateLimitBuckets.userId, rateLimitBuckets.windowStart],
-          set: { count: sql`${rateLimitBuckets.count} + 1` },
-        })
-        .returning({ count: rateLimitBuckets.count });
-      currentCount = result[0]?.count ?? limit + 1;
+      currentCount = await deps.repo.increment(user.id, windowStart);
     } catch (err) {
       // Fail-closed: if the limiter store is unavailable we reject rather than
-      // silently allowing unbounded mutations. SQLite on a healthy local disk
-      // rarely throws here; when it does, ops should see the structured event.
+      // silently allowing unbounded mutations.
       logger?.error({
         event: 'rate_limit.db_error',
         userId: user.id,

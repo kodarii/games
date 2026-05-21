@@ -57,10 +57,6 @@ class FakeGameRepository implements GameRepository {
     return created;
   };
 
-  async findById(id: number): Promise<Game | null> {
-    return this.games.get(id) ?? null;
-  }
-
   async update(
     userId: string,
     externalId: string,

@@ -1,8 +1,8 @@
 import type { IntegrationCredentialsRepository } from '../../domain/integrations/integration-credentials-repository';
+import type { IntegrationTokenStorage } from '../../domain/integrations/integration-token-storage';
 import type { IntegrationKind } from '../../domain/integrations/integration-value-objects';
 import { ok } from '../../domain/shared/result';
 import type { Result } from '../../domain/shared/result';
-import type { IgdbTokenStorage } from '../../infrastructure/igdb/igdb-token-store';
 import type { TransactionRunner } from '../shared/transaction-runner';
 import type { IgdbChainSwapper } from './save-igdb-integration';
 
@@ -10,7 +10,7 @@ const IGDB_KIND: IntegrationKind = 'igdb';
 
 export interface ClearIgdbIntegrationDeps {
   readonly repo: IntegrationCredentialsRepository;
-  readonly tokenStorage: IgdbTokenStorage;
+  readonly tokenStorage: IntegrationTokenStorage;
   readonly chainHolder: IgdbChainSwapper;
   readonly transactionRunner: TransactionRunner;
 }

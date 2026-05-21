@@ -22,11 +22,7 @@ function makeLogger(): { logger: Logger; events: RecordedEvent[]; errors: Record
   return { logger, events, errors };
 }
 
-function makeTask(
-  name: string,
-  intervalMs: number,
-  run: () => Promise<TaskResult>,
-): Task {
+function makeTask(name: string, intervalMs: number, run: () => Promise<TaskResult>): Task {
   return { name, intervalMs, run };
 }
 
@@ -69,15 +65,11 @@ describe('Scheduler', () => {
 
   it('tick logs cron.<name>.skipped with the reason', async () => {
     const { logger, events } = makeLogger();
-    const tasks = [
-      makeTask('s', 1000, async () => ({ status: 'skipped', reason: 'lock_held' })),
-    ];
+    const tasks = [makeTask('s', 1000, async () => ({ status: 'skipped', reason: 'lock_held' }))];
     const scheduler = new Scheduler({ logger, tasks });
     scheduler.start();
     await (scheduler as unknown as { tick: (t: Task) => Promise<void> }).tick(tasks[0]!);
-    expect(events).toEqual([
-      { name: 'cron.s.skipped', fields: { reason: 'lock_held' } },
-    ]);
+    expect(events).toEqual([{ name: 'cron.s.skipped', fields: { reason: 'lock_held' } }]);
     scheduler.stop();
   });
 
@@ -105,9 +97,7 @@ describe('Scheduler', () => {
     scheduler.start();
     scheduler.stop();
     scheduler.stop(); // idempotent
-    expect(events).toEqual([
-      { name: 'scheduler.stopped', fields: { tasks: 1 } },
-    ]);
+    expect(events).toEqual([{ name: 'scheduler.stopped', fields: { tasks: 1 } }]);
   });
 
   it('start() after stop() throws', () => {

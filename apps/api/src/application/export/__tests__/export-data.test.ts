@@ -30,9 +30,6 @@ class FakeGameRepository implements GameRepository {
   async list(_query: ListGamesQuery): Promise<ListGamesResult> {
     throw new Error('not used in this test');
   }
-  async findById(_id: number): Promise<Game | null> {
-    throw new Error('not used in this test');
-  }
   async findByExternalId(_userId: string, _externalId: string): Promise<Game | null> {
     throw new Error('not used in this test');
   }

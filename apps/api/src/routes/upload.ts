@@ -1,5 +1,6 @@
 import { Hono, type MiddlewareHandler } from 'hono';
 import type { CoverStorage } from '../application/cover-storage/cover-storage';
+import { invalidFileProblem, uploadFailedProblem } from './_problem-json';
 import type { AuthVariables } from './middleware/require-auth';
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -29,18 +30,18 @@ export function createUploadRoute(
     try {
       formData = await c.req.formData();
     } catch {
-      return c.json({ error: 'invalid_file' }, 400);
+      return c.json(invalidFileProblem('Malformed multipart body'), 400);
     }
 
     const file = formData.get('file');
     if (!(file instanceof File)) {
-      return c.json({ error: 'invalid_file' }, 400);
+      return c.json(invalidFileProblem('Missing file'), 400);
     }
     if (file.size > MAX_BYTES) {
-      return c.json({ error: 'invalid_file' }, 400);
+      return c.json(invalidFileProblem('File too large'), 400);
     }
     if (!ALLOWED_MIME.has(file.type)) {
-      return c.json({ error: 'invalid_file' }, 400);
+      return c.json(invalidFileProblem('Disallowed MIME type'), 400);
     }
 
     try {
@@ -54,7 +55,7 @@ export function createUploadRoute(
         event: 'upload.cover.failed',
         err: err instanceof Error ? err : new Error(String(err)),
       });
-      return c.json({ error: 'upload_failed' }, 502);
+      return c.json(uploadFailedProblem(), 502);
     }
   });
 

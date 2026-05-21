@@ -77,7 +77,13 @@ describe('parseImport', () => {
     const now = () => '2026-04-29T00:00:00.000Z';
     const ext = {
       games: [
-        { title: 'Bloodborne', releaseYear: 2026, platform: 'PS4', format: 'physical', coverColor: '#f4a261' },
+        {
+          title: 'Bloodborne',
+          releaseYear: 2026,
+          platform: 'PS4',
+          format: 'physical',
+          coverColor: '#f4a261',
+        },
         { title: 'Mario', releaseYear: 2017, platform: 'Switch', format: 'digital' },
         { title: 'Zelda', releaseYear: 2017, platform: 'Switch', format: 'digital' },
       ],
@@ -117,7 +123,21 @@ describe('parseImport', () => {
   });
 
   it('returns invalid_shape for v2 with missing title', () => {
-    const bad = { ...validV2, games: [{ externalId: 'g-1', developer: 'X', genre: 'Y', releaseYear: 2020, platform: 'PS5', hoursPlayed: 0, status: 'Backlog', format: 'digital' }] };
+    const bad = {
+      ...validV2,
+      games: [
+        {
+          externalId: 'g-1',
+          developer: 'X',
+          genre: 'Y',
+          releaseYear: 2020,
+          platform: 'PS5',
+          hoursPlayed: 0,
+          status: 'Backlog',
+          format: 'digital',
+        },
+      ],
+    };
     const result = parseImport(JSON.stringify(bad));
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.kind).toBe('invalid_shape');

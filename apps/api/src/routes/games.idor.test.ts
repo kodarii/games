@@ -2,12 +2,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { usePrimedIgdbChain } from '../__tests__/_fixtures/igdb-chain-fixture';
+import { Application } from '../app';
 import { db } from '../infrastructure/db/client';
 import { games as gamesTable } from '../infrastructure/db/schema';
 import { requestContext } from '../infrastructure/logging/request-context-middleware';
 import { createGamesRouter } from './games';
 import type { AuthVariables } from './middleware/require-auth';
-import { Application } from '../app';
 
 const _testApp = Application.buildForTesting();
 const _gameOps = _testApp.gameOpsForTesting();

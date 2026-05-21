@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
+import { Application } from '../../app';
 import { db } from '../../infrastructure/db/client';
 import {
   games as gamesTable,
@@ -8,11 +9,11 @@ import {
   rateLimitBuckets,
 } from '../../infrastructure/db/schema';
 import { requestContext } from '../../infrastructure/logging/request-context-middleware';
+import { DrizzleRateLimitBucketRepository } from '../../infrastructure/rate-limit/drizzle-rate-limit-bucket-repository';
+import { mutationRateLimit } from '../../infrastructure/rate-limit/mutation-rate-limit-middleware';
 import { attachProblemJsonErrorHandler } from '../_problem-json';
 import { createGamesRouter } from '../games';
-import { mutationRateLimit } from '../middleware/mutation-rate-limit';
 import type { AuthVariables } from '../middleware/require-auth';
-import { Application } from '../../app';
 
 const _testApp = Application.buildForTesting();
 const _gameOps = _testApp.gameOpsForTesting();
@@ -40,7 +41,8 @@ function makeApp(now: () => number, limit: number) {
     if (u) c.set('user', { id: u } as AuthVariables['user']);
     await next();
   });
-  app.use('/api/games/*', mutationRateLimit({ db, now, limit }));
+  const repo = new DrizzleRateLimitBucketRepository(db);
+  app.use('/api/games/*', mutationRateLimit({ repo, now, limit }));
   app.route('/api/games', games);
   return app;
 }

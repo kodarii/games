@@ -10,7 +10,18 @@ import type {
 import { err, ok } from '../../../domain/shared/result';
 import type { Result } from '../../../domain/shared/result';
 import type { CachedMetadataLookup } from '../../../infrastructure/metadata/metadata-cache-repository';
+import type { Logger } from '../../shared/logger';
 import { SearchGameMetadata } from '../search-game-metadata';
+
+const noopLogger: Logger = {
+  level: 'info',
+  child: () => noopLogger,
+  event: () => {},
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+  error: () => {},
+};
 
 function makeCandidate(over: Partial<GameMetadataCandidate> = {}): GameMetadataCandidate {
   return {
@@ -62,7 +73,7 @@ describe('SearchGameMetadata', () => {
     const candidates = [makeCandidate({ providerId: 'a' }), makeCandidate({ providerId: 'b' })];
     const provider = new FakeCachingProvider({ kind: 'ok', candidates });
     const cache = new FakeCacheRepo();
-    const usecase = new SearchGameMetadata(provider, cache);
+    const usecase = new SearchGameMetadata(provider, cache, noopLogger);
 
     const result = await usecase.execute({ title: 'X', platform: 'PS2' });
     expect(result.ok).toBe(true);
@@ -76,7 +87,7 @@ describe('SearchGameMetadata', () => {
   it('empty result is not degraded (no reason)', async () => {
     const provider = new FakeCachingProvider({ kind: 'ok', candidates: [] });
     const cache = new FakeCacheRepo();
-    const usecase = new SearchGameMetadata(provider, cache);
+    const usecase = new SearchGameMetadata(provider, cache, noopLogger);
 
     const result = await usecase.execute({ title: 'Obscure', platform: 'PS2' });
     expect(result.ok).toBe(true);
@@ -89,7 +100,7 @@ describe('SearchGameMetadata', () => {
   it('unavailable + cache miss → degraded with reason provider_down', async () => {
     const provider = new FakeCachingProvider({ kind: 'err', error: { kind: 'unavailable' } });
     const cache = new FakeCacheRepo();
-    const usecase = new SearchGameMetadata(provider, cache);
+    const usecase = new SearchGameMetadata(provider, cache, noopLogger);
 
     const result = await usecase.execute({ title: 'X', platform: 'PS2' });
     expect(result.ok).toBe(true);
@@ -106,7 +117,7 @@ describe('SearchGameMetadata', () => {
     const cache = new FakeCacheRepo();
     const fetchedAt = new Date('2025-01-01T00:00:00.000Z');
     cache.seed('fake-key:PS2', { candidates: stale, fetchedAt });
-    const usecase = new SearchGameMetadata(provider, cache);
+    const usecase = new SearchGameMetadata(provider, cache, noopLogger);
 
     const result = await usecase.execute({ title: 'X', platform: 'PS2' });
     expect(result.ok).toBe(true);
@@ -120,7 +131,7 @@ describe('SearchGameMetadata', () => {
   it('rate_limited + cache miss → degraded with reason rate_limited', async () => {
     const provider = new FakeCachingProvider({ kind: 'err', error: { kind: 'rate_limited' } });
     const cache = new FakeCacheRepo();
-    const usecase = new SearchGameMetadata(provider, cache);
+    const usecase = new SearchGameMetadata(provider, cache, noopLogger);
 
     const result = await usecase.execute({ title: 'X', platform: 'PS2' });
     expect(result.ok).toBe(true);
@@ -134,7 +145,7 @@ describe('SearchGameMetadata', () => {
     const cache = new FakeCacheRepo();
     const fetchedAt = new Date('2025-02-02T00:00:00.000Z');
     cache.seed('fake-key:PS2', { candidates: [makeCandidate()], fetchedAt });
-    const usecase = new SearchGameMetadata(provider, cache);
+    const usecase = new SearchGameMetadata(provider, cache, noopLogger);
 
     const result = await usecase.execute({ title: 'X', platform: 'PS2' });
     expect(result.ok).toBe(true);
@@ -149,7 +160,7 @@ describe('SearchGameMetadata', () => {
       error: { kind: 'platform_unsupported' },
     });
     const cache = new FakeCacheRepo();
-    const usecase = new SearchGameMetadata(provider, cache);
+    const usecase = new SearchGameMetadata(provider, cache, noopLogger);
 
     const result = await usecase.execute({ title: 'X', platform: 'Unknown' });
     expect(result.ok).toBe(true);
@@ -161,7 +172,7 @@ describe('SearchGameMetadata', () => {
   it('invalid_response + cache miss → degraded provider_down', async () => {
     const provider = new FakeCachingProvider({ kind: 'err', error: { kind: 'invalid_response' } });
     const cache = new FakeCacheRepo();
-    const usecase = new SearchGameMetadata(provider, cache);
+    const usecase = new SearchGameMetadata(provider, cache, noopLogger);
 
     const result = await usecase.execute({ title: 'X', platform: 'PS2' });
     expect(result.ok).toBe(true);
@@ -173,7 +184,7 @@ describe('SearchGameMetadata', () => {
   it('empty title fails Zod with invalid_input', async () => {
     const provider = new FakeCachingProvider({ kind: 'ok', candidates: [] });
     const cache = new FakeCacheRepo();
-    const usecase = new SearchGameMetadata(provider, cache);
+    const usecase = new SearchGameMetadata(provider, cache, noopLogger);
 
     const result = await usecase.execute({ title: '', platform: 'PS2' });
     expect(result.ok).toBe(false);
@@ -184,7 +195,7 @@ describe('SearchGameMetadata', () => {
   it('empty platform fails Zod with invalid_input', async () => {
     const provider = new FakeCachingProvider({ kind: 'ok', candidates: [] });
     const cache = new FakeCacheRepo();
-    const usecase = new SearchGameMetadata(provider, cache);
+    const usecase = new SearchGameMetadata(provider, cache, noopLogger);
 
     const result = await usecase.execute({ title: 'X', platform: '' });
     expect(result.ok).toBe(false);
