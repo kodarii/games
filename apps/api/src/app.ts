@@ -13,7 +13,7 @@ import { Scheduler } from './infrastructure/lifecycle/scheduler';
 import { attachProblemJsonErrorHandler } from './routes/_problem-json';
 import { developers } from './routes/developers';
 import { exportRoute } from './routes/export';
-import { games } from './routes/games';
+import { createGamesRouter } from './routes/games';
 import { genres } from './routes/genres';
 import { createHealthRouter } from './routes/health';
 import { importRoute } from './routes/import';
@@ -255,7 +255,21 @@ export class Application {
 
     this.hono.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw));
 
-    this.mountAuthed('/api/games', games);
+    this.hono.use('/api/games/*', requireAuth);
+    this.hono.use('/api/games/*', this.httpMw.rateLimitMutations);
+    this.hono.route(
+      '/api/games',
+      createGamesRouter({
+        create: this.gameOps.create,
+        update: this.gameOps.update,
+        delete: this.gameOps.delete,
+        list: this.gameOps.list,
+        get: this.gameOps.get,
+        moveToCollection: this.gameOps.moveToCollection,
+        igdbChainHolder: this.igdb.holder,
+        idempotencyKey: this.httpMw.idempotencyKey,
+      }),
+    );
     this.mountAuthed('/api/platforms', platforms);
     this.mountAuthed('/api/genres', genres);
     this.mountAuthed('/api/developers', developers);

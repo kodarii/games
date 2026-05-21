@@ -2,10 +2,30 @@ import { describe, expect, it } from 'bun:test';
 import { Hono } from 'hono';
 import { requestContext } from '../infrastructure/logging/request-context-middleware';
 import { attachProblemJsonErrorHandler } from '../routes/_problem-json';
-import { games as gamesRouter } from '../routes/games';
+import { createGamesRouter } from '../routes/games';
 import type { AuthVariables } from '../routes/middleware/require-auth';
-import { igdbChainHolder } from '../wiring';
+import {
+  createGame,
+  updateGame,
+  deleteGame,
+  listGames,
+  getGame,
+  moveToCollection,
+  igdbChainHolder,
+  idempotencyKeyMiddleware,
+} from '../wiring';
 import { useDisabledIgdbChain } from './_fixtures/igdb-chain-fixture';
+
+const gamesRouter = createGamesRouter({
+  create: createGame,
+  update: updateGame,
+  delete: deleteGame,
+  list: listGames,
+  get: getGame,
+  moveToCollection,
+  igdbChainHolder,
+  idempotencyKey: idempotencyKeyMiddleware,
+});
 
 useDisabledIgdbChain();
 

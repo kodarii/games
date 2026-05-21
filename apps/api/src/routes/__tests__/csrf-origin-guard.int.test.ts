@@ -5,9 +5,30 @@ import { db } from '../../infrastructure/db/client';
 import { games as gamesTable, platforms as platformsTable } from '../../infrastructure/db/schema';
 import { requestContext } from '../../infrastructure/logging/request-context-middleware';
 import { attachProblemJsonErrorHandler } from '../_problem-json';
-import { games } from '../games';
+import { createGamesRouter } from '../games';
 import { originGuard } from '../middleware/origin-guard';
 import type { AuthVariables } from '../middleware/require-auth';
+import {
+  createGame,
+  updateGame,
+  deleteGame,
+  listGames,
+  getGame,
+  moveToCollection,
+  igdbChainHolder,
+  idempotencyKeyMiddleware,
+} from '../../wiring';
+
+const games = createGamesRouter({
+  create: createGame,
+  update: updateGame,
+  delete: deleteGame,
+  list: listGames,
+  get: getGame,
+  moveToCollection,
+  igdbChainHolder,
+  idempotencyKey: idempotencyKeyMiddleware,
+});
 
 const TEST_USER_ID = `test-csrf-${crypto.randomUUID()}`;
 const ALLOWED = new Set(['http://localhost:5173']);

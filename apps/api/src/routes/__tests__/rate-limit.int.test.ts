@@ -9,9 +9,30 @@ import {
 } from '../../infrastructure/db/schema';
 import { requestContext } from '../../infrastructure/logging/request-context-middleware';
 import { attachProblemJsonErrorHandler } from '../_problem-json';
-import { games } from '../games';
+import { createGamesRouter } from '../games';
 import { mutationRateLimit } from '../middleware/mutation-rate-limit';
 import type { AuthVariables } from '../middleware/require-auth';
+import {
+  createGame,
+  updateGame,
+  deleteGame,
+  listGames,
+  getGame,
+  moveToCollection,
+  igdbChainHolder,
+  idempotencyKeyMiddleware,
+} from '../../wiring';
+
+const games = createGamesRouter({
+  create: createGame,
+  update: updateGame,
+  delete: deleteGame,
+  list: listGames,
+  get: getGame,
+  moveToCollection,
+  igdbChainHolder,
+  idempotencyKey: idempotencyKeyMiddleware,
+});
 
 const USER_A = `test-rl-int-a-${crypto.randomUUID()}`;
 const USER_B = `test-rl-int-b-${crypto.randomUUID()}`;

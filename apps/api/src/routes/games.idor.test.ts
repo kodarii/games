@@ -5,8 +5,29 @@ import { usePrimedIgdbChain } from '../__tests__/_fixtures/igdb-chain-fixture';
 import { db } from '../infrastructure/db/client';
 import { games as gamesTable } from '../infrastructure/db/schema';
 import { requestContext } from '../infrastructure/logging/request-context-middleware';
-import { games } from './games';
+import { createGamesRouter } from './games';
 import type { AuthVariables } from './middleware/require-auth';
+import {
+  createGame,
+  updateGame,
+  deleteGame,
+  listGames,
+  getGame,
+  moveToCollection,
+  igdbChainHolder,
+  idempotencyKeyMiddleware,
+} from '../wiring';
+
+const games = createGamesRouter({
+  create: createGame,
+  update: updateGame,
+  delete: deleteGame,
+  list: listGames,
+  get: getGame,
+  moveToCollection,
+  igdbChainHolder,
+  idempotencyKey: idempotencyKeyMiddleware,
+});
 
 usePrimedIgdbChain({
   clientId: 'idor-test-client-id',

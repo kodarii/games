@@ -9,8 +9,29 @@ import {
 } from '../../infrastructure/db/schema';
 import { requestContext } from '../../infrastructure/logging/request-context-middleware';
 import { attachProblemJsonErrorHandler } from '../_problem-json';
-import { games } from '../games';
+import { createGamesRouter } from '../games';
 import type { AuthVariables } from '../middleware/require-auth';
+import {
+  createGame,
+  updateGame,
+  deleteGame,
+  listGames,
+  getGame,
+  moveToCollection,
+  igdbChainHolder,
+  idempotencyKeyMiddleware,
+} from '../../wiring';
+
+const games = createGamesRouter({
+  create: createGame,
+  update: updateGame,
+  delete: deleteGame,
+  list: listGames,
+  get: getGame,
+  moveToCollection,
+  igdbChainHolder,
+  idempotencyKey: idempotencyKeyMiddleware,
+});
 
 const TEST_USER_ID = `test-idem-int-${crypto.randomUUID()}`;
 const KEY = '01234567-89ab-cdef-0123-456789abcdef';
