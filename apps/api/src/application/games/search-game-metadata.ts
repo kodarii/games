@@ -5,7 +5,7 @@ import type {
 } from '../../domain/games/game-metadata-provider';
 import { err, ok } from '../../domain/shared/result';
 import type { Result } from '../../domain/shared/result';
-import { type Logger, baseLogger } from '../../infrastructure/logging/logger';
+import type { Logger } from '../shared/logger';
 
 const inputSchema = z.object({
   title: z.string().trim().min(1),
@@ -72,11 +72,11 @@ export class SearchGameMetadata {
   constructor(
     private readonly provider: SearchableMetadataProvider,
     private readonly cache: MetadataCacheReader,
+    private readonly logger: Logger,
   ) {}
 
   async execute(
     input: unknown,
-    logger: Logger = baseLogger,
   ): Promise<Result<SearchGameMetadataResponse, SearchGameMetadataError>> {
     const parsed = inputSchema.safeParse(input);
     if (!parsed.success) {
@@ -100,7 +100,7 @@ export class SearchGameMetadata {
       const cacheKey = this.provider.buildCacheKey(title, platform);
       const cached = await this.cache.get(this.provider.providerName, cacheKey);
       if (cached !== null) {
-        logger.event('igdb.search.stale_served', {
+        this.logger.event('igdb.search.stale_served', {
           cacheKey,
           staleAt: cached.fetchedAt.toISOString(),
         });

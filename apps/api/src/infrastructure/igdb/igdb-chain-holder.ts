@@ -152,6 +152,7 @@ export class IgdbChainHolder {
     const searchGameMetadata = new SearchGameMetadata(
       cachingProvider,
       this.deps.metadataCacheRepository,
+      this.deps.logger,
     );
     const enrichGameMetadata = new EnrichGameMetadata(
       this.deps.gameRepository,
