@@ -14,3 +14,4 @@ apps/api/src/data/*.db-*
 *.db
 *.db-wal
 *.db-shm
+.claude/worktrees/
