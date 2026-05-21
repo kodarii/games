@@ -12,13 +12,13 @@ import { requestContext } from './infrastructure/logging/request-context-middlew
 import { Scheduler } from './infrastructure/lifecycle/scheduler';
 import { attachProblemJsonErrorHandler } from './routes/_problem-json';
 import { developers } from './routes/developers';
-import { exportRoute } from './routes/export';
+import { createExportRouter } from './routes/export';
 import { createGamesRouter } from './routes/games';
 import { genres } from './routes/genres';
 import { createHealthRouter } from './routes/health';
-import { importRoute } from './routes/import';
+import { createImportRouter } from './routes/import';
 import { createIntegrationsRouter } from './routes/integrations';
-import { me } from './routes/me';
+import { createMeRouter } from './routes/me';
 import { originGuard } from './routes/middleware/origin-guard';
 import { type AuthVariables, requireAuth } from './routes/middleware/require-auth';
 import { requireUploadPermission } from './routes/middleware/require-upload-permission';
@@ -273,9 +273,27 @@ export class Application {
     this.mountAuthed('/api/platforms', platforms);
     this.mountAuthed('/api/genres', genres);
     this.mountAuthed('/api/developers', developers);
-    this.mountAuthed('/api/export', exportRoute);
-    this.mountAuthed('/api/import', importRoute);
-    this.mountAuthed('/api/me', me);
+
+    this.hono.use('/api/export/*', requireAuth);
+    this.hono.use('/api/export/*', this.httpMw.rateLimitMutations);
+    this.hono.route('/api/export', createExportRouter({ exportData: this.dataIO.exportData }));
+
+    this.hono.use('/api/import/*', requireAuth);
+    this.hono.use('/api/import/*', this.httpMw.rateLimitMutations);
+    this.hono.route(
+      '/api/import',
+      createImportRouter({
+        importData: this.dataIO.importData,
+        idempotencyKey: this.httpMw.idempotencyKey,
+      }),
+    );
+
+    this.hono.use('/api/me/*', requireAuth);
+    this.hono.use('/api/me/*', this.httpMw.rateLimitMutations);
+    this.hono.route(
+      '/api/me',
+      createMeRouter({ coverStorageAvailable: this.coverStorageBundle.available }),
+    );
 
     this.hono.use('/api/integrations/*', requireAuth);
     this.hono.use('/api/integrations/*', rateLimitMutations);
