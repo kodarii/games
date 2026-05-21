@@ -34,6 +34,15 @@ import {
   saveIgdbIntegration,
   sweepRateLimitBuckets,
 } from './wiring';
+import {
+  gameRepository as wiringGameRepository,
+  platformRepository as wiringPlatformRepository,
+  genreRepository as wiringGenreRepository,
+  developerRepository as wiringDeveloperRepository,
+  importRepository as wiringImportRepository,
+  idempotencyKeyRepository as wiringIdempotencyKeyRepository,
+  transactionRunner as wiringTransactionRunner,
+} from './wiring';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
@@ -42,14 +51,26 @@ function ensureError(value: unknown): Error {
   return value instanceof Error ? value : new Error(String(value));
 }
 
+interface Persistence {
+  readonly gameRepository: typeof wiringGameRepository;
+  readonly platformRepository: typeof wiringPlatformRepository;
+  readonly genreRepository: typeof wiringGenreRepository;
+  readonly developerRepository: typeof wiringDeveloperRepository;
+  readonly importRepository: typeof wiringImportRepository;
+  readonly idempotencyKeyRepository: typeof wiringIdempotencyKeyRepository;
+  readonly transactionRunner: typeof wiringTransactionRunner;
+}
+
 export class Application {
   private readonly hono = new Hono<{ Variables: AuthVariables }>();
   private bunServer: ReturnType<typeof Bun.serve> | null = null;
   private shuttingDown = false;
   private started = false;
+  private readonly persistence: Persistence;
   private readonly scheduler: Scheduler;
 
   constructor() {
+    this.persistence = this.buildPersistence();
     this.scheduler = new Scheduler({
       logger: baseLogger,
       tasks: [
@@ -221,6 +242,20 @@ export class Application {
     this.scheduler.stop();
     await this.drainHttpServer();
     this.closeDatabase();
+  }
+
+  private buildPersistence(): Persistence {
+    // Phase 2 incremental: borrow from wiring.ts. Replaced by direct
+    // constructions in the final cleanup task when wiring.ts is deleted.
+    return Object.freeze({
+      gameRepository: wiringGameRepository,
+      platformRepository: wiringPlatformRepository,
+      genreRepository: wiringGenreRepository,
+      developerRepository: wiringDeveloperRepository,
+      importRepository: wiringImportRepository,
+      idempotencyKeyRepository: wiringIdempotencyKeyRepository,
+      transactionRunner: wiringTransactionRunner,
+    });
   }
 
   private registerProcessHandlers(): void {
