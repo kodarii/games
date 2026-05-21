@@ -1,12 +1,12 @@
 import { Hono } from 'hono';
 import type { MiddlewareHandler } from 'hono';
-import type { Game } from '../domain/games/game';
 import type { CreateGame } from '../application/games/create-game';
-import type { UpdateGame } from '../application/games/update-game';
 import type { DeleteGame } from '../application/games/delete-game';
-import type { ListGames } from '../application/games/list-games';
+import { toGameResponse } from '../application/games/game-response-dto';
 import type { GetGame } from '../application/games/get-game';
+import type { ListGames } from '../application/games/list-games';
 import type { MoveToCollection } from '../application/games/move-to-collection';
+import type { UpdateGame } from '../application/games/update-game';
 import type { IgdbChainHolder } from '../infrastructure/igdb/igdb-chain-holder';
 import {
   cacheMissProblem,
@@ -22,46 +22,6 @@ import {
 } from './_problem-json';
 import { createGamesMetadataRouter } from './games-metadata';
 import type { AuthVariables } from './middleware/require-auth';
-
-type GameResponse = {
-  id: string;
-  kind: string;
-  title: string;
-  developer: string | null;
-  genre: string;
-  releaseYear: number | null;
-  platform: string;
-  edition: string | undefined;
-  hoursPlayed: number | null;
-  status: string | null;
-  format: string;
-  coverColor: string | undefined;
-  coverImage: string | null;
-  price: number | null;
-  purchasedAt: string | null;
-  notes: string | null;
-};
-
-function toGameResponse(game: Game): GameResponse {
-  return {
-    id: game.externalId,
-    kind: game.kind,
-    title: game.title,
-    developer: game.developer,
-    genre: game.genre,
-    releaseYear: game.releaseYear?.value ?? null,
-    platform: game.platform,
-    edition: game.edition,
-    hoursPlayed: game.hoursPlayed?.value ?? null,
-    status: game.status,
-    format: game.format,
-    coverColor: game.coverColor,
-    coverImage: game.coverImage ?? null,
-    price: game.price?.value ?? null,
-    purchasedAt: game.purchasedAt?.value ?? null,
-    notes: game.notes,
-  };
-}
 
 const ARRAY_PARAM_LIMIT = 100;
 

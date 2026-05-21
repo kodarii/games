@@ -1,6 +1,6 @@
 import { Hono, type MiddlewareHandler } from 'hono';
+import type { DictionaryKind } from '../application/dictionary/dictionary-kind';
 import type { DictionaryUseCases } from '../application/dictionary/make-dictionary-use-cases';
-import type { DictionaryKind } from '../domain/dictionary/dictionary';
 import {
   conflictProblem,
   domainProblem,

@@ -34,6 +34,7 @@ import { UpdateGame } from './application/games/update-game';
 import type { IdempotencyKeyRepository } from './application/idempotency/idempotency-key-repository';
 import { ImportData } from './application/import/import-data';
 import { ClearIgdbIntegration } from './application/integrations/clear-igdb-integration';
+import { GetIgdbIntegrationStatus } from './application/integrations/get-igdb-integration-status';
 import { SaveIgdbIntegration } from './application/integrations/save-igdb-integration';
 import { SweepRateLimitBuckets } from './application/rate-limit/sweep-rate-limit-buckets';
 import {
@@ -107,6 +108,7 @@ interface IgdbStack {
   readonly holder: IgdbChainHolder;
   readonly save: SaveIgdbIntegration;
   readonly clear: ClearIgdbIntegration;
+  readonly getStatus: GetIgdbIntegrationStatus;
   readonly credentialsRepo: DrizzleIntegrationCredentialsRepository;
   readonly prime: () => Promise<void>;
 }
@@ -338,7 +340,7 @@ export class Application {
       createIntegrationsRouter({
         saveIgdbIntegration: this.igdb.save,
         clearIgdbIntegration: this.igdb.clear,
-        integrationCredentialsRepository: this.igdb.credentialsRepo,
+        getIgdbIntegrationStatus: this.igdb.getStatus,
         idempotencyKeyMiddleware: this.httpMw.idempotencyKey,
       }),
     );
@@ -502,7 +504,8 @@ export class Application {
         clientSecret: decryptResult.value,
       });
     };
-    return Object.freeze({ holder, save, clear, credentialsRepo, prime });
+    const getStatus = new GetIgdbIntegrationStatus(credentialsRepo);
+    return Object.freeze({ holder, save, clear, getStatus, credentialsRepo, prime });
   }
 
   private buildGameUseCases(): GameOps {
