@@ -174,7 +174,7 @@ export function createGamesRouter(deps: GamesRouterDeps): Hono<{ Variables: Auth
   // PATCH `/:externalId/metadata` — different verb + extra segment, so no
   // collision with the GET/PUT/DELETE `/:externalId` routes below. Belongs
   // here logically with its sibling `:externalId` routes.
-  games.patch('/:externalId/metadata', async (c) => {
+  games.patch('/:externalId/metadata', deps.idempotencyKey, async (c) => {
     const chain = deps.igdbChainHolder.get();
     if (chain === null) {
       return c.json(
@@ -235,7 +235,7 @@ export function createGamesRouter(deps: GamesRouterDeps): Hono<{ Variables: Auth
     return c.json(toGameResponse(result.value));
   });
 
-  games.put('/:externalId', async (c) => {
+  games.put('/:externalId', deps.idempotencyKey, async (c) => {
     const externalId = c.req.param('externalId');
     const userId = c.get('user').id;
     const body = await c.req.json();
@@ -251,7 +251,7 @@ export function createGamesRouter(deps: GamesRouterDeps): Hono<{ Variables: Auth
     return c.json(toGameResponse(result.value));
   });
 
-  games.delete('/:externalId', async (c) => {
+  games.delete('/:externalId', deps.idempotencyKey, async (c) => {
     const externalId = c.req.param('externalId');
     const userId = c.get('user').id;
     const result = await deps.delete.execute(externalId, userId);

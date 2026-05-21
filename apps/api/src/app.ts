@@ -18,10 +18,7 @@ import { createImportRouter } from './routes/import';
 import { createIntegrationsRouter } from './routes/integrations';
 import { createMeRouter } from './routes/me';
 import { originGuard } from './routes/middleware/origin-guard';
-import {
-  type AuthVariables,
-  requireAuth,
-} from './routes/middleware/require-auth';
+import { type AuthVariables, requireAuth } from './routes/middleware/require-auth';
 import { requireUploadPermission } from './routes/middleware/require-upload-permission';
 import { createUploadRoute } from './routes/upload';
 import { CleanupOrphans } from './application/cover-storage/cleanup-orphans';
@@ -87,15 +84,9 @@ function ensureError(value: unknown): Error {
 
 interface Persistence {
   readonly gameRepository: DrizzleGameRepository;
-  readonly platformRepository: ReturnType<
-    typeof makeDrizzleDictionaryRepository<PlatformKind>
-  >;
-  readonly genreRepository: ReturnType<
-    typeof makeDrizzleDictionaryRepository<GenreKind>
-  >;
-  readonly developerRepository: ReturnType<
-    typeof makeDrizzleDictionaryRepository<DeveloperKind>
-  >;
+  readonly platformRepository: ReturnType<typeof makeDrizzleDictionaryRepository<PlatformKind>>;
+  readonly genreRepository: ReturnType<typeof makeDrizzleDictionaryRepository<GenreKind>>;
+  readonly developerRepository: ReturnType<typeof makeDrizzleDictionaryRepository<DeveloperKind>>;
   readonly importRepository: DrizzleImportRepository;
   readonly idempotencyKeyRepository: IdempotencyKeyRepository;
   readonly transactionRunner: DrizzleTransactionRunner;
@@ -212,10 +203,7 @@ export class Application {
     }
   }
 
-  async stop(
-    signal: NodeJS.Signals | 'exception' = 'SIGTERM',
-    exitCode = 0,
-  ): Promise<void> {
+  async stop(signal: NodeJS.Signals | 'exception' = 'SIGTERM', exitCode = 0): Promise<void> {
     if (this.shuttingDown) return;
     this.shuttingDown = true;
 
@@ -290,9 +278,7 @@ export class Application {
   private registerRoutes(): void {
     this.hono.get('/', (c) => c.json({ name: 'apex-api', status: 'ok' }));
 
-    this.hono.on(['POST', 'GET'], '/api/auth/*', (c) =>
-      auth.handler(c.req.raw),
-    );
+    this.hono.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw));
 
     this.hono.use('/api/games/*', requireAuth);
     this.hono.use('/api/games/*', this.httpMw.rateLimitMutations);
@@ -323,10 +309,7 @@ export class Application {
 
     this.hono.use('/api/export/*', requireAuth);
     this.hono.use('/api/export/*', this.httpMw.rateLimitMutations);
-    this.hono.route(
-      '/api/export',
-      createExportRouter({ exportData: this.dataIO.exportData }),
-    );
+    this.hono.route('/api/export', createExportRouter({ exportData: this.dataIO.exportData }));
 
     this.hono.use('/api/import/*', requireAuth);
     this.hono.use('/api/import/*', this.httpMw.rateLimitMutations);
@@ -364,10 +347,7 @@ export class Application {
     this.hono.use('/api/upload/*', this.httpMw.rateLimitMutations);
     this.hono.route(
       '/api/upload',
-      createUploadRoute(
-        this.coverStorageBundle.storage,
-        this.httpMw.idempotencyKey,
-      ),
+      createUploadRoute(this.coverStorageBundle.storage, this.httpMw.idempotencyKey),
     );
   }
 
@@ -494,8 +474,7 @@ export class Application {
       );
       if (stored === null) {
         baseLogger.event('igdb.disabled', {
-          reason:
-            'no integration_credentials row for IGDB; metadata feature disabled',
+          reason: 'no integration_credentials row for IGDB; metadata feature disabled',
         });
         return;
       }
@@ -505,9 +484,7 @@ export class Application {
         });
         return;
       }
-      const decryptResult = integrationCipher.decrypt(
-        stored.clientSecretCiphertext,
-      );
+      const decryptResult = integrationCipher.decrypt(stored.clientSecretCiphertext);
       if (!decryptResult.ok) {
         baseLogger.event('igdb.disabled', {
           reason: `failed to decrypt stored IGDB client secret: ${decryptResult.error.kind}`,
@@ -526,18 +503,11 @@ export class Application {
     const p = this.persistence;
     return Object.freeze({
       create: new CreateGame(p.gameRepository, p.platformRepository),
-      update: new UpdateGame(
-        p.gameRepository,
-        p.platformRepository,
-        p.transactionRunner,
-      ),
+      update: new UpdateGame(p.gameRepository, p.platformRepository, p.transactionRunner),
       delete: new DeleteGame(p.gameRepository, p.transactionRunner),
       list: new ListGames(p.gameRepository),
       get: new GetGame(p.gameRepository),
-      moveToCollection: new MoveToCollection(
-        p.gameRepository,
-        p.transactionRunner,
-      ),
+      moveToCollection: new MoveToCollection(p.gameRepository, p.transactionRunner),
     });
   }
 
@@ -575,13 +545,22 @@ export class Application {
     });
     return Object.freeze({
       platforms: Object.freeze({
-        router: makeDictionaryRouter({ useCases: platformUseCases }),
+        router: makeDictionaryRouter({
+          useCases: platformUseCases,
+          idempotencyKey: this.httpMw.idempotencyKey,
+        }),
       }),
       genres: Object.freeze({
-        router: makeDictionaryRouter({ useCases: genreUseCases }),
+        router: makeDictionaryRouter({
+          useCases: genreUseCases,
+          idempotencyKey: this.httpMw.idempotencyKey,
+        }),
       }),
       developers: Object.freeze({
-        router: makeDictionaryRouter({ useCases: developerUseCases }),
+        router: makeDictionaryRouter({
+          useCases: developerUseCases,
+          idempotencyKey: this.httpMw.idempotencyKey,
+        }),
       }),
     });
   }
@@ -590,11 +569,7 @@ export class Application {
     const p = this.persistence;
     return Object.freeze({
       exportData: new ExportData(p.gameRepository, p.platformRepository),
-      importData: new ImportData(
-        p.gameRepository,
-        p.platformRepository,
-        p.importRepository,
-      ),
+      importData: new ImportData(p.gameRepository, p.platformRepository, p.importRepository),
     });
   }
 
@@ -638,9 +613,7 @@ export class Application {
     });
   }
 
-  static buildForTesting(
-    _overrides: ApplicationTestOverrides = {},
-  ): Application {
+  static buildForTesting(_overrides: ApplicationTestOverrides = {}): Application {
     const app = new Application();
     return app;
   }

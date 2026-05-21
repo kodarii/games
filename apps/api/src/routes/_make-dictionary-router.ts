@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Hono, type MiddlewareHandler } from 'hono';
 import type { DictionaryUseCases } from '../application/dictionary/make-dictionary-use-cases';
 import type { DictionaryKind } from '../domain/dictionary/dictionary';
 import {
@@ -12,6 +12,7 @@ import type { AuthVariables } from './middleware/require-auth';
 
 export interface MakeDictionaryRouterDeps<TKind extends DictionaryKind> {
   useCases: DictionaryUseCases<TKind>;
+  idempotencyKey: MiddlewareHandler<{ Variables: AuthVariables }>;
 }
 
 /**
@@ -35,7 +36,7 @@ export function makeDictionaryRouter<TKind extends DictionaryKind>(
     return c.json(await useCases.list.execute(userId));
   });
 
-  router.post('/', async (c) => {
+  router.post('/', deps.idempotencyKey, async (c) => {
     const userId = c.get('user').id;
     const body = await c.req.json();
     const result = await useCases.create.execute(body, userId);
@@ -53,7 +54,7 @@ export function makeDictionaryRouter<TKind extends DictionaryKind>(
     return c.json(result.value, 201);
   });
 
-  router.delete('/:id', async (c) => {
+  router.delete('/:id', deps.idempotencyKey, async (c) => {
     const id = Number(c.req.param('id'));
     if (!Number.isFinite(id)) return c.json(domainProblem({ kind: 'invalid_id' }), 400);
     const userId = c.get('user').id;
