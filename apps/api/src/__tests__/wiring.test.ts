@@ -27,7 +27,7 @@ const gamesRouter = createGamesRouter({
   idempotencyKey: idempotencyKeyMiddleware,
 });
 
-useDisabledIgdbChain();
+useDisabledIgdbChain(igdbChainHolder);
 
 const TEST_USER_ID = `test-wiring-${crypto.randomUUID()}`;
 

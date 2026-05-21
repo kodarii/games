@@ -4,7 +4,7 @@ import { sqlite } from '../infrastructure/db/client';
 import { baseLogger } from '../infrastructure/logging/logger';
 import { useDisabledIgdbChain } from './_fixtures/igdb-chain-fixture';
 
-useDisabledIgdbChain();
+useDisabledIgdbChain(Application.buildForTesting().igdbHolderForTesting());
 
 describe('Application lifecycle (BE-07)', () => {
   let exitSpy: ReturnType<typeof spyOn>;

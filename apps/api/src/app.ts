@@ -121,6 +121,10 @@ interface CronBundle {
   readonly sweepRateLimitBuckets: typeof wiringSweepRateLimitBuckets;
 }
 
+export interface ApplicationTestOverrides {
+  readonly igdb?: { readonly holder?: typeof wiringIgdbChainHolder };
+}
+
 export class Application {
   private readonly hono = new Hono<{ Variables: AuthVariables }>();
   private bunServer: ReturnType<typeof Bun.serve> | null = null;
@@ -435,6 +439,23 @@ export class Application {
       cleanupOrphans: wiringCleanupOrphans,
       sweepRateLimitBuckets: wiringSweepRateLimitBuckets,
     });
+  }
+
+  static buildForTesting(_overrides: ApplicationTestOverrides = {}): Application {
+    const app = new Application();
+    // Phase 2 incremental: overrides are a hook for future tests; today the
+    // only thing tests need is reach-through accessors. Full override
+    // injection lands when wiring.ts is deleted and builders construct
+    // everything from scratch.
+    return app;
+  }
+
+  igdbHolderForTesting(): typeof wiringIgdbChainHolder {
+    return this.igdb.holder;
+  }
+
+  honoForTesting(): Hono<{ Variables: AuthVariables }> {
+    return this.hono;
   }
 
   private registerProcessHandlers(): void {

@@ -29,7 +29,7 @@ const games = createGamesRouter({
   idempotencyKey: idempotencyKeyMiddleware,
 });
 
-usePrimedIgdbChain({
+usePrimedIgdbChain(igdbChainHolder, {
   clientId: 'idor-test-client-id',
   clientSecret: 'idor-test-client-secret',
 });
