@@ -25,14 +25,12 @@ import { requireUploadPermission } from './routes/middleware/require-upload-perm
 import { platforms } from './routes/platforms';
 import { createUploadRoute } from './routes/upload';
 import {
-  cleanupOrphans,
   clearIgdbIntegration,
   coverStorage,
   idempotencyKeyMiddleware,
   integrationCredentialsRepository,
   rateLimitMutations,
   saveIgdbIntegration,
-  sweepRateLimitBuckets,
 } from './wiring';
 import {
   gameRepository as wiringGameRepository,
@@ -50,6 +48,19 @@ import {
   saveIgdbIntegration as wiringSaveIgdbIntegration,
   clearIgdbIntegration as wiringClearIgdbIntegration,
   integrationCredentialsRepository as wiringIntegrationCredentialsRepository,
+  createGame as wiringCreateGame,
+  updateGame as wiringUpdateGame,
+  deleteGame as wiringDeleteGame,
+  listGames as wiringListGames,
+  getGame as wiringGetGame,
+  moveToCollection as wiringMoveToCollection,
+  genresRouter as wiringGenresRouter,
+  developersRouter as wiringDevelopersRouter,
+  platformsRouter as wiringPlatformsRouter,
+  exportData as wiringExportData,
+  importData as wiringImportData,
+  cleanupOrphans as wiringCleanupOrphans,
+  sweepRateLimitBuckets as wiringSweepRateLimitBuckets,
 } from './wiring';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -87,6 +98,31 @@ interface IgdbStack {
   readonly prime: () => Promise<void>;
 }
 
+interface GameOps {
+  readonly create: typeof wiringCreateGame;
+  readonly update: typeof wiringUpdateGame;
+  readonly delete: typeof wiringDeleteGame;
+  readonly list: typeof wiringListGames;
+  readonly get: typeof wiringGetGame;
+  readonly moveToCollection: typeof wiringMoveToCollection;
+}
+
+interface Dictionaries {
+  readonly platforms: { readonly router: typeof wiringPlatformsRouter };
+  readonly genres: { readonly router: typeof wiringGenresRouter };
+  readonly developers: { readonly router: typeof wiringDevelopersRouter };
+}
+
+interface DataIO {
+  readonly exportData: typeof wiringExportData;
+  readonly importData: typeof wiringImportData;
+}
+
+interface CronBundle {
+  readonly cleanupOrphans: typeof wiringCleanupOrphans;
+  readonly sweepRateLimitBuckets: typeof wiringSweepRateLimitBuckets;
+}
+
 export class Application {
   private readonly hono = new Hono<{ Variables: AuthVariables }>();
   private bunServer: ReturnType<typeof Bun.serve> | null = null;
@@ -96,6 +132,10 @@ export class Application {
   private readonly coverStorageBundle: CoverStorageBundle;
   private readonly httpMw: HttpMiddleware;
   private readonly igdb: IgdbStack;
+  private readonly gameOps: GameOps;
+  private readonly dictionaries: Dictionaries;
+  private readonly dataIO: DataIO;
+  private readonly cron: CronBundle;
   private readonly scheduler: Scheduler;
 
   constructor() {
@@ -103,18 +143,22 @@ export class Application {
     this.coverStorageBundle = this.buildCoverStorage();
     this.httpMw = this.buildHttpMiddleware();
     this.igdb = this.buildIgdbStack();
+    this.gameOps      = this.buildGameUseCases();
+    this.dictionaries = this.buildDictionaryStack();
+    this.dataIO       = this.buildDataIO();
+    this.cron         = this.buildCronStack();
     this.scheduler = new Scheduler({
       logger: baseLogger,
       tasks: [
         {
           name: 'cleanup.orphans',
           intervalMs: ONE_HOUR_MS,
-          run: () => cleanupOrphans.run(),
+          run: () => this.cron.cleanupOrphans.run(),
         },
         {
           name: 'rate_limit.sweep',
           intervalMs: FIVE_MINUTES_MS,
-          run: () => sweepRateLimitBuckets.run(),
+          run: () => this.cron.sweepRateLimitBuckets.run(),
         },
       ],
     });
@@ -315,6 +359,39 @@ export class Application {
       prime: async () => {
         /* already primed by wiring.ts top-level await */
       },
+    });
+  }
+
+  private buildGameUseCases(): GameOps {
+    return Object.freeze({
+      create: wiringCreateGame,
+      update: wiringUpdateGame,
+      delete: wiringDeleteGame,
+      list: wiringListGames,
+      get: wiringGetGame,
+      moveToCollection: wiringMoveToCollection,
+    });
+  }
+
+  private buildDictionaryStack(): Dictionaries {
+    return Object.freeze({
+      platforms: Object.freeze({ router: wiringPlatformsRouter }),
+      genres: Object.freeze({ router: wiringGenresRouter }),
+      developers: Object.freeze({ router: wiringDevelopersRouter }),
+    });
+  }
+
+  private buildDataIO(): DataIO {
+    return Object.freeze({
+      exportData: wiringExportData,
+      importData: wiringImportData,
+    });
+  }
+
+  private buildCronStack(): CronBundle {
+    return Object.freeze({
+      cleanupOrphans: wiringCleanupOrphans,
+      sweepRateLimitBuckets: wiringSweepRateLimitBuckets,
     });
   }
 
