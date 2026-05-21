@@ -21,45 +21,59 @@ import { originGuard } from './routes/middleware/origin-guard';
 import { type AuthVariables, requireAuth } from './routes/middleware/require-auth';
 import { requireUploadPermission } from './routes/middleware/require-upload-permission';
 import { createUploadRoute } from './routes/upload';
+import { CleanupOrphans } from './application/cover-storage/cleanup-orphans';
+import type { CoverStorage } from './application/cover-storage/cover-storage';
+import { makeDictionaryUseCases } from './application/dictionary/make-dictionary-use-cases';
+import { ExportData } from './application/export/export-data';
+import { CreateGame } from './application/games/create-game';
+import { DeleteGame } from './application/games/delete-game';
+import { GetGame } from './application/games/get-game';
+import { ListGames } from './application/games/list-games';
+import { MoveToCollection } from './application/games/move-to-collection';
+import { UpdateGame } from './application/games/update-game';
+import type { IdempotencyKeyRepository } from './application/idempotency/idempotency-key-repository';
+import { ImportData } from './application/import/import-data';
+import { ClearIgdbIntegration } from './application/integrations/clear-igdb-integration';
+import { SaveIgdbIntegration } from './application/integrations/save-igdb-integration';
+import { SweepRateLimitBuckets } from './application/rate-limit/sweep-rate-limit-buckets';
 import {
-  clearIgdbIntegration,
-  coverStorage,
-  idempotencyKeyMiddleware,
-  integrationCredentialsRepository,
-  rateLimitMutations,
-  saveIgdbIntegration,
-} from './wiring';
+  DEVELOPER_DICTIONARY_KIND,
+  DEVELOPER_NAME_MAX_LENGTH,
+  type DeveloperKind,
+} from './domain/developers/developer';
 import {
-  gameRepository as wiringGameRepository,
-  platformRepository as wiringPlatformRepository,
-  genreRepository as wiringGenreRepository,
-  developerRepository as wiringDeveloperRepository,
-  importRepository as wiringImportRepository,
-  idempotencyKeyRepository as wiringIdempotencyKeyRepository,
-  transactionRunner as wiringTransactionRunner,
-  coverStorage as wiringCoverStorage,
-  coverStorageAvailable as wiringCoverStorageAvailable,
-  idempotencyKeyMiddleware as wiringIdempotencyKeyMiddleware,
-  rateLimitMutations as wiringRateLimitMutations,
-  igdbChainHolder as wiringIgdbChainHolder,
-  saveIgdbIntegration as wiringSaveIgdbIntegration,
-  clearIgdbIntegration as wiringClearIgdbIntegration,
-  integrationCredentialsRepository as wiringIntegrationCredentialsRepository,
-  createGame as wiringCreateGame,
-  updateGame as wiringUpdateGame,
-  deleteGame as wiringDeleteGame,
-  listGames as wiringListGames,
-  getGame as wiringGetGame,
-  moveToCollection as wiringMoveToCollection,
-  genresRouter as wiringGenresRouter,
-  developersRouter as wiringDevelopersRouter,
-  platformsRouter as wiringPlatformsRouter,
-  exportData as wiringExportData,
-  importData as wiringImportData,
-  cleanupOrphans as wiringCleanupOrphans,
-  sweepRateLimitBuckets as wiringSweepRateLimitBuckets,
-  primeIgdbChainFromDb as wiringPrime,
-} from './wiring';
+  GENRE_DICTIONARY_KIND,
+  GENRE_NAME_MAX_LENGTH,
+  type GenreKind,
+} from './domain/genres/genre';
+import {
+  PLATFORM_DICTIONARY_KIND,
+  PLATFORM_NAME_MAX_LENGTH,
+  type PlatformKind,
+} from './domain/platforms/platform';
+import { isCoverHostAllowed } from './infrastructure/config/cover-hosts';
+import { UploadThingCoverStorage } from './infrastructure/cover-storage/uploadthing-cover-storage';
+import { CronLock } from './infrastructure/cron/cron-lock';
+import { user as authUser } from './infrastructure/db/auth-schema';
+import { DrizzleTransactionRunner } from './infrastructure/db/drizzle-transaction-runner';
+import {
+  developers as developersTable,
+  genres as genresTable,
+  platforms as platformsTable,
+} from './infrastructure/db/schema';
+import { makeDrizzleDictionaryRepository } from './infrastructure/dictionary/make-drizzle-dictionary-repository';
+import { DrizzleGameRepository } from './infrastructure/games/drizzle-game-repository';
+import { DrizzleIdempotencyKeyRepository } from './infrastructure/idempotency/drizzle-idempotency-key-repository';
+import { DrizzleIgdbTokenStorage } from './infrastructure/igdb/drizzle-igdb-token-storage';
+import { IgdbChainHolder } from './infrastructure/igdb/igdb-chain-holder';
+import { DrizzleImportRepository } from './infrastructure/import/drizzle-import-repository';
+import { Aes256GcmCipher } from './infrastructure/integrations/aes-256-gcm-cipher';
+import { DrizzleIntegrationCredentialsRepository } from './infrastructure/integrations/drizzle-integration-credentials-repository';
+import { TwitchIgdbCredentialsVerifier } from './infrastructure/integrations/twitch-igdb-credentials-verifier';
+import { MetadataCacheRepository } from './infrastructure/metadata/metadata-cache-repository';
+import { makeDictionaryRouter } from './routes/_make-dictionary-router';
+import { idempotencyKey as idempotencyKeyMiddlewareFactory } from './routes/middleware/idempotency-key';
+import { mutationRateLimit } from './routes/middleware/mutation-rate-limit';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
@@ -69,60 +83,60 @@ function ensureError(value: unknown): Error {
 }
 
 interface Persistence {
-  readonly gameRepository: typeof wiringGameRepository;
-  readonly platformRepository: typeof wiringPlatformRepository;
-  readonly genreRepository: typeof wiringGenreRepository;
-  readonly developerRepository: typeof wiringDeveloperRepository;
-  readonly importRepository: typeof wiringImportRepository;
-  readonly idempotencyKeyRepository: typeof wiringIdempotencyKeyRepository;
-  readonly transactionRunner: typeof wiringTransactionRunner;
+  readonly gameRepository: DrizzleGameRepository;
+  readonly platformRepository: ReturnType<typeof makeDrizzleDictionaryRepository<PlatformKind>>;
+  readonly genreRepository: ReturnType<typeof makeDrizzleDictionaryRepository<GenreKind>>;
+  readonly developerRepository: ReturnType<typeof makeDrizzleDictionaryRepository<DeveloperKind>>;
+  readonly importRepository: DrizzleImportRepository;
+  readonly idempotencyKeyRepository: IdempotencyKeyRepository;
+  readonly transactionRunner: DrizzleTransactionRunner;
 }
 
 interface CoverStorageBundle {
-  readonly storage: typeof wiringCoverStorage;
-  readonly available: typeof wiringCoverStorageAvailable;
+  readonly storage: CoverStorage | null;
+  readonly available: boolean;
 }
 
 interface HttpMiddleware {
-  readonly idempotencyKey: typeof wiringIdempotencyKeyMiddleware;
-  readonly rateLimitMutations: typeof wiringRateLimitMutations;
+  readonly idempotencyKey: ReturnType<typeof idempotencyKeyMiddlewareFactory>;
+  readonly rateLimitMutations: ReturnType<typeof mutationRateLimit>;
 }
 
 interface IgdbStack {
-  readonly holder: typeof wiringIgdbChainHolder;
-  readonly save: typeof wiringSaveIgdbIntegration;
-  readonly clear: typeof wiringClearIgdbIntegration;
-  readonly credentialsRepo: typeof wiringIntegrationCredentialsRepository;
+  readonly holder: IgdbChainHolder;
+  readonly save: SaveIgdbIntegration;
+  readonly clear: ClearIgdbIntegration;
+  readonly credentialsRepo: DrizzleIntegrationCredentialsRepository;
   readonly prime: () => Promise<void>;
 }
 
 interface GameOps {
-  readonly create: typeof wiringCreateGame;
-  readonly update: typeof wiringUpdateGame;
-  readonly delete: typeof wiringDeleteGame;
-  readonly list: typeof wiringListGames;
-  readonly get: typeof wiringGetGame;
-  readonly moveToCollection: typeof wiringMoveToCollection;
+  readonly create: CreateGame;
+  readonly update: UpdateGame;
+  readonly delete: DeleteGame;
+  readonly list: ListGames;
+  readonly get: GetGame;
+  readonly moveToCollection: MoveToCollection;
 }
 
 interface Dictionaries {
-  readonly platforms: { readonly router: typeof wiringPlatformsRouter };
-  readonly genres: { readonly router: typeof wiringGenresRouter };
-  readonly developers: { readonly router: typeof wiringDevelopersRouter };
+  readonly platforms: { readonly router: ReturnType<typeof makeDictionaryRouter> };
+  readonly genres: { readonly router: ReturnType<typeof makeDictionaryRouter> };
+  readonly developers: { readonly router: ReturnType<typeof makeDictionaryRouter> };
 }
 
 interface DataIO {
-  readonly exportData: typeof wiringExportData;
-  readonly importData: typeof wiringImportData;
+  readonly exportData: ExportData;
+  readonly importData: ImportData;
 }
 
 interface CronBundle {
-  readonly cleanupOrphans: typeof wiringCleanupOrphans;
-  readonly sweepRateLimitBuckets: typeof wiringSweepRateLimitBuckets;
+  readonly cleanupOrphans: CleanupOrphans;
+  readonly sweepRateLimitBuckets: SweepRateLimitBuckets;
 }
 
 export interface ApplicationTestOverrides {
-  readonly igdb?: { readonly holder?: typeof wiringIgdbChainHolder };
+  readonly igdb?: { readonly holder?: IgdbChainHolder };
 }
 
 export class Application {
@@ -314,27 +328,24 @@ export class Application {
     );
 
     this.hono.use('/api/integrations/*', requireAuth);
-    this.hono.use('/api/integrations/*', rateLimitMutations);
+    this.hono.use('/api/integrations/*', this.httpMw.rateLimitMutations);
     this.hono.route(
       '/api/integrations',
       createIntegrationsRouter({
-        saveIgdbIntegration,
-        clearIgdbIntegration,
-        integrationCredentialsRepository,
-        idempotencyKeyMiddleware,
+        saveIgdbIntegration: this.igdb.save,
+        clearIgdbIntegration: this.igdb.clear,
+        integrationCredentialsRepository: this.igdb.credentialsRepo,
+        idempotencyKeyMiddleware: this.httpMw.idempotencyKey,
       }),
     );
 
     this.hono.use('/api/upload/*', requireAuth);
     this.hono.use('/api/upload/*', requireUploadPermission);
-    this.hono.use('/api/upload/*', rateLimitMutations);
-    this.hono.route('/api/upload', createUploadRoute(coverStorage, idempotencyKeyMiddleware));
-  }
-
-  private mountAuthed(prefix: string, router: Hono<{ Variables: AuthVariables }>): void {
-    this.hono.use(`${prefix}/*`, requireAuth);
-    this.hono.use(`${prefix}/*`, rateLimitMutations);
-    this.hono.route(prefix, router);
+    this.hono.use('/api/upload/*', this.httpMw.rateLimitMutations);
+    this.hono.route(
+      '/api/upload',
+      createUploadRoute(this.coverStorageBundle.storage, this.httpMw.idempotencyKey),
+    );
   }
 
   private async drainHttpServer(): Promise<void> {
@@ -371,91 +382,223 @@ export class Application {
   }
 
   private buildPersistence(): Persistence {
-    // Phase 2 incremental: borrow from wiring.ts. Replaced by direct
-    // constructions in the final cleanup task when wiring.ts is deleted.
     return Object.freeze({
-      gameRepository: wiringGameRepository,
-      platformRepository: wiringPlatformRepository,
-      genreRepository: wiringGenreRepository,
-      developerRepository: wiringDeveloperRepository,
-      importRepository: wiringImportRepository,
-      idempotencyKeyRepository: wiringIdempotencyKeyRepository,
-      transactionRunner: wiringTransactionRunner,
+      gameRepository: new DrizzleGameRepository(),
+      platformRepository: makeDrizzleDictionaryRepository<PlatformKind>({
+        table: platformsTable,
+        kind: PLATFORM_DICTIONARY_KIND,
+      }),
+      genreRepository: makeDrizzleDictionaryRepository<GenreKind>({
+        table: genresTable,
+        kind: GENRE_DICTIONARY_KIND,
+      }),
+      developerRepository: makeDrizzleDictionaryRepository<DeveloperKind>({
+        table: developersTable,
+        kind: DEVELOPER_DICTIONARY_KIND,
+      }),
+      importRepository: new DrizzleImportRepository(),
+      idempotencyKeyRepository: new DrizzleIdempotencyKeyRepository(),
+      transactionRunner: new DrizzleTransactionRunner(db),
     });
   }
 
   private buildCoverStorage(): CoverStorageBundle {
+    const token = env.UPLOADTHING_TOKEN;
+    const available = token.length > 0;
     return Object.freeze({
-      storage: wiringCoverStorage,
-      available: wiringCoverStorageAvailable,
+      storage: available ? new UploadThingCoverStorage(token) : null,
+      available,
     });
   }
 
   private buildHttpMiddleware(): HttpMiddleware {
     return Object.freeze({
-      idempotencyKey: wiringIdempotencyKeyMiddleware,
-      rateLimitMutations: wiringRateLimitMutations,
+      idempotencyKey: idempotencyKeyMiddlewareFactory({
+        repo: this.persistence.idempotencyKeyRepository,
+      }),
+      rateLimitMutations: mutationRateLimit({ db, now: () => Date.now() }),
     });
+  }
+
+  private async firstUserIdOrNull(): Promise<string> {
+    const [row] = await db.select({ id: authUser.id }).from(authUser).limit(1);
+    return row?.id ?? '';
   }
 
   private buildIgdbStack(): IgdbStack {
-    return Object.freeze({
-      holder: wiringIgdbChainHolder,
-      save: wiringSaveIgdbIntegration,
-      clear: wiringClearIgdbIntegration,
-      credentialsRepo: wiringIntegrationCredentialsRepository,
-      prime: () => wiringPrime(),
+    const metadataCacheRepository = new MetadataCacheRepository();
+    const igdbTokenStorage = new DrizzleIgdbTokenStorage();
+    const integrationCipher = new Aes256GcmCipher();
+    const credentialsRepo = new DrizzleIntegrationCredentialsRepository();
+    const holder = new IgdbChainHolder({
+      logger: baseLogger,
+      tokenStorage: igdbTokenStorage,
+      metadataCacheRepository,
+      gameRepository: this.persistence.gameRepository,
+      transactionRunner: this.persistence.transactionRunner,
+      isCoverHostAllowed,
+      timeoutMs: env.IGDB_TIMEOUT_MS,
+      cacheTtlDays: env.IGDB_CACHE_TTL_DAYS,
     });
+    const verifier = new TwitchIgdbCredentialsVerifier({
+      fetch,
+      timeoutMs: env.IGDB_TIMEOUT_MS,
+      logger: baseLogger,
+    });
+    const save = new SaveIgdbIntegration({
+      repo: credentialsRepo,
+      cipher: integrationCipher,
+      verifier,
+      chainHolder: holder,
+      now: () => new Date(),
+      uuid: () => crypto.randomUUID(),
+    });
+    const clear = new ClearIgdbIntegration({
+      repo: credentialsRepo,
+      tokenStorage: igdbTokenStorage,
+      chainHolder: holder,
+      transactionRunner: this.persistence.transactionRunner,
+    });
+    const prime = async (): Promise<void> => {
+      const stored = await credentialsRepo.findByUserAndKind(
+        await this.firstUserIdOrNull(),
+        'igdb',
+      );
+      if (stored === null) {
+        baseLogger.event('igdb.disabled', {
+          reason: 'no integration_credentials row for IGDB; metadata feature disabled',
+        });
+        return;
+      }
+      if (!stored.enabled) {
+        baseLogger.event('igdb.disabled', {
+          reason: 'integration_credentials row exists but is disabled',
+        });
+        return;
+      }
+      const decryptResult = integrationCipher.decrypt(stored.clientSecretCiphertext);
+      if (!decryptResult.ok) {
+        baseLogger.event('igdb.disabled', {
+          reason: `failed to decrypt stored IGDB client secret: ${decryptResult.error.kind}`,
+        });
+        return;
+      }
+      holder.swap({
+        clientId: stored.clientId.value,
+        clientSecret: decryptResult.value,
+      });
+    };
+    return Object.freeze({ holder, save, clear, credentialsRepo, prime });
   }
 
   private buildGameUseCases(): GameOps {
+    const p = this.persistence;
     return Object.freeze({
-      create: wiringCreateGame,
-      update: wiringUpdateGame,
-      delete: wiringDeleteGame,
-      list: wiringListGames,
-      get: wiringGetGame,
-      moveToCollection: wiringMoveToCollection,
+      create: new CreateGame(p.gameRepository, p.platformRepository),
+      update: new UpdateGame(p.gameRepository, p.platformRepository, p.transactionRunner),
+      delete: new DeleteGame(p.gameRepository, p.transactionRunner),
+      list: new ListGames(p.gameRepository),
+      get: new GetGame(p.gameRepository),
+      moveToCollection: new MoveToCollection(p.gameRepository, p.transactionRunner),
     });
   }
 
   private buildDictionaryStack(): Dictionaries {
+    const p = this.persistence;
+    const genreUseCases = makeDictionaryUseCases<GenreKind>({
+      repo: p.genreRepository,
+      withCounterTx: (tx) => {
+        const txGameRepo = p.gameRepository.withTx(tx);
+        return (userId, name) => txGameRepo.countByGenre(userId, name);
+      },
+      transactionRunner: p.transactionRunner,
+      kind: GENRE_DICTIONARY_KIND,
+      maxNameLength: GENRE_NAME_MAX_LENGTH,
+    });
+    const developerUseCases = makeDictionaryUseCases<DeveloperKind>({
+      repo: p.developerRepository,
+      withCounterTx: (tx) => {
+        const txGameRepo = p.gameRepository.withTx(tx);
+        return (userId, name) => txGameRepo.countByDeveloper(userId, name);
+      },
+      transactionRunner: p.transactionRunner,
+      kind: DEVELOPER_DICTIONARY_KIND,
+      maxNameLength: DEVELOPER_NAME_MAX_LENGTH,
+    });
+    const platformUseCases = makeDictionaryUseCases<PlatformKind>({
+      repo: p.platformRepository,
+      withCounterTx: (tx) => {
+        const txGameRepo = p.gameRepository.withTx(tx);
+        return (userId, name) => txGameRepo.countByPlatform(userId, name);
+      },
+      transactionRunner: p.transactionRunner,
+      kind: PLATFORM_DICTIONARY_KIND,
+      maxNameLength: PLATFORM_NAME_MAX_LENGTH,
+    });
     return Object.freeze({
-      platforms: Object.freeze({ router: wiringPlatformsRouter }),
-      genres: Object.freeze({ router: wiringGenresRouter }),
-      developers: Object.freeze({ router: wiringDevelopersRouter }),
+      platforms: Object.freeze({ router: makeDictionaryRouter({ useCases: platformUseCases }) }),
+      genres: Object.freeze({ router: makeDictionaryRouter({ useCases: genreUseCases }) }),
+      developers: Object.freeze({ router: makeDictionaryRouter({ useCases: developerUseCases }) }),
     });
   }
 
   private buildDataIO(): DataIO {
+    const p = this.persistence;
     return Object.freeze({
-      exportData: wiringExportData,
-      importData: wiringImportData,
+      exportData: new ExportData(p.gameRepository, p.platformRepository),
+      importData: new ImportData(p.gameRepository, p.platformRepository, p.importRepository),
     });
   }
 
   private buildCronStack(): CronBundle {
+    const cronOwner = `${process.env.HOSTNAME ?? 'local'}-${process.pid}-${crypto.randomUUID().slice(0, 8)}`;
+    const cronLock = new CronLock({ db, owner: cronOwner });
     return Object.freeze({
-      cleanupOrphans: wiringCleanupOrphans,
-      sweepRateLimitBuckets: wiringSweepRateLimitBuckets,
+      cleanupOrphans: new CleanupOrphans(
+        this.coverStorageBundle.storage,
+        this.persistence.gameRepository,
+        this.persistence.idempotencyKeyRepository,
+        cronLock,
+        {
+          idempotencyTtlMs: env.IDEMPOTENCY_TTL_HOURS * 60 * 60 * 1000,
+          logger: baseLogger,
+        },
+      ),
+      sweepRateLimitBuckets: new SweepRateLimitBuckets({
+        db,
+        lock: cronLock,
+        now: () => Date.now(),
+      }),
     });
   }
 
   static buildForTesting(_overrides: ApplicationTestOverrides = {}): Application {
     const app = new Application();
-    // Phase 2 incremental: overrides are a hook for future tests; today the
-    // only thing tests need is reach-through accessors. Full override
-    // injection lands when wiring.ts is deleted and builders construct
-    // everything from scratch.
     return app;
   }
 
-  igdbHolderForTesting(): typeof wiringIgdbChainHolder {
+  igdbHolderForTesting(): IgdbChainHolder {
     return this.igdb.holder;
   }
 
   honoForTesting(): Hono<{ Variables: AuthVariables }> {
     return this.hono;
+  }
+
+  gameOpsForTesting(): GameOps {
+    return this.gameOps;
+  }
+
+  httpMwForTesting(): HttpMiddleware {
+    return this.httpMw;
+  }
+
+  coverStorageForTesting(): CoverStorageBundle {
+    return this.coverStorageBundle;
+  }
+
+  dictionariesForTesting(): Dictionaries {
+    return this.dictionaries;
   }
 
   private registerProcessHandlers(): void {

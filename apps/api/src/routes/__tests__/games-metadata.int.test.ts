@@ -336,25 +336,19 @@ describe('GET /api/games/metadata/candidates — route order (literal before par
     // those two registrations, this test flips: the `:externalId` handler
     // would match `metadata` and yield 404 from `getGame.execute`.
     const { createGamesRouter: makeGamesRouter } = await import('../games');
-    const {
-      createGame: wCreate,
-      updateGame: wUpdate,
-      deleteGame: wDelete,
-      listGames: wList,
-      getGame: wGet,
-      moveToCollection: wMove,
-      igdbChainHolder: wHolder,
-      idempotencyKeyMiddleware: wIdem,
-    } = await import('../../wiring');
+    const { Application } = await import('../../app');
+    const _ta = Application.buildForTesting();
+    const wOps = _ta.gameOpsForTesting();
+    const wMw = _ta.httpMwForTesting();
     const realGames = makeGamesRouter({
-      create: wCreate,
-      update: wUpdate,
-      delete: wDelete,
-      list: wList,
-      get: wGet,
-      moveToCollection: wMove,
-      igdbChainHolder: wHolder,
-      idempotencyKey: wIdem,
+      create: wOps.create,
+      update: wOps.update,
+      delete: wOps.delete,
+      list: wOps.list,
+      get: wOps.get,
+      moveToCollection: wOps.moveToCollection,
+      igdbChainHolder: _ta.igdbHolderForTesting(),
+      idempotencyKey: wMw.idempotencyKey,
     });
     const app = new Hono<{ Variables: AuthVariables }>();
     app.use('*', requestContext());

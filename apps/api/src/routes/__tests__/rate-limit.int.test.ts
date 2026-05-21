@@ -12,26 +12,20 @@ import { attachProblemJsonErrorHandler } from '../_problem-json';
 import { createGamesRouter } from '../games';
 import { mutationRateLimit } from '../middleware/mutation-rate-limit';
 import type { AuthVariables } from '../middleware/require-auth';
-import {
-  createGame,
-  updateGame,
-  deleteGame,
-  listGames,
-  getGame,
-  moveToCollection,
-  igdbChainHolder,
-  idempotencyKeyMiddleware,
-} from '../../wiring';
+import { Application } from '../../app';
 
+const _testApp = Application.buildForTesting();
+const _gameOps = _testApp.gameOpsForTesting();
+const _httpMw = _testApp.httpMwForTesting();
 const games = createGamesRouter({
-  create: createGame,
-  update: updateGame,
-  delete: deleteGame,
-  list: listGames,
-  get: getGame,
-  moveToCollection,
-  igdbChainHolder,
-  idempotencyKey: idempotencyKeyMiddleware,
+  create: _gameOps.create,
+  update: _gameOps.update,
+  delete: _gameOps.delete,
+  list: _gameOps.list,
+  get: _gameOps.get,
+  moveToCollection: _gameOps.moveToCollection,
+  igdbChainHolder: _testApp.igdbHolderForTesting(),
+  idempotencyKey: _httpMw.idempotencyKey,
 });
 
 const USER_A = `test-rl-int-a-${crypto.randomUUID()}`;
