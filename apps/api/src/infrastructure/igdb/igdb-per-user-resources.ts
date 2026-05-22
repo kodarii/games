@@ -54,11 +54,27 @@ export class IgdbPerUserResources implements IgdbResourceCacheInvalidator {
     const inflight = this.inflight.get(userId);
     if (inflight !== undefined) return inflight;
 
-    const promise = this.build(userId).finally(() => {
-      this.inflight.delete(userId);
-    });
-    this.inflight.set(userId, promise);
-    return promise;
+    // Race: if `invalidate(userId)` runs while a build is in flight, the
+    // build's result is stale (its source row may have been swapped). We
+    // tag the in-flight promise with its own identity and only commit to
+    // the cache if `this.inflight.get(userId)` still points at us — if
+    // `invalidate` cleared the slot (or a newer build replaced it), we
+    // drop the result silently instead of reviving a stale entry.
+    let buildPromise: Promise<IgdbUserResources | null>;
+    buildPromise = this.build(userId)
+      .then((resources) => {
+        if (resources !== null && this.inflight.get(userId) === buildPromise) {
+          this.cache.set(userId, resources);
+        }
+        return resources;
+      })
+      .finally(() => {
+        if (this.inflight.get(userId) === buildPromise) {
+          this.inflight.delete(userId);
+        }
+      });
+    this.inflight.set(userId, buildPromise);
+    return buildPromise;
   }
 
   invalidate(userId: string): void {
@@ -97,7 +113,6 @@ export class IgdbPerUserResources implements IgdbResourceCacheInvalidator {
       tokenStore,
       rateLimiter,
     };
-    this.cache.set(userId, resources);
     return resources;
   }
 }

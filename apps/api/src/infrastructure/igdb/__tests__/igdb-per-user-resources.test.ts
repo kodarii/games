@@ -180,6 +180,36 @@ describe('IgdbPerUserResources', () => {
     expect(reads).toBe(2);
   });
 
+  it('invalidate during in-flight build does NOT revive a stale cache entry', async () => {
+    let reads = 0;
+    let resolveRead!: () => void;
+    const gate = new Promise<void>((r) => { resolveRead = r; });
+    const repo: IntegrationCredentialsRepository = {
+      async findByUserAndKind(userId, kind) {
+        reads += 1;
+        await gate;
+        return IntegrationCredentials.fromPersistence({
+          id: 'id', userId, integration: kind, enabled: true,
+          clientId: 'cid', clientSecretCiphertext: 'enc:sec',
+          lastVerifiedAt: new Date(), createdAt: new Date(), updatedAt: new Date(),
+        });
+      },
+      async save() {}, async delete() {},
+      withTx() { return repo; },
+    };
+    const cache = new IgdbPerUserResources(repo, makeFakeCipher(), makeFakeStorage(), makeFakeLogger([]));
+
+    const p1 = cache.get(USER_A);
+    cache.invalidate(USER_A);
+    resolveRead();
+    await p1;
+
+    // A subsequent get MUST perform a fresh DB read — the in-flight build's
+    // result was invalidated before it could be cached.
+    await cache.get(USER_A);
+    expect(reads).toBe(2);
+  });
+
   it('single-flight: two concurrent get(sameUserId) share one DB read', async () => {
     let reads = 0;
     let resolveRead!: () => void;
