@@ -85,6 +85,24 @@ export class IgdbPerUserResources implements IgdbResourceCacheInvalidator {
     this.inflight.delete(userId);
   }
 
+  /**
+   * TEST-ONLY. Seeds the cache with a hand-built `IgdbUserResources` record so
+   * fixtures can pin a specific (clientId, tokenStore, rateLimiter) without
+   * hitting the DB / cipher path.
+   *
+   * The leading `__` is a project-wide convention marker: anything starting
+   * with `__` is test-infrastructure-only. CI greps for `__seedForTest`
+   * outside `_fixtures/**` and fails the build (wiring test enforces this —
+   * see `apps/api/src/__tests__/app.test.ts`).
+   */
+  __seedForTest(userId: string, resources: IgdbUserResources | null): void {
+    if (resources === null) {
+      this.cache.delete(userId);
+      return;
+    }
+    this.cache.set(userId, resources);
+  }
+
   private async build(userId: string): Promise<IgdbUserResources | null> {
     const row = await this.credsRepo.findByUserAndKind(userId, IGDB);
     if (row === null || !row.enabled) return null;
