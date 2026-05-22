@@ -370,7 +370,13 @@ describe.skip('GET /api/games/metadata/candidates — route order (literal befor
       list: wOps.list,
       get: wOps.get,
       moveToCollection: wOps.moveToCollection,
-      igdbChainHolder: _ta.igdbHolderForTesting(),
+      igdbChainFactory: { async buildFor() { return null; } } as never,
+      enrichGameMetadata: { async execute() { throw new Error('unused'); } } as never,
+      getIgdbIntegrationStatus: {
+        async execute() {
+          return { status: 'not-configured', enabled: false } as never;
+        },
+      } as never,
       idempotencyKey: wMw.idempotencyKey,
     });
     const app = new Hono<{ Variables: AuthVariables }>();

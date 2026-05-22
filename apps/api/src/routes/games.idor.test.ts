@@ -1,17 +1,43 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
-import { usePrimedIgdbChain } from '../__tests__/_fixtures/igdb-chain-fixture';
 import { Application } from '../app';
+import { EnrichGameMetadata } from '../application/games/enrich-game-metadata';
+import type { GetIgdbIntegrationStatus } from '../application/integrations/get-igdb-integration-status';
+import { isCoverHostAllowed } from '../infrastructure/config/cover-hosts';
 import { db } from '../infrastructure/db/client';
+import { DrizzleTransactionRunner } from '../infrastructure/db/drizzle-transaction-runner';
 import { games as gamesTable } from '../infrastructure/db/schema';
+import { DrizzleGameRepository } from '../infrastructure/games/drizzle-game-repository';
+import type { IgdbChainFactory } from '../infrastructure/igdb/igdb-chain-factory';
 import { requestContext } from '../infrastructure/logging/request-context-middleware';
+import { MetadataCacheRepository } from '../infrastructure/metadata/metadata-cache-repository';
 import { createGamesRouter } from './games';
 import type { AuthVariables } from './middleware/require-auth';
 
 const _testApp = Application.buildForTesting();
 const _gameOps = _testApp.gameOpsForTesting();
 const _httpMw = _testApp.httpMwForTesting();
+
+const ALWAYS_NULL_CHAIN_FACTORY: IgdbChainFactory = {
+  async buildFor() {
+    return null;
+  },
+} as unknown as IgdbChainFactory;
+
+const ALWAYS_ENABLED_STATUS: GetIgdbIntegrationStatus = {
+  async execute() {
+    return { status: 'configured', enabled: true } as never;
+  },
+} as unknown as GetIgdbIntegrationStatus;
+
+const enrich = new EnrichGameMetadata(
+  new DrizzleGameRepository(),
+  new DrizzleTransactionRunner(db),
+  new MetadataCacheRepository(),
+  isCoverHostAllowed,
+);
+
 const games = createGamesRouter({
   create: _gameOps.create,
   update: _gameOps.update,
@@ -19,13 +45,10 @@ const games = createGamesRouter({
   list: _gameOps.list,
   get: _gameOps.get,
   moveToCollection: _gameOps.moveToCollection,
-  igdbChainHolder: _testApp.igdbHolderForTesting(),
+  igdbChainFactory: ALWAYS_NULL_CHAIN_FACTORY,
+  enrichGameMetadata: enrich,
+  getIgdbIntegrationStatus: ALWAYS_ENABLED_STATUS,
   idempotencyKey: _httpMw.idempotencyKey,
-});
-
-usePrimedIgdbChain(_testApp.igdbHolderForTesting(), {
-  clientId: 'idor-test-client-id',
-  clientSecret: 'idor-test-client-secret',
 });
 
 const USER_A = `idor-user-A-${crypto.randomUUID()}`;
@@ -97,11 +120,9 @@ async function seedFixture() {
 
 describe('GET /api/games — IDOR resistance', () => {
   beforeAll(async () => {
-    // The PATCH /:externalId/metadata IDOR case exercises the live route,
-    // which now reads its chain from `igdbChainHolder` instead of a static
-    // env-driven export. The `usePrimedIgdbChain` fixture at module top-level
-    // primes the holder with placeholder credentials so the route reaches its
-    // 404 path (rather than 503 "feature disabled").
+    // IGDB gate is mocked through ALWAYS_ENABLED_STATUS so the route reaches
+    // its 404 IDOR path (the real `EnrichGameMetadata` performs the row-scoped
+    // lookup that returns `not_found` for cross-user IDs).
     await seedFixture();
   });
 
@@ -172,5 +193,45 @@ describe('GET /api/games — IDOR resistance', () => {
       }),
     });
     expect(res.status).toBe(404);
+  });
+
+  it('PATCH /:externalId/metadata: returns 503 when GetIgdbIntegrationStatus reports the user has not connected IGDB', async () => {
+    const ALWAYS_DISABLED_STATUS: GetIgdbIntegrationStatus = {
+      async execute() {
+        return { status: 'not-configured', enabled: false } as never;
+      },
+    } as unknown as GetIgdbIntegrationStatus;
+    const gatedGames = createGamesRouter({
+      create: _gameOps.create,
+      update: _gameOps.update,
+      delete: _gameOps.delete,
+      list: _gameOps.list,
+      get: _gameOps.get,
+      moveToCollection: _gameOps.moveToCollection,
+      igdbChainFactory: ALWAYS_NULL_CHAIN_FACTORY,
+      enrichGameMetadata: enrich,
+      getIgdbIntegrationStatus: ALWAYS_DISABLED_STATUS,
+      idempotencyKey: _httpMw.idempotencyKey,
+    });
+    const app = new Hono<{ Variables: AuthVariables }>();
+    app.use('*', requestContext());
+    app.use('/api/games/*', async (c, next) => {
+      c.set('user', { id: USER_A } as AuthVariables['user']);
+      await next();
+    });
+    app.route('/api/games', gatedGames);
+
+    const res = await app.request(`/api/games/${userAExternalIds[0]}/metadata`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        providerName: 'igdb',
+        providerId: '12345',
+        snapshot: { coverImageUrl: null, releaseYear: null, developer: null },
+      }),
+    });
+    expect(res.status).toBe(503);
+    const body = (await res.json()) as { type: string };
+    expect(body.type).toBe('/errors/feature-disabled');
   });
 });

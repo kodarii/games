@@ -2,12 +2,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { Application } from '../../app';
+import type { EnrichGameMetadata } from '../../application/games/enrich-game-metadata';
+import type { GetIgdbIntegrationStatus } from '../../application/integrations/get-igdb-integration-status';
 import { db } from '../../infrastructure/db/client';
 import {
   games as gamesTable,
   idempotencyKeys as idempotencyKeysTable,
   platforms as platformsTable,
 } from '../../infrastructure/db/schema';
+import type { IgdbChainFactory } from '../../infrastructure/igdb/igdb-chain-factory';
 import { requestContext } from '../../infrastructure/logging/request-context-middleware';
 import { attachProblemJsonErrorHandler } from '../_problem-json';
 import { createGamesRouter } from '../games';
@@ -16,6 +19,22 @@ import type { AuthVariables } from '../middleware/require-auth';
 const _testApp = Application.buildForTesting();
 const _gameOps = _testApp.gameOpsForTesting();
 const _httpMw = _testApp.httpMwForTesting();
+// Idempotency tests don't hit IGDB; null/disabled stubs satisfy deps shape.
+const NULL_CHAIN_FACTORY: IgdbChainFactory = {
+  async buildFor() {
+    return null;
+  },
+} as unknown as IgdbChainFactory;
+const DISABLED_STATUS: GetIgdbIntegrationStatus = {
+  async execute() {
+    return { status: 'not-configured', enabled: false } as never;
+  },
+} as unknown as GetIgdbIntegrationStatus;
+const NEVER_CALLED_ENRICH: EnrichGameMetadata = {
+  async execute() {
+    throw new Error('enrich should not be called in this test');
+  },
+} as unknown as EnrichGameMetadata;
 const games = createGamesRouter({
   create: _gameOps.create,
   update: _gameOps.update,
@@ -23,7 +42,9 @@ const games = createGamesRouter({
   list: _gameOps.list,
   get: _gameOps.get,
   moveToCollection: _gameOps.moveToCollection,
-  igdbChainHolder: _testApp.igdbHolderForTesting(),
+  igdbChainFactory: NULL_CHAIN_FACTORY,
+  enrichGameMetadata: NEVER_CALLED_ENRICH,
+  getIgdbIntegrationStatus: DISABLED_STATUS,
   idempotencyKey: _httpMw.idempotencyKey,
 });
 

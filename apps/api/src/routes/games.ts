@@ -4,10 +4,12 @@ import type { CreateGame } from '../application/games/create-game';
 import type { DeleteGame } from '../application/games/delete-game';
 import { toGameResponse } from '../application/games/game-response-dto';
 import type { GetGame } from '../application/games/get-game';
+import type { EnrichGameMetadata } from '../application/games/enrich-game-metadata';
 import type { ListGames } from '../application/games/list-games';
 import type { MoveToCollection } from '../application/games/move-to-collection';
 import type { UpdateGame } from '../application/games/update-game';
-import type { IgdbChainHolder } from '../infrastructure/igdb/igdb-chain-holder';
+import type { GetIgdbIntegrationStatus } from '../application/integrations/get-igdb-integration-status';
+import type { IgdbChainFactory } from '../infrastructure/igdb/igdb-chain-factory';
 import {
   cacheMissProblem,
   conflictProblem,
@@ -32,7 +34,9 @@ export interface GamesRouterDeps {
   readonly list: ListGames;
   readonly get: GetGame;
   readonly moveToCollection: MoveToCollection;
-  readonly igdbChainHolder: IgdbChainHolder;
+  readonly igdbChainFactory: Pick<IgdbChainFactory, 'buildFor'>;
+  readonly enrichGameMetadata: Pick<EnrichGameMetadata, 'execute'>;
+  readonly getIgdbIntegrationStatus: Pick<GetIgdbIntegrationStatus, 'execute'>;
   readonly idempotencyKey: MiddlewareHandler<{ Variables: AuthVariables }>;
 }
 
@@ -129,32 +133,11 @@ export function createGamesRouter(deps: GamesRouterDeps): Hono<{ Variables: Auth
   // Metadata sub-router MUST be registered before `/:externalId` — Hono uses
   // registration order and `/metadata/candidates` would otherwise be swallowed
   // by the `:externalId` route as `externalId === 'metadata'`.
-  //
-  // TRANSIENT (Task 8 of multi-tenant IGDB plan): the metadata router now
-  // takes `{ chainFactory, getStatus }` instead of `{ chainHolder }`. Until
-  // Task 9 swaps `igdbChainHolder` here for the real per-user deps
-  // (`{ igdbChainFactory, enrichGameMetadata, getIgdbIntegrationStatus }`),
-  // we adapt the existing holder so callers of /metadata see the previous
-  // semantics: /status reflects holder.isConfigured() and /candidates uses
-  // the holder's chain (singleton, not per-user). Per-user routing arrives
-  // in Task 9.
   games.route(
     '/metadata',
     createGamesMetadataRouter({
-      chainFactory: {
-        async buildFor() {
-          const chain = deps.igdbChainHolder.get();
-          return chain === null ? null : { searchGameMetadata: chain.searchGameMetadata };
-        },
-      },
-      getStatus: {
-        async execute() {
-          return {
-            status: deps.igdbChainHolder.isConfigured() ? 'configured' : 'not-configured',
-            enabled: deps.igdbChainHolder.isConfigured(),
-          } as never;
-        },
-      },
+      chainFactory: deps.igdbChainFactory,
+      getStatus: deps.getIgdbIntegrationStatus,
     }),
   );
 
@@ -162,18 +145,18 @@ export function createGamesRouter(deps: GamesRouterDeps): Hono<{ Variables: Auth
   // collision with the GET/PUT/DELETE `/:externalId` routes below. Belongs
   // here logically with its sibling `:externalId` routes.
   games.patch('/:externalId/metadata', deps.idempotencyKey, async (c) => {
-    const chain = deps.igdbChainHolder.get();
-    if (chain === null) {
+    const userId = c.get('user').id;
+    const status = await deps.getIgdbIntegrationStatus.execute(userId);
+    if (!status.enabled) {
       return c.json(
-        featureDisabledProblem('IGDB credentials are not configured on this server.'),
+        featureDisabledProblem('IGDB credentials are not configured for this user.'),
         503,
       );
     }
     const externalId = c.req.param('externalId');
-    const userId = c.get('user').id;
     const t0 = Date.now();
     const body = await c.req.json();
-    const result = await chain.enrichGameMetadata.execute(externalId, body, userId);
+    const result = await deps.enrichGameMetadata.execute(externalId, body, userId);
     if (!result.ok) {
       const e = result.error;
       if (e.kind === 'not_found') {

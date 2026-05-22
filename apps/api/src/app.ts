@@ -10,6 +10,7 @@ import { makeDictionaryUseCases } from './application/dictionary/make-dictionary
 import { ExportData } from './application/export/export-data';
 import { CreateGame } from './application/games/create-game';
 import { DeleteGame } from './application/games/delete-game';
+import { EnrichGameMetadata } from './application/games/enrich-game-metadata';
 import { GetGame } from './application/games/get-game';
 import { ListGames } from './application/games/list-games';
 import { MoveToCollection } from './application/games/move-to-collection';
@@ -51,6 +52,7 @@ import {
 import { makeDrizzleDictionaryRepository } from './infrastructure/dictionary/make-drizzle-dictionary-repository';
 import { DrizzleGameRepository } from './infrastructure/games/drizzle-game-repository';
 import { DrizzleIdempotencyKeyRepository } from './infrastructure/idempotency/drizzle-idempotency-key-repository';
+import type { IgdbChainFactory } from './infrastructure/igdb/igdb-chain-factory';
 import { IgdbChainHolder } from './infrastructure/igdb/igdb-chain-holder';
 import { DrizzleImportRepository } from './infrastructure/import/drizzle-import-repository';
 import { Aes256GcmCipher } from './infrastructure/integrations/aes-256-gcm-cipher';
@@ -109,6 +111,7 @@ interface IgdbStack {
   readonly save: SaveIgdbIntegration;
   readonly clear: ClearIgdbIntegration;
   readonly getStatus: GetIgdbIntegrationStatus;
+  readonly enrich: EnrichGameMetadata;
   readonly credentialsRepo: DrizzleIntegrationCredentialsRepository;
   readonly prime: () => Promise<void>;
 }
@@ -285,6 +288,19 @@ export class Application {
 
     this.hono.use('/api/games/*', requireAuth);
     this.hono.use('/api/games/*', this.httpMw.rateLimitMutations);
+    // TRANSIENT (Task 9 of multi-tenant IGDB plan): the games router now takes
+    // `{ igdbChainFactory, enrichGameMetadata, getIgdbIntegrationStatus }`
+    // instead of `{ igdbChainHolder }`. The real `IgdbChainFactory` (per-user)
+    // is wired in Task 11 along with the full removal of the holder. Until
+    // then bridge the still-alive holder behind the factory interface so the
+    // /metadata sub-router keeps working with singleton semantics.
+    const holder = this.igdb.holder;
+    const igdbChainFactoryBridge: IgdbChainFactory = {
+      async buildFor() {
+        const chain = holder.get();
+        return chain === null ? null : { searchGameMetadata: chain.searchGameMetadata };
+      },
+    } as unknown as IgdbChainFactory;
     this.hono.route(
       '/api/games',
       createGamesRouter({
@@ -294,7 +310,9 @@ export class Application {
         list: this.gameOps.list,
         get: this.gameOps.get,
         moveToCollection: this.gameOps.moveToCollection,
-        igdbChainHolder: this.igdb.holder,
+        igdbChainFactory: igdbChainFactoryBridge,
+        enrichGameMetadata: this.igdb.enrich,
+        getIgdbIntegrationStatus: this.igdb.getStatus,
         idempotencyKey: this.httpMw.idempotencyKey,
       }),
     );
@@ -514,7 +532,13 @@ export class Application {
       });
     };
     const getStatus = new GetIgdbIntegrationStatus(credentialsRepo);
-    return Object.freeze({ holder, save, clear, getStatus, credentialsRepo, prime });
+    const enrich = new EnrichGameMetadata(
+      this.persistence.gameRepository,
+      this.persistence.transactionRunner,
+      metadataCacheRepository,
+      isCoverHostAllowed,
+    );
+    return Object.freeze({ holder, save, clear, getStatus, enrich, credentialsRepo, prime });
   }
 
   private buildGameUseCases(): GameOps {

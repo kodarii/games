@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from 'bun:test';
 import { Hono } from 'hono';
 import { Application } from '../app';
+import type { EnrichGameMetadata } from '../application/games/enrich-game-metadata';
+import type { GetIgdbIntegrationStatus } from '../application/integrations/get-igdb-integration-status';
 import { sqlite } from '../infrastructure/db/client';
+import type { IgdbChainFactory } from '../infrastructure/igdb/igdb-chain-factory';
 import { baseLogger } from '../infrastructure/logging/logger';
 import { requestContext } from '../infrastructure/logging/request-context-middleware';
 import { attachProblemJsonErrorHandler } from '../routes/_problem-json';
@@ -113,6 +116,23 @@ function makeWiringApp(): Hono<{ Variables: AuthVariables }> {
   const _testApp = Application.buildForTesting();
   const gameOps = _testApp.gameOpsForTesting();
   const httpMw = _testApp.httpMwForTesting();
+  // Wiring invariants only exercise the 503 "feature disabled" gate paths;
+  // stub deps return null/disabled so the route never reaches the enrich path.
+  const NULL_CHAIN_FACTORY: IgdbChainFactory = {
+    async buildFor() {
+      return null;
+    },
+  } as unknown as IgdbChainFactory;
+  const DISABLED_STATUS: GetIgdbIntegrationStatus = {
+    async execute() {
+      return { status: 'not-configured', enabled: false } as never;
+    },
+  } as unknown as GetIgdbIntegrationStatus;
+  const NEVER_CALLED_ENRICH: EnrichGameMetadata = {
+    async execute() {
+      throw new Error('enrich should not be called on the 503 path');
+    },
+  } as unknown as EnrichGameMetadata;
   const gamesRouter = createGamesRouter({
     create: gameOps.create,
     update: gameOps.update,
@@ -120,7 +140,9 @@ function makeWiringApp(): Hono<{ Variables: AuthVariables }> {
     list: gameOps.list,
     get: gameOps.get,
     moveToCollection: gameOps.moveToCollection,
-    igdbChainHolder: _testApp.igdbHolderForTesting(),
+    igdbChainFactory: NULL_CHAIN_FACTORY,
+    enrichGameMetadata: NEVER_CALLED_ENRICH,
+    getIgdbIntegrationStatus: DISABLED_STATUS,
     idempotencyKey: httpMw.idempotencyKey,
   });
   const app = new Hono<{ Variables: AuthVariables }>();
