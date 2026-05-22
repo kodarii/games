@@ -19,7 +19,7 @@ export interface ClearIgdbIntegrationDeps {
  * Disconnects the IGDB integration for the given user.
  *
  * Atomic: deletes the `integration_credentials` row AND the cached Twitch
- * OAuth token (`igdb_oauth_token`) in a single transaction. If either delete
+ * OAuth token (`integration_oauth_token`) in a single transaction. If either delete
  * fails, the transaction rolls back and the per-user resource cache is left
  * untouched — the next request still sees the previous configured state.
  *
