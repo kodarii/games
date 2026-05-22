@@ -181,8 +181,9 @@ describe('GET /api/games/metadata/candidates (integration with fake IGDB)', () =
   const state: FakeIgdbState = { requestCount: 0, response: 'ok' };
 
   beforeAll(async () => {
-    // Make sure no token row interferes with a leaked test run.
-    await db.delete(integrationOauthToken);
+    // Scope cleanup to TEST_USER_ID — the table is multi-tenant, a bare
+    // delete would wipe other tests' rows running in the same suite.
+    await db.delete(integrationOauthToken).where(eq(integrationOauthToken.userId, TEST_USER_ID));
     built = buildApp(state);
   });
 
@@ -197,7 +198,7 @@ describe('GET /api/games/metadata/candidates (integration with fake IGDB)', () =
 
   afterAll(async () => {
     await built.resetCache();
-    await db.delete(integrationOauthToken);
+    await db.delete(integrationOauthToken).where(eq(integrationOauthToken.userId, TEST_USER_ID));
     await db.delete(gamesTable).where(inArray(gamesTable.externalId, [`test-${TEST_USER_ID}`]));
   });
 
