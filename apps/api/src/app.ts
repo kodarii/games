@@ -19,6 +19,7 @@ import type { IdempotencyKeyRepository } from './application/idempotency/idempot
 import { ImportData } from './application/import/import-data';
 import { ClearIgdbIntegration } from './application/integrations/clear-igdb-integration';
 import { GetIgdbIntegrationStatus } from './application/integrations/get-igdb-integration-status';
+import type { IgdbResourceCacheInvalidator } from './application/integrations/igdb-resource-cache-invalidator';
 import { SaveIgdbIntegration } from './application/integrations/save-igdb-integration';
 import { SweepRateLimitBuckets } from './application/rate-limit/sweep-rate-limit-buckets';
 import {
@@ -41,7 +42,6 @@ import { isCoverHostAllowed } from './infrastructure/config/cover-hosts';
 import { env } from './infrastructure/config/env';
 import { UploadThingCoverStorage } from './infrastructure/cover-storage/uploadthing-cover-storage';
 import { CronLock } from './infrastructure/cron/cron-lock';
-import { user as authUser } from './infrastructure/db/auth-schema';
 import { db, sqlite } from './infrastructure/db/client';
 import { DrizzleTransactionRunner } from './infrastructure/db/drizzle-transaction-runner';
 import {
@@ -52,8 +52,9 @@ import {
 import { makeDrizzleDictionaryRepository } from './infrastructure/dictionary/make-drizzle-dictionary-repository';
 import { DrizzleGameRepository } from './infrastructure/games/drizzle-game-repository';
 import { DrizzleIdempotencyKeyRepository } from './infrastructure/idempotency/drizzle-idempotency-key-repository';
-import type { IgdbChainFactory } from './infrastructure/igdb/igdb-chain-factory';
-import { IgdbChainHolder } from './infrastructure/igdb/igdb-chain-holder';
+import { createIgdbApiBreaker } from './infrastructure/igdb/igdb-api-breaker';
+import { IgdbChainFactory } from './infrastructure/igdb/igdb-chain-factory';
+import { IgdbPerUserResources } from './infrastructure/igdb/igdb-per-user-resources';
 import { DrizzleImportRepository } from './infrastructure/import/drizzle-import-repository';
 import { Aes256GcmCipher } from './infrastructure/integrations/aes-256-gcm-cipher';
 import { DrizzleIntegrationCredentialsRepository } from './infrastructure/integrations/drizzle-integration-credentials-repository';
@@ -107,13 +108,12 @@ interface HttpMiddleware {
 }
 
 interface IgdbStack {
-  readonly holder: IgdbChainHolder;
+  readonly chainFactory: IgdbChainFactory;
+  readonly cacheInvalidator: IgdbResourceCacheInvalidator;
+  readonly enrich: EnrichGameMetadata;
   readonly save: SaveIgdbIntegration;
   readonly clear: ClearIgdbIntegration;
   readonly getStatus: GetIgdbIntegrationStatus;
-  readonly enrich: EnrichGameMetadata;
-  readonly credentialsRepo: DrizzleIntegrationCredentialsRepository;
-  readonly prime: () => Promise<void>;
 }
 
 interface GameOps {
@@ -146,7 +146,7 @@ interface CronBundle {
 }
 
 export interface ApplicationTestOverrides {
-  readonly igdb?: { readonly holder?: IgdbChainHolder };
+  readonly igdb?: { readonly resources?: IgdbPerUserResources };
 }
 
 export class Application {
@@ -186,14 +186,6 @@ export class Application {
     try {
       await this.runMigrations();
       await this.verifyDatabase();
-      try {
-        await this.igdb.prime();
-      } catch (err) {
-        baseLogger.event('igdb.prime.failed', {
-          reason: err instanceof Error ? err.message : String(err),
-        });
-        // Do NOT rethrow — chain stays unconfigured, routes return 503.
-      }
       this.registerMiddleware();
       this.registerRoutes();
       this.scheduler.start();
@@ -288,19 +280,6 @@ export class Application {
 
     this.hono.use('/api/games/*', requireAuth);
     this.hono.use('/api/games/*', this.httpMw.rateLimitMutations);
-    // TRANSIENT (Task 9 of multi-tenant IGDB plan): the games router now takes
-    // `{ igdbChainFactory, enrichGameMetadata, getIgdbIntegrationStatus }`
-    // instead of `{ igdbChainHolder }`. The real `IgdbChainFactory` (per-user)
-    // is wired in Task 11 along with the full removal of the holder. Until
-    // then bridge the still-alive holder behind the factory interface so the
-    // /metadata sub-router keeps working with singleton semantics.
-    const holder = this.igdb.holder;
-    const igdbChainFactoryBridge: IgdbChainFactory = {
-      async buildFor() {
-        const chain = holder.get();
-        return chain === null ? null : { searchGameMetadata: chain.searchGameMetadata };
-      },
-    } as unknown as IgdbChainFactory;
     this.hono.route(
       '/api/games',
       createGamesRouter({
@@ -310,7 +289,7 @@ export class Application {
         list: this.gameOps.list,
         get: this.gameOps.get,
         moveToCollection: this.gameOps.moveToCollection,
-        igdbChainFactory: igdbChainFactoryBridge,
+        igdbChainFactory: this.igdb.chainFactory,
         enrichGameMetadata: this.igdb.enrich,
         getIgdbIntegrationStatus: this.igdb.getStatus,
         idempotencyKey: this.httpMw.idempotencyKey,
@@ -454,91 +433,62 @@ export class Application {
     });
   }
 
-  private async firstUserIdOrNull(): Promise<string> {
-    const [row] = await db.select({ id: authUser.id }).from(authUser).limit(1);
-    return row?.id ?? '';
-  }
-
   private buildIgdbStack(): IgdbStack {
     const metadataCacheRepository = new MetadataCacheRepository();
-    const igdbTokenStorage = new DrizzleIntegrationOauthTokenStorage();
     const integrationCipher = new Aes256GcmCipher();
     const credentialsRepo = new DrizzleIntegrationCredentialsRepository();
-    const holder = new IgdbChainHolder({
-      logger: baseLogger,
-      tokenStorage: igdbTokenStorage,
+    const tokenStorage = new DrizzleIntegrationOauthTokenStorage();
+
+    const breaker = createIgdbApiBreaker(baseLogger);
+    const resources = new IgdbPerUserResources(
+      credentialsRepo,
+      integrationCipher,
+      tokenStorage,
+      baseLogger,
+    );
+    const chainFactory = new IgdbChainFactory(
+      resources,
+      breaker,
       metadataCacheRepository,
-      gameRepository: this.persistence.gameRepository,
-      transactionRunner: this.persistence.transactionRunner,
-      isCoverHostAllowed,
-      timeoutMs: env.IGDB_TIMEOUT_MS,
-      cacheTtlDays: env.IGDB_CACHE_TTL_DAYS,
-    });
-    const verifier = new TwitchIgdbCredentialsVerifier({
-      fetch,
-      timeoutMs: env.IGDB_TIMEOUT_MS,
-      logger: baseLogger,
-    });
-    // Transient adapter: the use cases now talk to the per-user resource cache
-    // via `invalidate(userId)`. The chain-holder is still wired up by `prime()`
-    // below and is removed entirely in a follow-up task. Until then, drop the
-    // chain on invalidate so the runtime state stays in sync with the row.
-    const resourceCache = {
-      invalidate(userId: string): void {
-        holder.swap(userId, null);
-      },
-    };
-    const save = new SaveIgdbIntegration({
-      repo: credentialsRepo,
-      cipher: integrationCipher,
-      verifier,
-      resourceCache,
-      now: () => new Date(),
-      uuid: () => crypto.randomUUID(),
-    });
-    const clear = new ClearIgdbIntegration({
-      repo: credentialsRepo,
-      tokenStorage: igdbTokenStorage,
-      resourceCache,
-      transactionRunner: this.persistence.transactionRunner,
-    });
-    const prime = async (): Promise<void> => {
-      const stored = await credentialsRepo.findByUserAndKind(
-        await this.firstUserIdOrNull(),
-        'igdb',
-      );
-      if (stored === null) {
-        baseLogger.event('igdb.disabled', {
-          reason: 'no integration_credentials row for IGDB; metadata feature disabled',
-        });
-        return;
-      }
-      if (!stored.enabled) {
-        baseLogger.event('igdb.disabled', {
-          reason: 'integration_credentials row exists but is disabled',
-        });
-        return;
-      }
-      const decryptResult = integrationCipher.decrypt(stored.clientSecretCiphertext);
-      if (!decryptResult.ok) {
-        baseLogger.event('igdb.disabled', {
-          reason: `failed to decrypt stored IGDB client secret: ${decryptResult.error.kind}`,
-        });
-        return;
-      }
-      holder.swap(stored.userId, {
-        clientId: stored.clientId.value,
-        clientSecret: decryptResult.value,
-      });
-    };
-    const getStatus = new GetIgdbIntegrationStatus(credentialsRepo);
+      baseLogger,
+      env.IGDB_TIMEOUT_MS,
+      env.IGDB_CACHE_TTL_DAYS,
+    );
     const enrich = new EnrichGameMetadata(
       this.persistence.gameRepository,
       this.persistence.transactionRunner,
       metadataCacheRepository,
       isCoverHostAllowed,
     );
-    return Object.freeze({ holder, save, clear, getStatus, enrich, credentialsRepo, prime });
+    const verifier = new TwitchIgdbCredentialsVerifier({
+      fetch,
+      timeoutMs: env.IGDB_TIMEOUT_MS,
+      logger: baseLogger,
+    });
+    const save = new SaveIgdbIntegration({
+      repo: credentialsRepo,
+      cipher: integrationCipher,
+      verifier,
+      resourceCache: resources,
+      now: () => new Date(),
+      uuid: () => crypto.randomUUID(),
+    });
+    const clear = new ClearIgdbIntegration({
+      repo: credentialsRepo,
+      tokenStorage,
+      resourceCache: resources,
+      transactionRunner: this.persistence.transactionRunner,
+    });
+    const getStatus = new GetIgdbIntegrationStatus(credentialsRepo);
+
+    return Object.freeze({
+      chainFactory,
+      cacheInvalidator: resources,
+      enrich,
+      save,
+      clear,
+      getStatus,
+    });
   }
 
   private buildGameUseCases(): GameOps {
@@ -660,8 +610,12 @@ export class Application {
     return app;
   }
 
-  igdbHolderForTesting(): IgdbChainHolder {
-    return this.igdb.holder;
+  igdbResourcesForTesting(): IgdbPerUserResources {
+    return this.igdb.cacheInvalidator as IgdbPerUserResources;
+  }
+
+  igdbStackForTesting(): IgdbStack {
+    return this.igdb;
   }
 
   honoForTesting(): Hono<{ Variables: AuthVariables }> {

@@ -340,9 +340,8 @@ describe('GET /api/games/metadata/status', () => {
   });
 });
 
-// TODO(plan-task-11): rewires once Application drops igdbHolderForTesting().
-describe.skip('GET /api/games/metadata/candidates — route order (literal before param)', () => {
-  it('mounts via routes/games.ts BEFORE :externalId and returns 200, NOT 404', async () => {
+describe('GET /api/games/metadata/candidates — route order (literal before param)', () => {
+  it('mounts via routes/games.ts BEFORE :externalId and returns NOT 404', async () => {
     // Asserts the production registration order in routes/games.ts: the
     // `games.route('/metadata', …)` line must appear BEFORE
     // `games.get('/:externalId', …)`. If a future contributor reverses
@@ -353,6 +352,7 @@ describe.skip('GET /api/games/metadata/candidates — route order (literal befor
     const _ta = Application.buildForTesting();
     const wOps = _ta.gameOpsForTesting();
     const wMw = _ta.httpMwForTesting();
+    const igdb = _ta.igdbStackForTesting();
     const realGames = makeGamesRouter({
       create: wOps.create,
       update: wOps.update,
@@ -360,21 +360,9 @@ describe.skip('GET /api/games/metadata/candidates — route order (literal befor
       list: wOps.list,
       get: wOps.get,
       moveToCollection: wOps.moveToCollection,
-      igdbChainFactory: {
-        async buildFor() {
-          return null;
-        },
-      } as never,
-      enrichGameMetadata: {
-        async execute() {
-          throw new Error('unused');
-        },
-      } as never,
-      getIgdbIntegrationStatus: {
-        async execute() {
-          return { status: 'not-configured', enabled: false } as never;
-        },
-      } as never,
+      igdbChainFactory: igdb.chainFactory,
+      enrichGameMetadata: igdb.enrich,
+      getIgdbIntegrationStatus: igdb.getStatus,
       idempotencyKey: wMw.idempotencyKey,
     });
     const app = new Hono<{ Variables: AuthVariables }>();
@@ -386,9 +374,6 @@ describe.skip('GET /api/games/metadata/candidates — route order (literal befor
     app.route('/api/games', realGames);
 
     const res = await app.request('/api/games/metadata/candidates');
-    // We do not care whether the response is 200 or a validation 400 here —
-    // ONLY that it is NOT a 404 from the `:externalId` handler, which would
-    // indicate the metadata sub-router is shadowed.
     expect(res.status).not.toBe(404);
   });
 });

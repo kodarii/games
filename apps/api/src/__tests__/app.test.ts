@@ -1,18 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from 'bun:test';
 import { Hono } from 'hono';
 import { Application } from '../app';
-import type { EnrichGameMetadata } from '../application/games/enrich-game-metadata';
-import type { GetIgdbIntegrationStatus } from '../application/integrations/get-igdb-integration-status';
 import { sqlite } from '../infrastructure/db/client';
-import type { IgdbChainFactory } from '../infrastructure/igdb/igdb-chain-factory';
 import { baseLogger } from '../infrastructure/logging/logger';
 import { requestContext } from '../infrastructure/logging/request-context-middleware';
 import { attachProblemJsonErrorHandler } from '../routes/_problem-json';
 import { createGamesRouter } from '../routes/games';
 import type { AuthVariables } from '../routes/middleware/require-auth';
-import { useDisabledIgdbChain } from './_fixtures/igdb-chain-fixture';
+import { useDisabledIgdbResources } from './_fixtures/igdb-resources-fixture';
 
-useDisabledIgdbChain(Application.buildForTesting().igdbHolderForTesting());
+const _bootstrapApp = Application.buildForTesting();
+useDisabledIgdbResources(_bootstrapApp.igdbResourcesForTesting(), 'app-test-bootstrap-user');
 
 describe('Application lifecycle (BE-07)', () => {
   let exitSpy: ReturnType<typeof spyOn>;
@@ -116,23 +114,7 @@ function makeWiringApp(): Hono<{ Variables: AuthVariables }> {
   const _testApp = Application.buildForTesting();
   const gameOps = _testApp.gameOpsForTesting();
   const httpMw = _testApp.httpMwForTesting();
-  // Wiring invariants only exercise the 503 "feature disabled" gate paths;
-  // stub deps return null/disabled so the route never reaches the enrich path.
-  const NULL_CHAIN_FACTORY: IgdbChainFactory = {
-    async buildFor() {
-      return null;
-    },
-  } as unknown as IgdbChainFactory;
-  const DISABLED_STATUS: GetIgdbIntegrationStatus = {
-    async execute() {
-      return { status: 'not-configured', enabled: false } as never;
-    },
-  } as unknown as GetIgdbIntegrationStatus;
-  const NEVER_CALLED_ENRICH: EnrichGameMetadata = {
-    async execute() {
-      throw new Error('enrich should not be called on the 503 path');
-    },
-  } as unknown as EnrichGameMetadata;
+  const igdb = _testApp.igdbStackForTesting();
   const gamesRouter = createGamesRouter({
     create: gameOps.create,
     update: gameOps.update,
@@ -140,9 +122,9 @@ function makeWiringApp(): Hono<{ Variables: AuthVariables }> {
     list: gameOps.list,
     get: gameOps.get,
     moveToCollection: gameOps.moveToCollection,
-    igdbChainFactory: NULL_CHAIN_FACTORY,
-    enrichGameMetadata: NEVER_CALLED_ENRICH,
-    getIgdbIntegrationStatus: DISABLED_STATUS,
+    igdbChainFactory: igdb.chainFactory,
+    enrichGameMetadata: igdb.enrich,
+    getIgdbIntegrationStatus: igdb.getStatus,
     idempotencyKey: httpMw.idempotencyKey,
   });
   const app = new Hono<{ Variables: AuthVariables }>();
@@ -187,7 +169,7 @@ describe('wiring invariants migrated to app.ts (BE-06)', () => {
           'rg',
           '-l',
           '--type=ts',
-          'new (DrizzleGameRepository|DrizzleTransactionRunner|IgdbChainHolder)\\(',
+          'new (DrizzleGameRepository|DrizzleTransactionRunner|IgdbChainFactory|IgdbPerUserResources)\\(',
           API_SRC_ROOT,
           '--glob=!**/app.ts',
           '--glob=!**/__tests__/**',
@@ -200,18 +182,19 @@ describe('wiring invariants migrated to app.ts (BE-06)', () => {
     }
     const hits = await scanForPattern({
       root: API_SRC_ROOT,
-      pattern: /new (DrizzleGameRepository|DrizzleTransactionRunner|IgdbChainHolder)\(/,
+      pattern:
+        /new (DrizzleGameRepository|DrizzleTransactionRunner|IgdbChainFactory|IgdbPerUserResources)\(/,
       excludeFile: (path) =>
         path.endsWith('/app.ts') || path.includes('/__tests__/') || path.endsWith('.test.ts'),
     });
     expect(hits).toEqual([]);
   });
 
-  it('no rogue chain-holder swap() invocation outside _fixtures/ and app.ts (Q5 fixture-mediated isolation invariant)', async () => {
-    // Q5: production code MUST use swap() through composition root (app.ts).
-    // Test code MUST use swap() through shared fixture (_fixtures/igdb-chain-fixture.ts).
-    // Ad-hoc swap() in random files breaks identity-preserving restore and
-    // poisons `bun test --randomize` runs.
+  it('no rogue __seedForTest invocation outside _fixtures/ and the resources file', async () => {
+    // Production code MUST NOT call `__seedForTest`. Test code MUST call it
+    // through the shared fixture (`_fixtures/igdb-resources-fixture.ts`).
+    // Ad-hoc seeding in random files breaks per-file isolation and poisons
+    // `bun test --randomize` runs.
     const rgAvailable = isRipgrepAvailable();
     if (rgAvailable) {
       const r = Bun.spawnSync({
@@ -219,20 +202,20 @@ describe('wiring invariants migrated to app.ts (BE-06)', () => {
           'rg',
           '-l',
           '--type=ts',
-          'igdbChainHolder\\.swap\\(',
+          '\\.__seedForTest\\(',
           API_SRC_ROOT,
           '--glob=!**/_fixtures/**',
-          '--glob=!**/app.ts',
+          '--glob=!**/igdb-per-user-resources.ts',
         ],
       });
-      const hits = r.stdout.toString().trim();
-      expect(hits).toBe('');
+      expect(r.stdout.toString().trim()).toBe('');
       return;
     }
     const hits = await scanForPattern({
       root: API_SRC_ROOT,
-      pattern: /igdbChainHolder\.swap\(/,
-      excludeFile: (path) => path.includes('/_fixtures/') || path.endsWith('/app.ts'),
+      pattern: /\.__seedForTest\(/,
+      excludeFile: (path) =>
+        path.includes('/_fixtures/') || path.endsWith('/igdb-per-user-resources.ts'),
     });
     expect(hits).toEqual([]);
   });
