@@ -3,7 +3,8 @@ import { initials } from '@/lib/avatar';
 import type { useMetadataCandidatesQuery } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 import type { MetadataCandidate } from '@/types';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface TitleAutocompleteProps {
   value: string;
@@ -63,6 +64,30 @@ export function TitleAutocomplete({
   useEffect(() => {
     setHighlight(0);
   }, [candidates.length]);
+
+  // Dropdown is portaled to <body> with fixed positioning so it escapes the
+  // AlertDialog's `overflow-y-auto` clip (otherwise long suggestion lists get
+  // cut at the modal boundary). Track the input's viewport rect.
+  const [anchor, setAnchor] = useState<{ top: number; left: number; width: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!showDropdown) {
+      setAnchor(null);
+      return;
+    }
+    const measure = () => {
+      const el = usedRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setAnchor({ top: r.bottom + 4, left: r.left, width: r.width });
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    window.addEventListener('scroll', measure, true);
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', measure, true);
+    };
+  }, [showDropdown, usedRef]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (showDropdown) {
@@ -130,52 +155,67 @@ export function TitleAutocomplete({
         )}
       </div>
 
-      {showDropdown && (
-        <div className="absolute left-0 right-0 top-[42px] z-[60] overflow-hidden rounded-[8px] border border-apex-line-1 bg-white shadow-[0_12px_32px_rgba(0,0,0,0.12)]">
-          <ul className="max-h-[260px] overflow-y-auto">
-            {candidates.map((c, idx) => {
-              const active = idx === highlight;
-              return (
-                <li
-                  key={`${c.providerName}:${c.providerId}`}
-                  className={cn(
-                    'flex cursor-pointer items-center gap-3 px-3 py-2 text-[12.5px]',
-                    active ? 'bg-apex-line-1/60' : 'hover:bg-apex-line-1/40',
-                  )}
-                  data-active={active ? 'true' : undefined}
-                  onMouseDown={(e) => {
-                    // Use onMouseDown — onClick would lose to input.onBlur.
-                    e.preventDefault();
-                    onSelectCandidate(c);
-                    setFocused(false);
-                  }}
-                  onMouseEnter={() => setHighlight(idx)}
-                >
-                  <CandidateThumb candidate={c} fallbackColor={fallbackColor} />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-apex-ink">
-                      <HighlightedTitle text={c.title} match={trimmed} />
+      {showDropdown &&
+        anchor &&
+        createPortal(
+          <div
+            className="fixed z-[60] overflow-hidden rounded-[8px] border border-apex-line-1 bg-white shadow-[0_12px_32px_rgba(0,0,0,0.12)]"
+            // pointer-events: auto — Radix Dialog's RemoveScroll sets
+            // `pointer-events: none` on <body>, which inherits to our portaled
+            // dropdown. Without this override, clicks on suggestions die at the
+            // body.
+            style={{
+              top: anchor.top,
+              left: anchor.left,
+              width: anchor.width,
+              pointerEvents: 'auto',
+            }}
+          >
+            <ul className="max-h-[260px] overflow-y-auto">
+              {candidates.map((c, idx) => {
+                const active = idx === highlight;
+                return (
+                  <li
+                    key={`${c.providerName}:${c.providerId}`}
+                    className={cn(
+                      'flex cursor-pointer items-center gap-3 px-3 py-2 text-[12.5px]',
+                      active ? 'bg-apex-line-1/60' : 'hover:bg-apex-line-1/40',
+                    )}
+                    data-active={active ? 'true' : undefined}
+                    onMouseDown={(e) => {
+                      // Use onMouseDown — onClick would lose to input.onBlur.
+                      e.preventDefault();
+                      onSelectCandidate(c);
+                      setFocused(false);
+                    }}
+                    onMouseEnter={() => setHighlight(idx)}
+                  >
+                    <CandidateThumb candidate={c} fallbackColor={fallbackColor} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-apex-ink">
+                        <HighlightedTitle text={c.title} match={trimmed} />
+                      </div>
+                      <div className="truncate text-[11px] text-apex-muted">
+                        {[c.developer, c.releaseYear].filter(Boolean).join(' · ') || '—'}
+                      </div>
                     </div>
-                    <div className="truncate text-[11px] text-apex-muted">
-                      {[c.developer, c.releaseYear].filter(Boolean).join(' · ') || '—'}
-                    </div>
-                  </div>
-                  <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-emerald-600">
-                    IGDB
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="flex items-center justify-between border-t border-apex-line-1 bg-[#fafafa] px-3 py-1.5 text-[10px] text-apex-hint">
-            <span>
-              <kbd className="font-sans">↑↓</kbd> navigate · <kbd className="font-sans">↵</kbd>{' '}
-              select
-            </span>
-            <span>{candidates.length} matches</span>
-          </div>
-        </div>
-      )}
+                    <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-emerald-600">
+                      IGDB
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="flex items-center justify-between border-t border-apex-line-1 bg-[#fafafa] px-3 py-1.5 text-[10px] text-apex-hint">
+              <span>
+                <kbd className="font-sans">↑↓</kbd> navigate · <kbd className="font-sans">↵</kbd>{' '}
+                select
+              </span>
+              <span>{candidates.length} matches</span>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
