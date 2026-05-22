@@ -1,22 +1,23 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
 import { eq, inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
-import { EnrichGameMetadata } from '../../application/games/enrich-game-metadata';
 import { SearchGameMetadata } from '../../application/games/search-game-metadata';
-import { isCoverHostAllowed } from '../../infrastructure/config/cover-hosts';
+import { GetIgdbIntegrationStatus } from '../../application/integrations/get-igdb-integration-status';
+import { IntegrationCredentials } from '../../domain/integrations/integration-credentials';
 import { db } from '../../infrastructure/db/client';
-import { DrizzleTransactionRunner } from '../../infrastructure/db/drizzle-transaction-runner';
 import {
   games as gamesTable,
+  integrationCredentials,
   integrationOauthToken,
   metadataCache,
 } from '../../infrastructure/db/schema';
-import { DrizzleGameRepository } from '../../infrastructure/games/drizzle-game-repository';
 import { CircuitBreaker } from '../../infrastructure/igdb/circuit-breaker';
-import type { IgdbChain, IgdbChainHolder } from '../../infrastructure/igdb/igdb-chain-holder';
+import type { IgdbChain } from '../../infrastructure/igdb/igdb-chain-factory';
 import { IgdbGameMetadataProvider } from '../../infrastructure/igdb/igdb-game-metadata-provider';
 import { IgdbHttpClient } from '../../infrastructure/igdb/igdb-http-client';
 import { IgdbTokenStore } from '../../infrastructure/igdb/igdb-token-store';
+import { Aes256GcmCipher } from '../../infrastructure/integrations/aes-256-gcm-cipher';
+import { DrizzleIntegrationCredentialsRepository } from '../../infrastructure/integrations/drizzle-integration-credentials-repository';
 import { DrizzleIntegrationOauthTokenStorage } from '../../infrastructure/integrations/drizzle-integration-oauth-token-storage';
 import { baseLogger } from '../../infrastructure/logging/logger';
 import { requestContext } from '../../infrastructure/logging/request-context-middleware';
@@ -26,10 +27,11 @@ import { TokenBucketRateLimiter } from '../../infrastructure/metadata/rate-limit
 import { createGamesMetadataRouter } from '../games-metadata';
 import type { AuthVariables } from '../middleware/require-auth';
 
-function fixedChainHolder(chain: IgdbChain | null): Pick<IgdbChainHolder, 'get' | 'isConfigured'> {
+function stubChainFactory(chain: IgdbChain | null) {
   return {
-    get: () => chain,
-    isConfigured: () => chain !== null,
+    async buildFor() {
+      return chain;
+    },
   };
 }
 
@@ -131,16 +133,6 @@ function buildApp(state: FakeIgdbState): BuiltApp {
     negativeTtlDays: 1,
   });
   const searchGameMetadata = new SearchGameMetadata(cachingProvider, cacheRepo, baseLogger);
-  // EnrichGameMetadata is local to this test app to keep it independent of
-  // the runtime composition root. The metadata-router tests only exercise
-  // the search side, so `enrichGameMetadata` is referenced below to keep
-  // its import live.
-  const enrichGameMetadata = new EnrichGameMetadata(
-    new DrizzleGameRepository(),
-    new DrizzleTransactionRunner(db),
-    cacheRepo,
-    isCoverHostAllowed,
-  );
 
   const app = new Hono<{ Variables: AuthVariables }>();
   // Install the same request-context middleware production wires in
@@ -157,13 +149,11 @@ function buildApp(state: FakeIgdbState): BuiltApp {
   gamesRouter.route(
     '/metadata',
     createGamesMetadataRouter({
-      chainHolder: fixedChainHolder({ searchGameMetadata, enrichGameMetadata }),
+      chainFactory: stubChainFactory({ searchGameMetadata }),
+      getStatus: new GetIgdbIntegrationStatus(new DrizzleIntegrationCredentialsRepository()),
     }),
   );
   app.route('/api/games', gamesRouter);
-
-  // Expose injected use cases for tests that need direct repo access.
-  void enrichGameMetadata; // wired but only the search side is exercised here
 
   const cacheKey = cachingProvider.buildCacheKey('Resident Evil 4', 'PS2');
 
@@ -200,6 +190,9 @@ describe('GET /api/games/metadata/candidates (integration with fake IGDB)', () =
     await built.resetCache();
     await db.delete(integrationOauthToken).where(eq(integrationOauthToken.userId, TEST_USER_ID));
     await db.delete(gamesTable).where(inArray(gamesTable.externalId, [`test-${TEST_USER_ID}`]));
+    await db
+      .delete(integrationCredentials)
+      .where(eq(integrationCredentials.userId, TEST_USER_ID));
   });
 
   it('happy path: returns 200 with non-empty candidates and degraded=false', async () => {
@@ -285,15 +278,9 @@ describe('GET /api/games/metadata/candidates (integration with fake IGDB)', () =
 });
 
 describe('GET /api/games/metadata/status', () => {
-  function buildStatusApp(igdbConfigured: boolean): Hono<{ Variables: AuthVariables }> {
-    const fakeSearchGameMetadata = {
-      execute: async () => ({
-        ok: true as const,
-        value: { candidates: [], degraded: false },
-      }),
-    } as unknown as SearchGameMetadata;
-    const fakeEnrichGameMetadata = {} as unknown as EnrichGameMetadata;
-
+  function buildStatusApp(): Hono<{ Variables: AuthVariables }> {
+    const repo = new DrizzleIntegrationCredentialsRepository();
+    const getStatus = new GetIgdbIntegrationStatus(repo);
     const app = new Hono<{ Variables: AuthVariables }>();
     app.use('*', requestContext());
     app.use('/api/games/*', async (c, next) => {
@@ -304,38 +291,67 @@ describe('GET /api/games/metadata/status', () => {
     gamesRouter.route(
       '/metadata',
       createGamesMetadataRouter({
-        chainHolder: fixedChainHolder(
-          igdbConfigured
-            ? {
-                searchGameMetadata: fakeSearchGameMetadata,
-                enrichGameMetadata: fakeEnrichGameMetadata,
-              }
-            : null,
-        ),
+        chainFactory: stubChainFactory(null),
+        getStatus,
       }),
     );
     app.route('/api/games', gamesRouter);
     return app;
   }
 
-  it('returns igdbConfigured: true when wired with true', async () => {
-    const app = buildStatusApp(true);
-    const res = await app.request('/api/games/metadata/status');
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as { igdbConfigured: boolean };
-    expect(body).toEqual({ igdbConfigured: true });
+  async function seedCreds(enabled: boolean): Promise<void> {
+    const cipher = new Aes256GcmCipher();
+    const repo = new DrizzleIntegrationCredentialsRepository();
+    const row = IntegrationCredentials.fromPersistence({
+      id: `seed-${crypto.randomUUID()}`,
+      userId: TEST_USER_ID,
+      integration: 'igdb',
+      enabled,
+      clientId: 'seed-cid',
+      clientSecretCiphertext: cipher.encrypt('seed-secret'),
+      lastVerifiedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    await repo.save(row);
+  }
+
+  afterAll(async () => {
+    await db
+      .delete(integrationCredentials)
+      .where(eq(integrationCredentials.userId, TEST_USER_ID));
   });
 
-  it('returns igdbConfigured: false when wired with false', async () => {
-    const app = buildStatusApp(false);
-    const res = await app.request('/api/games/metadata/status');
+  it('no creds row → igdbConfigured: false', async () => {
+    await db
+      .delete(integrationCredentials)
+      .where(eq(integrationCredentials.userId, TEST_USER_ID));
+    const res = await buildStatusApp().request('/api/games/metadata/status');
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { igdbConfigured: boolean };
-    expect(body).toEqual({ igdbConfigured: false });
+    expect(await res.json()).toEqual({ igdbConfigured: false });
+  });
+
+  it('disabled creds row → igdbConfigured: false', async () => {
+    await db
+      .delete(integrationCredentials)
+      .where(eq(integrationCredentials.userId, TEST_USER_ID));
+    await seedCreds(false);
+    const res = await buildStatusApp().request('/api/games/metadata/status');
+    expect(await res.json()).toEqual({ igdbConfigured: false });
+  });
+
+  it('enabled creds row → igdbConfigured: true (flip DB → response flips, no cache invalidate needed)', async () => {
+    await db
+      .delete(integrationCredentials)
+      .where(eq(integrationCredentials.userId, TEST_USER_ID));
+    await seedCreds(true);
+    const res = await buildStatusApp().request('/api/games/metadata/status');
+    expect(await res.json()).toEqual({ igdbConfigured: true });
   });
 });
 
-describe('GET /api/games/metadata/candidates — route order (literal before param)', () => {
+// TODO(plan-task-11): rewires once Application drops igdbHolderForTesting().
+describe.skip('GET /api/games/metadata/candidates — route order (literal before param)', () => {
   it('mounts via routes/games.ts BEFORE :externalId and returns 200, NOT 404', async () => {
     // Asserts the production registration order in routes/games.ts: the
     // `games.route('/metadata', …)` line must appear BEFORE

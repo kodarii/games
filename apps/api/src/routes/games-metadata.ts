@@ -1,26 +1,33 @@
 import { Hono } from 'hono';
-import type { IgdbChainHolder } from '../infrastructure/igdb/igdb-chain-holder';
+import type { GetIgdbIntegrationStatus } from '../application/integrations/get-igdb-integration-status';
+import type { IgdbChainFactory } from '../infrastructure/igdb/igdb-chain-factory';
 import { internalProblem, zodIssuesToProblemJson } from './_problem-json';
 import type { AuthVariables } from './middleware/require-auth';
 
 export interface GamesMetadataRouterDeps {
-  readonly chainHolder: Pick<IgdbChainHolder, 'get' | 'isConfigured'>;
+  readonly chainFactory: Pick<IgdbChainFactory, 'buildFor'>;
+  readonly getStatus: Pick<GetIgdbIntegrationStatus, 'execute'>;
 }
 
 export function createGamesMetadataRouter(deps: GamesMetadataRouterDeps) {
   const r = new Hono<{ Variables: AuthVariables }>();
 
-  r.get('/status', (c) => c.json({ igdbConfigured: deps.chainHolder.isConfigured() }, 200));
+  r.get('/status', async (c) => {
+    const userId = c.get('user').id;
+    const status = await deps.getStatus.execute(userId);
+    return c.json({ igdbConfigured: status.enabled }, 200);
+  });
 
   r.get('/candidates', async (c) => {
-    const chain = deps.chainHolder.get();
+    const userId = c.get('user').id;
+    const chain = await deps.chainFactory.buildFor(userId);
     if (chain === null) {
       return c.json(
         {
           type: '/errors/feature-disabled',
           title: 'IGDB metadata feature disabled',
           status: 503,
-          detail: 'IGDB credentials are not configured on this server.',
+          detail: 'IGDB credentials are not configured for this user.',
         },
         503,
       );

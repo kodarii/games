@@ -129,7 +129,34 @@ export function createGamesRouter(deps: GamesRouterDeps): Hono<{ Variables: Auth
   // Metadata sub-router MUST be registered before `/:externalId` — Hono uses
   // registration order and `/metadata/candidates` would otherwise be swallowed
   // by the `:externalId` route as `externalId === 'metadata'`.
-  games.route('/metadata', createGamesMetadataRouter({ chainHolder: deps.igdbChainHolder }));
+  //
+  // TRANSIENT (Task 8 of multi-tenant IGDB plan): the metadata router now
+  // takes `{ chainFactory, getStatus }` instead of `{ chainHolder }`. Until
+  // Task 9 swaps `igdbChainHolder` here for the real per-user deps
+  // (`{ igdbChainFactory, enrichGameMetadata, getIgdbIntegrationStatus }`),
+  // we adapt the existing holder so callers of /metadata see the previous
+  // semantics: /status reflects holder.isConfigured() and /candidates uses
+  // the holder's chain (singleton, not per-user). Per-user routing arrives
+  // in Task 9.
+  games.route(
+    '/metadata',
+    createGamesMetadataRouter({
+      chainFactory: {
+        async buildFor() {
+          const chain = deps.igdbChainHolder.get();
+          return chain === null ? null : { searchGameMetadata: chain.searchGameMetadata };
+        },
+      },
+      getStatus: {
+        async execute() {
+          return {
+            status: deps.igdbChainHolder.isConfigured() ? 'configured' : 'not-configured',
+            enabled: deps.igdbChainHolder.isConfigured(),
+          } as never;
+        },
+      },
+    }),
+  );
 
   // PATCH `/:externalId/metadata` — different verb + extra segment, so no
   // collision with the GET/PUT/DELETE `/:externalId` routes below. Belongs
