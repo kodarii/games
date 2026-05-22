@@ -190,9 +190,7 @@ describe('GET /api/games/metadata/candidates (integration with fake IGDB)', () =
     await built.resetCache();
     await db.delete(integrationOauthToken).where(eq(integrationOauthToken.userId, TEST_USER_ID));
     await db.delete(gamesTable).where(inArray(gamesTable.externalId, [`test-${TEST_USER_ID}`]));
-    await db
-      .delete(integrationCredentials)
-      .where(eq(integrationCredentials.userId, TEST_USER_ID));
+    await db.delete(integrationCredentials).where(eq(integrationCredentials.userId, TEST_USER_ID));
   });
 
   it('happy path: returns 200 with non-empty candidates and degraded=false', async () => {
@@ -317,33 +315,25 @@ describe('GET /api/games/metadata/status', () => {
   }
 
   afterAll(async () => {
-    await db
-      .delete(integrationCredentials)
-      .where(eq(integrationCredentials.userId, TEST_USER_ID));
+    await db.delete(integrationCredentials).where(eq(integrationCredentials.userId, TEST_USER_ID));
   });
 
   it('no creds row → igdbConfigured: false', async () => {
-    await db
-      .delete(integrationCredentials)
-      .where(eq(integrationCredentials.userId, TEST_USER_ID));
+    await db.delete(integrationCredentials).where(eq(integrationCredentials.userId, TEST_USER_ID));
     const res = await buildStatusApp().request('/api/games/metadata/status');
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ igdbConfigured: false });
   });
 
   it('disabled creds row → igdbConfigured: false', async () => {
-    await db
-      .delete(integrationCredentials)
-      .where(eq(integrationCredentials.userId, TEST_USER_ID));
+    await db.delete(integrationCredentials).where(eq(integrationCredentials.userId, TEST_USER_ID));
     await seedCreds(false);
     const res = await buildStatusApp().request('/api/games/metadata/status');
     expect(await res.json()).toEqual({ igdbConfigured: false });
   });
 
   it('enabled creds row → igdbConfigured: true (flip DB → response flips, no cache invalidate needed)', async () => {
-    await db
-      .delete(integrationCredentials)
-      .where(eq(integrationCredentials.userId, TEST_USER_ID));
+    await db.delete(integrationCredentials).where(eq(integrationCredentials.userId, TEST_USER_ID));
     await seedCreds(true);
     const res = await buildStatusApp().request('/api/games/metadata/status');
     expect(await res.json()).toEqual({ igdbConfigured: true });
@@ -370,8 +360,16 @@ describe.skip('GET /api/games/metadata/candidates — route order (literal befor
       list: wOps.list,
       get: wOps.get,
       moveToCollection: wOps.moveToCollection,
-      igdbChainFactory: { async buildFor() { return null; } } as never,
-      enrichGameMetadata: { async execute() { throw new Error('unused'); } } as never,
+      igdbChainFactory: {
+        async buildFor() {
+          return null;
+        },
+      } as never,
+      enrichGameMetadata: {
+        async execute() {
+          throw new Error('unused');
+        },
+      } as never,
       getIgdbIntegrationStatus: {
         async execute() {
           return { status: 'not-configured', enabled: false } as never;
