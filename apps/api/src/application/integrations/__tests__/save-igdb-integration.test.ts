@@ -19,19 +19,19 @@ const USER_ID = 'user-123';
 const FIXED_NOW = new Date('2025-01-01T00:00:00.000Z');
 const FIXED_UUID = '00000000-0000-4000-8000-000000000000';
 
-interface FakeChainHolder {
-  swap(userId: string, creds: { clientId: string; clientSecret: string } | null): void;
-  readonly swaps: ReadonlyArray<{ clientId: string; clientSecret: string } | null>;
+interface FakeInvalidator {
+  invalidate(userId: string): void;
+  readonly invalidations: ReadonlyArray<string>;
 }
 
-function makeFakeChainHolder(): FakeChainHolder {
-  const swaps: Array<{ clientId: string; clientSecret: string } | null> = [];
+function makeFakeInvalidator(): FakeInvalidator {
+  const calls: string[] = [];
   return {
-    swap(_userId, creds) {
-      swaps.push(creds);
+    invalidate(userId) {
+      calls.push(userId);
     },
-    get swaps() {
-      return swaps;
+    get invalidations() {
+      return calls;
     },
   };
 }
@@ -124,25 +124,25 @@ describe('SaveIgdbIntegration', () => {
   let repo: ReturnType<typeof makeFakeRepo>;
   let cipher: IntegrationCipher;
   let verifier: ReturnType<typeof makeFakeVerifier>;
-  let chainHolder: FakeChainHolder;
+  let invalidator: FakeInvalidator;
   let useCase: SaveIgdbIntegration;
 
   beforeEach(() => {
     repo = makeFakeRepo();
     cipher = makeFakeCipher();
     verifier = makeFakeVerifier();
-    chainHolder = makeFakeChainHolder();
+    invalidator = makeFakeInvalidator();
     useCase = new SaveIgdbIntegration({
       repo,
       cipher,
       verifier,
-      chainHolder,
+      resourceCache: invalidator,
       now: () => FIXED_NOW,
       uuid: () => FIXED_UUID,
     });
   });
 
-  it('first save with valid input + verifier OK stores aggregate, enabled=true, swap called', async () => {
+  it('first save with valid input + verifier OK stores aggregate, enabled=true, cache invalidated', async () => {
     const result = await useCase.execute(
       { clientId: 'new-client-id', clientSecret: 'new-secret', enabled: true },
       USER_ID,
@@ -158,7 +158,7 @@ describe('SaveIgdbIntegration', () => {
 
     expect(repo.saved.length).toBe(1);
     expect(verifier.calls).toEqual([{ clientId: 'new-client-id', clientSecret: 'new-secret' }]);
-    expect(chainHolder.swaps).toEqual([{ clientId: 'new-client-id', clientSecret: 'new-secret' }]);
+    expect(invalidator.invalidations).toEqual([USER_ID]);
   });
 
   it('second save with clientSecret omitted reuses stored ciphertext after decrypt', async () => {
@@ -176,9 +176,7 @@ describe('SaveIgdbIntegration', () => {
     expect(verifier.calls).toEqual([
       { clientId: 'existing-client-id', clientSecret: 'kept-secret' },
     ]);
-    expect(chainHolder.swaps).toEqual([
-      { clientId: 'existing-client-id', clientSecret: 'kept-secret' },
-    ]);
+    expect(invalidator.invalidations).toEqual([USER_ID]);
   });
 
   it('clientSecret omitted with no existing row returns invalid_input', async () => {
@@ -191,16 +189,16 @@ describe('SaveIgdbIntegration', () => {
     if (result.ok) return;
     expect(result.error.kind).toBe('invalid_input');
     expect(repo.saved.length).toBe(0);
-    expect(chainHolder.swaps).toEqual([]);
+    expect(invalidator.invalidations).toEqual([]);
   });
 
-  it('verifier returns invalid_credentials → no DB write, no chain swap, err propagates', async () => {
+  it('verifier returns invalid_credentials → no DB write, no cache invalidation, err propagates', async () => {
     verifier = makeFakeVerifier(err({ kind: 'invalid_credentials', reason: 'client_secret' }));
     useCase = new SaveIgdbIntegration({
       repo,
       cipher,
       verifier,
-      chainHolder,
+      resourceCache: invalidator,
       now: () => FIXED_NOW,
       uuid: () => FIXED_UUID,
     });
@@ -214,7 +212,7 @@ describe('SaveIgdbIntegration', () => {
     if (result.ok) return;
     expect(result.error).toEqual({ kind: 'invalid_credentials', reason: 'client_secret' });
     expect(repo.saved.length).toBe(0);
-    expect(chainHolder.swaps).toEqual([]);
+    expect(invalidator.invalidations).toEqual([]);
   });
 
   it('verifier returns twitch_unavailable → err propagates', async () => {
@@ -223,7 +221,7 @@ describe('SaveIgdbIntegration', () => {
       repo,
       cipher,
       verifier,
-      chainHolder,
+      resourceCache: invalidator,
       now: () => FIXED_NOW,
       uuid: () => FIXED_UUID,
     });
@@ -237,7 +235,7 @@ describe('SaveIgdbIntegration', () => {
     if (result.ok) return;
     expect(result.error).toEqual({ kind: 'twitch_unavailable', status: 503 });
     expect(repo.saved.length).toBe(0);
-    expect(chainHolder.swaps).toEqual([]);
+    expect(invalidator.invalidations).toEqual([]);
   });
 
   it('verifier returns network_unreachable → err propagates', async () => {
@@ -246,7 +244,7 @@ describe('SaveIgdbIntegration', () => {
       repo,
       cipher,
       verifier,
-      chainHolder,
+      resourceCache: invalidator,
       now: () => FIXED_NOW,
       uuid: () => FIXED_UUID,
     });
@@ -273,7 +271,7 @@ describe('SaveIgdbIntegration', () => {
     if (result.ok) return;
     expect(result.error).toEqual({ kind: 'storage_corrupt' });
     expect(verifier.calls).toEqual([]);
-    expect(chainHolder.swaps).toEqual([]);
+    expect(invalidator.invalidations).toEqual([]);
   });
 
   it('trims clientId whitespace before validating and storing', async () => {
@@ -300,7 +298,7 @@ describe('SaveIgdbIntegration', () => {
     expect(verifier.calls).toEqual([]);
   });
 
-  it('enabled=false on a non-first save stores enabled=false AND swaps to null', async () => {
+  it('enabled=false on a non-first save stores enabled=false AND invalidates cache unconditionally', async () => {
     await seedExisting(repo, { lastVerifiedAt: new Date('2024-12-01T00:00:00.000Z') });
 
     const result = await useCase.execute(
@@ -311,7 +309,7 @@ describe('SaveIgdbIntegration', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.creds.enabled).toBe(false);
-    expect(chainHolder.swaps).toEqual([null]);
+    expect(invalidator.invalidations).toEqual([USER_ID]);
   });
 
   it('first verified save auto-enables even when input.enabled=false', async () => {
@@ -325,7 +323,7 @@ describe('SaveIgdbIntegration', () => {
     if (!result.ok) return;
     // Plan: enabled=true is auto-set ONLY on the FIRST verified save.
     expect(result.value.creds.enabled).toBe(true);
-    expect(chainHolder.swaps).toEqual([{ clientId: 'first-id', clientSecret: 'first-secret' }]);
+    expect(invalidator.invalidations).toEqual([USER_ID]);
   });
 
   it('on update of existing creds, repo.save is called with the new ciphertext', async () => {

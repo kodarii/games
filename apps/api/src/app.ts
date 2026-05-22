@@ -461,18 +461,27 @@ export class Application {
       timeoutMs: env.IGDB_TIMEOUT_MS,
       logger: baseLogger,
     });
+    // Transient adapter: the use cases now talk to the per-user resource cache
+    // via `invalidate(userId)`. The chain-holder is still wired up by `prime()`
+    // below and is removed entirely in a follow-up task. Until then, drop the
+    // chain on invalidate so the runtime state stays in sync with the row.
+    const resourceCache = {
+      invalidate(userId: string): void {
+        holder.swap(userId, null);
+      },
+    };
     const save = new SaveIgdbIntegration({
       repo: credentialsRepo,
       cipher: integrationCipher,
       verifier,
-      chainHolder: holder,
+      resourceCache,
       now: () => new Date(),
       uuid: () => crypto.randomUUID(),
     });
     const clear = new ClearIgdbIntegration({
       repo: credentialsRepo,
       tokenStorage: igdbTokenStorage,
-      chainHolder: holder,
+      resourceCache,
       transactionRunner: this.persistence.transactionRunner,
     });
     const prime = async (): Promise<void> => {

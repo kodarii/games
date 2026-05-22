@@ -51,16 +51,16 @@ function createFakeVerifier(state: FakeVerifierState): IgdbCredentialsVerifier {
   };
 }
 
-interface InMemoryChainSwapper {
-  swaps: Array<{ clientId: string; clientSecret: string } | null>;
-  swap(userId: string, creds: { clientId: string; clientSecret: string } | null): void;
+interface InMemoryInvalidator {
+  invalidations: string[];
+  invalidate(userId: string): void;
 }
 
-function createChainSwapper(): InMemoryChainSwapper {
+function createInvalidator(): InMemoryInvalidator {
   return {
-    swaps: [],
-    swap(_userId, creds) {
-      this.swaps.push(creds === null ? null : { ...creds });
+    invalidations: [],
+    invalidate(userId) {
+      this.invalidations.push(userId);
     },
   };
 }
@@ -68,7 +68,7 @@ function createChainSwapper(): InMemoryChainSwapper {
 interface BuiltApp {
   app: Hono<{ Variables: AuthVariables }>;
   verifierState: FakeVerifierState;
-  chainSwapper: InMemoryChainSwapper;
+  invalidator: InMemoryInvalidator;
   cipher: Aes256GcmCipher;
   repo: DrizzleIntegrationCredentialsRepository;
 }
@@ -93,7 +93,7 @@ function buildApp(options: BuildOptions): BuiltApp {
     lastInput: null,
   };
   const verifier = createFakeVerifier(verifierState);
-  const chainSwapper = createChainSwapper();
+  const invalidator = createInvalidator();
 
   const repo = new DrizzleIntegrationCredentialsRepository();
   const cipher = new Aes256GcmCipher();
@@ -106,14 +106,14 @@ function buildApp(options: BuildOptions): BuiltApp {
     repo,
     cipher,
     verifier,
-    chainHolder: chainSwapper,
+    resourceCache: invalidator,
     now: () => new Date(),
     uuid: () => `test-uuid-${userId}-${++uuidCounter}`,
   });
   const clearIgdbIntegration = new ClearIgdbIntegration({
     repo,
     tokenStorage,
-    chainHolder: chainSwapper,
+    resourceCache: invalidator,
     transactionRunner,
   });
 
@@ -141,7 +141,7 @@ function buildApp(options: BuildOptions): BuiltApp {
     }),
   );
 
-  return { app, verifierState, chainSwapper, cipher, repo };
+  return { app, verifierState, invalidator, cipher, repo };
 }
 
 async function cleanup(userIds: readonly string[]): Promise<void> {
@@ -253,11 +253,7 @@ describe('PUT /api/integrations/igdb', () => {
     expect(body.hasSecret).toBe(true);
     expect(body.lastVerifiedAt).not.toBeNull();
     expect(built.verifierState.callCount).toBe(1);
-    expect(built.chainSwapper.swaps.length).toBe(1);
-    expect(built.chainSwapper.swaps[0]).toEqual({
-      clientId: VALID_BODY.clientId,
-      clientSecret: VALID_BODY.clientSecret,
-    });
+    expect(built.invalidator.invalidations.at(-1)).toBe(TEST_USER_A);
   });
 
   it('second PUT with clientSecret: null reuses stored secret', async () => {
@@ -448,8 +444,8 @@ describe('DELETE /api/integrations/igdb', () => {
     const body = (await get.json()) as { status: string };
     expect(body.status).toBe('not-configured');
 
-    // The last swap recorded was the chain-clear from ClearIgdbIntegration.
-    expect(built.chainSwapper.swaps.at(-1)).toBeNull();
+    // The last invalidation recorded was for the cleared user.
+    expect(built.invalidator.invalidations.at(-1)).toBe(TEST_USER_A);
   });
 
   it('not-configured → 204 no-op', async () => {

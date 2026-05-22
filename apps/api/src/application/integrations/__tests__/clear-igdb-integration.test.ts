@@ -113,20 +113,20 @@ function makeFakeTxRunner(log: CallLog, opts: { rollback?: boolean } = {}): Tran
   };
 }
 
-interface FakeChainHolder {
-  swap(userId: string, creds: { clientId: string; clientSecret: string } | null): void;
-  readonly swaps: ReadonlyArray<{ clientId: string; clientSecret: string } | null>;
+interface FakeInvalidator {
+  invalidate(userId: string): void;
+  readonly invalidations: ReadonlyArray<string>;
 }
 
-function makeFakeChainHolder(log: CallLog): FakeChainHolder {
-  const swaps: Array<{ clientId: string; clientSecret: string } | null> = [];
+function makeFakeInvalidator(log: CallLog): FakeInvalidator {
+  const invalidations: string[] = [];
   return {
-    swap(_userId, creds) {
-      log.push('chainHolder.swap');
-      swaps.push(creds);
+    invalidate(userId) {
+      log.push(`invalidator.invalidate(${userId})`);
+      invalidations.push(userId);
     },
-    get swaps() {
-      return swaps;
+    get invalidations() {
+      return invalidations;
     },
   };
 }
@@ -136,7 +136,7 @@ describe('ClearIgdbIntegration', () => {
   let repo: IntegrationCredentialsRepository;
   let tokenStorage: IntegrationTokenStorage;
   let txRunner: TransactionRunner;
-  let chainHolder: FakeChainHolder;
+  let invalidator: FakeInvalidator;
   let useCase: ClearIgdbIntegration;
 
   beforeEach(() => {
@@ -144,21 +144,21 @@ describe('ClearIgdbIntegration', () => {
     repo = makeFakeRepo(log);
     tokenStorage = makeFakeTokenStorage(log);
     txRunner = makeFakeTxRunner(log);
-    chainHolder = makeFakeChainHolder(log);
+    invalidator = makeFakeInvalidator(log);
     useCase = new ClearIgdbIntegration({
       repo,
       tokenStorage,
-      chainHolder,
+      resourceCache: invalidator,
       transactionRunner: txRunner,
     });
   });
 
-  it('clear with existing row + existing token deletes both inside transaction, then swaps to null', async () => {
+  it('clear with existing row + existing token deletes both inside transaction, then invalidates cache', async () => {
     const result = await useCase.execute(USER_ID);
     expect(result.ok).toBe(true);
 
     // tx.begin happens first; both deletes happen inside it; tx.commit
-    // happens before the chain swap.
+    // happens before cache invalidation.
     expect(log.entries[0]).toBe('tx.begin');
     expect(log.entries).toContain('repo.delete');
     expect(log.entries).toContain(`tokenStorage.clear(${USER_ID},igdb)`);
@@ -166,34 +166,34 @@ describe('ClearIgdbIntegration', () => {
     const commitIdx = log.entries.indexOf('tx.commit');
     const repoDeleteIdx = log.entries.indexOf('repo.delete');
     const tokenClearIdx = log.entries.indexOf(`tokenStorage.clear(${USER_ID},igdb)`);
-    const swapIdx = log.entries.indexOf('chainHolder.swap');
+    const invalidateIdx = log.entries.indexOf(`invalidator.invalidate(${USER_ID})`);
     expect(repoDeleteIdx).toBeLessThan(commitIdx);
     expect(tokenClearIdx).toBeLessThan(commitIdx);
-    expect(swapIdx).toBeGreaterThan(commitIdx);
+    expect(invalidateIdx).toBeGreaterThan(commitIdx);
 
-    expect(chainHolder.swaps).toEqual([null]);
+    expect(invalidator.invalidations).toEqual([USER_ID]);
   });
 
-  it('clear with no existing row also succeeds and swaps to null', async () => {
+  it('clear with no existing row also succeeds and invalidates cache', async () => {
     repo = makeFakeRepo(log, { initialRow: false });
     useCase = new ClearIgdbIntegration({
       repo,
       tokenStorage,
-      chainHolder,
+      resourceCache: invalidator,
       transactionRunner: txRunner,
     });
 
     const result = await useCase.execute(USER_ID);
     expect(result.ok).toBe(true);
-    expect(chainHolder.swaps).toEqual([null]);
+    expect(invalidator.invalidations).toEqual([USER_ID]);
   });
 
-  it('if repo.delete throws, transaction rolls back and chainHolder.swap is NOT called', async () => {
+  it('if repo.delete throws, transaction rolls back and invalidator is NOT called', async () => {
     repo = makeFakeRepo(log, { deleteThrows: true });
     useCase = new ClearIgdbIntegration({
       repo,
       tokenStorage,
-      chainHolder,
+      resourceCache: invalidator,
       transactionRunner: txRunner,
     });
 
@@ -201,16 +201,16 @@ describe('ClearIgdbIntegration', () => {
 
     expect(log.entries).toContain('tx.rollback');
     expect(log.entries).not.toContain('tx.commit');
-    expect(log.entries).not.toContain('chainHolder.swap');
-    expect(chainHolder.swaps).toEqual([]);
+    expect(log.entries).not.toContain(`invalidator.invalidate(${USER_ID})`);
+    expect(invalidator.invalidations).toEqual([]);
   });
 
-  it('chainHolder.swap is called AFTER the transaction commits', async () => {
+  it('invalidator.invalidate is called AFTER the transaction commits', async () => {
     await useCase.execute(USER_ID);
     const commitIdx = log.entries.indexOf('tx.commit');
-    const swapIdx = log.entries.indexOf('chainHolder.swap');
+    const invalidateIdx = log.entries.indexOf(`invalidator.invalidate(${USER_ID})`);
     expect(commitIdx).toBeGreaterThanOrEqual(0);
-    expect(swapIdx).toBeGreaterThan(commitIdx);
+    expect(invalidateIdx).toBeGreaterThan(commitIdx);
   });
 
   it('repo and tokenStorage are bound to the transaction via withTx(tx)', async () => {

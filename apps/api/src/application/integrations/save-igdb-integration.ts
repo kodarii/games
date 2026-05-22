@@ -10,6 +10,7 @@ import {
 import { NewIntegrationCredentials } from '../../domain/integrations/new-integration-credentials';
 import { err, ok } from '../../domain/shared/result';
 import type { Result } from '../../domain/shared/result';
+import type { IgdbResourceCacheInvalidator } from './igdb-resource-cache-invalidator';
 
 const IGDB_KIND: IntegrationKind = 'igdb';
 
@@ -36,19 +37,11 @@ export type SaveIgdbIntegrationError =
   | { kind: 'network_unreachable'; reason: 'timeout' | 'fetch_failed' }
   | { kind: 'storage_corrupt' };
 
-/**
- * Narrow port the use-case needs from the chain holder so it can be replaced
- * by a fake in tests without dragging in the full holder construction.
- */
-export interface IgdbChainSwapper {
-  swap(userId: string, creds: { clientId: string; clientSecret: string } | null): void;
-}
-
 export interface SaveIgdbIntegrationDeps {
   readonly repo: IntegrationCredentialsRepository;
   readonly cipher: IntegrationCipher;
   readonly verifier: IgdbCredentialsVerifier;
-  readonly chainHolder: IgdbChainSwapper;
+  readonly resourceCache: IgdbResourceCacheInvalidator;
   readonly now: () => Date;
   readonly uuid: () => string;
 }
@@ -63,9 +56,8 @@ export interface SaveIgdbIntegrationDeps {
  *      re-verify without re-typing the secret).
  *   3. Verify against Twitch.
  *   4. Encrypt the secret and persist the aggregate.
- *   5. Swap the runtime IGDB chain: with the new creds when `enabled=true`,
- *      or to `null` when `enabled=false` (so `/api/games/metadata/status`
- *      reflects the actual runtime chain state, not the row state).
+ *   5. After the row is persisted, drop the cached per-user IGDB resources so
+ *      the next request rebuilds from the freshly persisted credentials.
  *
  * The first verified save auto-enables the row regardless of `input.enabled`:
  * a fresh integration that just passed verification is the user's clearest
@@ -189,18 +181,7 @@ export class SaveIgdbIntegration {
     }
 
     await this.deps.repo.save(aggregate);
-
-    // Step 5: swap the runtime chain. If the user is disabling, clear the
-    // chain so the rest of the process honours that immediately.
-    if (effectiveEnabled) {
-      this.deps.chainHolder.swap(userId, {
-        clientId: data.clientId,
-        clientSecret: plaintext,
-      });
-    } else {
-      this.deps.chainHolder.swap(userId, null);
-    }
-
+    this.deps.resourceCache.invalidate(userId);
     return ok({ creds: aggregate });
   }
 }

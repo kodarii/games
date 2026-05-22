@@ -4,14 +4,14 @@ import type { IntegrationKind } from '../../domain/integrations/integration-valu
 import { ok } from '../../domain/shared/result';
 import type { Result } from '../../domain/shared/result';
 import type { TransactionRunner } from '../shared/transaction-runner';
-import type { IgdbChainSwapper } from './save-igdb-integration';
+import type { IgdbResourceCacheInvalidator } from './igdb-resource-cache-invalidator';
 
 const IGDB_KIND: IntegrationKind = 'igdb';
 
 export interface ClearIgdbIntegrationDeps {
   readonly repo: IntegrationCredentialsRepository;
   readonly tokenStorage: IntegrationTokenStorage;
-  readonly chainHolder: IgdbChainSwapper;
+  readonly resourceCache: IgdbResourceCacheInvalidator;
   readonly transactionRunner: TransactionRunner;
 }
 
@@ -20,12 +20,11 @@ export interface ClearIgdbIntegrationDeps {
  *
  * Atomic: deletes the `integration_credentials` row AND the cached Twitch
  * OAuth token (`igdb_oauth_token`) in a single transaction. If either delete
- * fails, the transaction rolls back and the runtime chain is left untouched —
- * the next request still sees the previous configured state.
+ * fails, the transaction rolls back and the per-user resource cache is left
+ * untouched — the next request still sees the previous configured state.
  *
- * After commit, `chainHolder.swap(null)` tears down the in-process chain.
- * The holder additionally resets its own circuit breaker, so a subsequent
- * `swap(creds)` (e.g. user reconnects) starts with a clean failure window.
+ * After commit, `resourceCache.invalidate(userId)` drops the cached per-user
+ * resources so the next request reflects the cleared credentials.
  *
  * No business failure mode exists: a missing row is a no-op (idempotent
  * clear). Infrastructure exceptions propagate.
@@ -40,7 +39,7 @@ export class ClearIgdbIntegration {
       await txRepo.delete(userId, IGDB_KIND);
       await txStorage.clear(userId, IGDB_KIND);
     });
-    this.deps.chainHolder.swap(userId, null);
+    this.deps.resourceCache.invalidate(userId);
     return ok(undefined);
   }
 }
