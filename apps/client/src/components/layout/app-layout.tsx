@@ -7,7 +7,7 @@ export function AppLayout() {
   return (
     <SidebarProvider
       defaultOpen={true}
-      className="flex h-screen w-screen overflow-hidden bg-white"
+      className="flex h-dvh w-screen overflow-hidden bg-white"
     >
       <Sidebar />
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-white">

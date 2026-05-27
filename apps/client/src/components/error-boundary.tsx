@@ -49,7 +49,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
 export function AppErrorFallback(): ReactNode {
   return (
-    <div className="flex h-screen w-screen flex-col items-center justify-center gap-4 bg-white text-apex-ink">
+    <div className="flex h-dvh w-screen flex-col items-center justify-center gap-4 bg-white text-apex-ink">
       <h1 className="text-xl font-semibold">Coś poszło nie tak.</h1>
       <p className="max-w-md text-center text-sm text-apex-muted">
         Aplikacja napotkała niespodziewany błąd. Spróbuj odświeżyć stronę.

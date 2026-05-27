@@ -3,7 +3,7 @@ import { Outlet } from 'react-router-dom';
 
 export function AuthLayout() {
   return (
-    <div className="flex min-h-screen w-screen bg-white">
+    <div className="flex min-h-dvh w-screen bg-white">
       <aside className="hidden md:flex md:w-1/2 flex-col justify-center bg-apex-ink p-12 text-white">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/10">
