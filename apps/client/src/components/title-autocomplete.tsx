@@ -67,8 +67,16 @@ export function TitleAutocomplete({
 
   // Dropdown is portaled to <body> with fixed positioning so it escapes the
   // AlertDialog's `overflow-y-auto` clip (otherwise long suggestion lists get
-  // cut at the modal boundary). Track the input's viewport rect.
-  const [anchor, setAnchor] = useState<{ top: number; left: number; width: number } | null>(null);
+  // cut at the modal boundary). Track the input's viewport rect and flip the
+  // dropdown above the input when the on-screen keyboard (mobile) leaves too
+  // little space below — `visualViewport` is what shrinks, not `innerHeight`.
+  const [anchor, setAnchor] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    maxHeight: number;
+    placement: 'below' | 'above';
+  } | null>(null);
   useLayoutEffect(() => {
     if (!showDropdown) {
       setAnchor(null);
@@ -78,14 +86,45 @@ export function TitleAutocomplete({
       const el = usedRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      setAnchor({ top: r.bottom + 4, left: r.left, width: r.width });
+      const vv = window.visualViewport;
+      const vvTop = vv?.offsetTop ?? 0;
+      const vvBottom = vvTop + (vv?.height ?? window.innerHeight);
+      const GAP = 4;
+      const MARGIN = 8;
+      const MIN_USABLE = 140;
+      const PREFERRED = 260;
+      const spaceBelow = vvBottom - r.bottom - GAP - MARGIN;
+      const spaceAbove = r.top - vvTop - GAP - MARGIN;
+      const fitsBelow = spaceBelow >= MIN_USABLE;
+      const preferAbove = !fitsBelow && spaceAbove > spaceBelow;
+      if (preferAbove) {
+        setAnchor({
+          top: r.top - GAP,
+          left: r.left,
+          width: r.width,
+          maxHeight: Math.min(PREFERRED, Math.max(MIN_USABLE, spaceAbove)),
+          placement: 'above',
+        });
+      } else {
+        setAnchor({
+          top: r.bottom + GAP,
+          left: r.left,
+          width: r.width,
+          maxHeight: Math.min(PREFERRED, Math.max(MIN_USABLE, spaceBelow)),
+          placement: 'below',
+        });
+      }
     };
     measure();
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
+    window.visualViewport?.addEventListener('resize', measure);
+    window.visualViewport?.addEventListener('scroll', measure);
     return () => {
       window.removeEventListener('resize', measure);
       window.removeEventListener('scroll', measure, true);
+      window.visualViewport?.removeEventListener('resize', measure);
+      window.visualViewport?.removeEventListener('scroll', measure);
     };
   }, [showDropdown, usedRef]);
 
@@ -159,7 +198,7 @@ export function TitleAutocomplete({
         anchor &&
         createPortal(
           <div
-            className="fixed z-[60] overflow-hidden rounded-[8px] border border-apex-line-1 bg-white shadow-[0_12px_32px_rgba(0,0,0,0.12)]"
+            className="fixed z-[60] flex flex-col overflow-hidden rounded-[8px] border border-apex-line-1 bg-white shadow-[0_12px_32px_rgba(0,0,0,0.12)]"
             // pointer-events: auto — Radix Dialog's RemoveScroll sets
             // `pointer-events: none` on <body>, which inherits to our portaled
             // dropdown. Without this override, clicks on suggestions die at the
@@ -168,10 +207,12 @@ export function TitleAutocomplete({
               top: anchor.top,
               left: anchor.left,
               width: anchor.width,
+              maxHeight: anchor.maxHeight,
+              transform: anchor.placement === 'above' ? 'translateY(-100%)' : undefined,
               pointerEvents: 'auto',
             }}
           >
-            <ul className="max-h-[260px] overflow-y-auto">
+            <ul className="min-h-0 flex-1 overflow-y-auto">
               {candidates.map((c, idx) => {
                 const active = idx === highlight;
                 return (
