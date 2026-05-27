@@ -6,6 +6,8 @@ import type { MetadataCandidate } from '@/types';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+const FOOTER_RESERVE = 28;
+
 interface TitleAutocompleteProps {
   value: string;
   onChange: (v: string) => void;
@@ -48,6 +50,7 @@ export function TitleAutocomplete({
   const [highlight, setHighlight] = useState(0);
   const ownInputRef = useRef<HTMLInputElement>(null);
   const usedRef = inputRef ?? ownInputRef;
+  const touchStartYRef = useRef<number | null>(null);
 
   const candidates = candidatesQuery.data?.candidates ?? [];
   const trimmed = value.trim();
@@ -198,7 +201,7 @@ export function TitleAutocomplete({
         anchor &&
         createPortal(
           <div
-            className="fixed z-[60] flex flex-col overflow-hidden rounded-[8px] border border-apex-line-1 bg-white shadow-[0_12px_32px_rgba(0,0,0,0.12)]"
+            className="fixed z-[60] overflow-hidden rounded-[8px] border border-apex-line-1 bg-white shadow-[0_12px_32px_rgba(0,0,0,0.12)]"
             // pointer-events: auto — Radix Dialog's RemoveScroll sets
             // `pointer-events: none` on <body>, which inherits to our portaled
             // dropdown. Without this override, clicks on suggestions die at the
@@ -207,12 +210,34 @@ export function TitleAutocomplete({
               top: anchor.top,
               left: anchor.left,
               width: anchor.width,
-              maxHeight: anchor.maxHeight,
               transform: anchor.placement === 'above' ? 'translateY(-100%)' : undefined,
               pointerEvents: 'auto',
             }}
           >
-            <ul className="min-h-0 flex-1 overflow-y-auto">
+            <ul
+              className="overflow-y-auto overscroll-contain"
+              style={{ maxHeight: Math.max(80, anchor.maxHeight - FOOTER_RESERVE) }}
+              // Radix Dialog wraps content in react-remove-scroll which
+              // preventDefaults wheel/touchmove on everything outside its
+              // subtree. Since this dropdown is portaled to <body>, native
+              // scroll is killed — drive scrollTop ourselves.
+              onWheel={(e) => {
+                e.currentTarget.scrollTop += e.deltaY;
+              }}
+              onTouchStart={(e) => {
+                touchStartYRef.current = e.touches[0]?.clientY ?? null;
+              }}
+              onTouchMove={(e) => {
+                const prev = touchStartYRef.current;
+                const next = e.touches[0]?.clientY;
+                if (prev == null || next == null) return;
+                e.currentTarget.scrollTop += prev - next;
+                touchStartYRef.current = next;
+              }}
+              onTouchEnd={() => {
+                touchStartYRef.current = null;
+              }}
+            >
               {candidates.map((c, idx) => {
                 const active = idx === highlight;
                 return (
